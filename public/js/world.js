@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as T from './textures.js';
+import { makeBuddha } from './buddha.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -232,7 +233,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   box(5.8, 0.12, 4.4, M.gold, 0, 2.0, -18.8);
   box(5.8, 0.12, 4.4, M.gold, 0, 0.66, -18.8);
 
-  const buddha = makeBuddha(M);
+  const buddha = makeBuddha({ quality });
   buddha.position.set(0, 2.06, -18.8);
   buddha.scale.setScalar(1.7);
   scene.add(buddha);
@@ -613,10 +614,19 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
   scene.add(sun, sun.target);
-  const spot = new THREE.SpotLight(0xffd9a0, 160, 30, 0.42, 0.6, 2);
+  const spot = new THREE.SpotLight(0xffd9a0, 140, 30, 0.42, 0.6, 2);
   spot.position.set(0, 9.2, -9);
   spot.target.position.copy(BUDDHA);
   scene.add(spot, spot.target);
+  // đèn chiếu mặt từ bên trái, tạo khối cho gương mặt
+  const faceLight = new THREE.SpotLight(0xffe4bd, 70, 22, 0.22, 0.5, 2);
+  faceLight.position.set(-3.5, 7.5, -10.5);
+  faceLight.target.position.set(0, 6.4, -18.6);
+  // đèn hắt viền từ phía sau, làm sáng đường viền vàng
+  const rim = new THREE.SpotLight(0xffc27a, 110, 14, 0.7, 0.6, 2);
+  rim.position.set(0, 9.6, -21.2);
+  rim.target.position.set(0, 4.5, -18.6);
+  scene.add(faceLight, faceLight.target, rim, rim.target);
 
   // Vòng đánh dấu điểm đến
   const marker = new THREE.Mesh(
@@ -660,96 +670,4 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       for (const f of updaters) f(t, dt);
     },
   };
-}
-
-// Tượng Phật A Di Đà ngồi trên tòa sen — dựng từ khối cơ bản
-function makeBuddha(M) {
-  const g = new THREE.Group();
-  const gold = M.gold;
-  const goldDeep = new THREE.MeshStandardMaterial({ color: '#b07a32', metalness: 0.9, roughness: 0.35 });
-  const petalMat = new THREE.MeshStandardMaterial({ color: '#d6976a', metalness: 0.55, roughness: 0.35 });
-  const add = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    m.scale.set(sx, sy, sz);
-    m.castShadow = m.receiveShadow = true;
-    g.add(m);
-    return m;
-  };
-  const sphere = new THREE.SphereGeometry(1, 40, 28);
-
-  // Tòa sen
-  add(new THREE.CylinderGeometry(1.15, 1.3, 0.25, 40), goldDeep, 0, 0.125, 0);
-  for (const [n, r, y, tilt, s, off] of [[16, 1.05, 0.42, 0.45, 1, 0], [14, 0.86, 0.58, 0.28, 0.85, 0.22]]) {
-    for (let i = 0; i < n; i++) {
-      const p = new THREE.Group();
-      p.rotation.y = (i / n) * Math.PI * 2 + off;
-      const petal = new THREE.Mesh(sphere, petalMat);
-      petal.scale.set(0.3 * s, 0.42 * s, 0.12 * s);
-      petal.position.set(0, y, r);
-      petal.rotation.x = tilt;
-      petal.castShadow = true;
-      p.add(petal);
-      g.add(p);
-    }
-  }
-  add(new THREE.CylinderGeometry(1.0, 1.0, 0.12, 40), goldDeep, 0, 0.66, 0);
-
-  // Thân
-  add(sphere, gold, 0, 0.92, 0.12, 1.08, 0.32, 0.72); // chân xếp bằng
-  add(sphere, gold, 0, 1.55, 0, 0.62, 0.86, 0.46); // thân
-  add(sphere, gold, 0, 1.92, -0.02, 0.7, 0.32, 0.46); // vai
-  // Tay
-  const limb = (a, b, r) => {
-    const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
-    const len = A.distanceTo(B);
-    const m = add(new THREE.CapsuleGeometry(r, len, 6, 14), gold, 0, 0, 0);
-    m.position.copy(A).add(B).multiplyScalar(0.5);
-    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize());
-  };
-  for (const s of [-1, 1]) {
-    limb([s * 0.6, 1.92, 0], [s * 0.68, 1.3, 0.1], 0.15);
-    limb([s * 0.68, 1.3, 0.1], [s * 0.22, 1.02, 0.42], 0.12);
-  }
-  add(sphere, gold, 0, 1.03, 0.44, 0.34, 0.1, 0.2); // bàn tay ấn thiền
-  // Đầu
-  add(new THREE.CylinderGeometry(0.17, 0.2, 0.25, 20), gold, 0, 2.28, 0);
-  add(sphere, gold, 0, 2.62, 0, 0.4, 0.46, 0.39);
-  for (const s of [-1, 1]) add(sphere, gold, s * 0.39, 2.5, -0.02, 0.07, 0.24, 0.12); // tai dài
-  const dark = new THREE.MeshStandardMaterial({ color: '#4a3014', metalness: 0.5, roughness: 0.5 });
-  for (const s of [-1, 1]) add(sphere, dark, s * 0.14, 2.6, 0.36, 0.075, 0.012, 0.02); // mắt nhìn xuống
-  add(sphere, gold, 0, 2.53, 0.38, 0.045, 0.08, 0.05); // mũi
-  add(sphere, new THREE.MeshStandardMaterial({ color: '#a0442c', roughness: 0.5 }), 0, 2.42, 0.35, 0.07, 0.015, 0.02);
-  add(sphere, dark, 0, 2.76, 0.38, 0.02, 0.02, 0.02); // bạch hào
-  // Tóc xoắn ốc (instancing)
-  {
-    const pts = [];
-    const n = 220;
-    for (let i = 0; i < n; i++) {
-      const y = 1 - (i / (n - 1)) * 2;
-      const r = Math.sqrt(1 - y * y);
-      const th = i * 2.399963;
-      const v = new THREE.Vector3(Math.cos(th) * r, y, Math.sin(th) * r);
-      if (v.y > 0.12 || (v.z < -0.1 && v.y > -0.25)) pts.push(v);
-    }
-    const curls = new THREE.InstancedMesh(new THREE.SphereGeometry(0.045, 8, 6), goldDeep, pts.length);
-    const o = new THREE.Object3D();
-    pts.forEach((v, i) => {
-      o.position.set(v.x * 0.405, 2.62 + v.y * 0.465, v.z * 0.395);
-      o.updateMatrix();
-      curls.setMatrixAt(i, o.matrix);
-    });
-    g.add(curls);
-  }
-  add(sphere, goldDeep, 0, 3.08, -0.02, 0.2, 0.17, 0.2); // nhục kế
-
-  // Hào quang
-  const aur = T.aureole();
-  const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: aur, transparent: true, depthWrite: false }));
-  halo.position.set(0, 2.68, -0.46);
-  g.add(halo);
-  const body = new THREE.Mesh(new THREE.PlaneGeometry(3.9, 3.9), new THREE.MeshBasicMaterial({ map: aur, transparent: true, depthWrite: false, opacity: 0.85 }));
-  body.position.set(0, 1.85, -0.62);
-  g.add(body);
-  return g;
 }
