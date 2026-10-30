@@ -222,7 +222,8 @@ export class Avatar {
   // kind: 'gassho' (chắp tay) | 'bow' (lạy) | 'stoop' (cúi xuống sắp dép)
   act(kind, faceRy = null) {
     this.action = { kind, start: this.time };
-    if (faceRy != null && !this.sitting) {
+    // đang mang / cởi dép (this.script do main.js gán) thì chỉ làm cử chỉ, không dừng bước
+    if (faceRy != null && !this.sitting && !this.script) {
       this.goal = null;
       this.faceRy = faceRy;
     }

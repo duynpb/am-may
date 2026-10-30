@@ -632,7 +632,12 @@ function sendMove() {
 
 // ---------- Hành động ----------
 function movePlayerTo(x, z, seat = null) {
-  if (player.script) return; // đang mang / cởi dép ở thềm
+  if (player.script) {
+    // đang mang / cởi dép ở thềm: nhớ chỗ vừa chọn, làm xong sẽ đi tới
+    player.queued = { x, z, seat };
+    world.showMarker(x, z, groundY(x, z) + 0.04);
+    return;
+  }
   const target = zoneOf(z);
   if (zoneOfA(player) !== target) {
     // đi qua thềm: báo đích đến trước để người khác thấy mình ra / vào
@@ -640,8 +645,10 @@ function movePlayerTo(x, z, seat = null) {
     world.showMarker(x, z, groundY(x, z) + 0.04);
     net?.send({ t: 'move', x: +x.toFixed(2), z: +z.toFixed(2), seat: seat?.index ?? null });
     toast(target === 'out' ? 'Mang dép vào rồi ra sân…' : 'Để dép ngay ngắn trên thềm rồi vào chánh điện…', 2600);
+    player.queued = null;
     crossZone(player, x, z, seat).then((ok) => {
       if (ok && target === 'out') toast('Bạn đang ở ngoài sân — có thể thắp nhang dâng Quan Âm Bồ Tát', 3600);
+      if (ok) goQueued();
     });
     return;
   }
@@ -649,6 +656,33 @@ function movePlayerTo(x, z, seat = null) {
   player.walkTo(x, z, seat);
   world.showMarker(x, z, groundY(x, z) + (seat ? 0.21 : 0.04));
   sendMove();
+}
+
+// Đi tới chỗ người chơi đã chọn trong lúc đang mang / cởi dép
+function goQueued() {
+  const q = player.queued;
+  player.queued = null;
+  if (q) movePlayerTo(q.x, q.z, q.seat);
+}
+
+// Gỡ kẹt: nếu đoạn mang / cởi dép đứng yên quá lâu (bị ngắt giữa chừng), trả nhân vật về trạng thái bình thường
+let scriptStill = 0;
+function scriptWatchdog(dt) {
+  if (!player.script || intro || player.moving || player.busy || player.action) {
+    scriptStill = 0;
+    return;
+  }
+  scriptStill += dt;
+  if (scriptStill < 6) return;
+  scriptStill = 0;
+  player.script = null;
+  player.zone = zoneOf(player.pos.z);
+  const out = player.zone === 'out';
+  player.wearSandals(out);
+  if (out) rack.release('me');
+  else if (!rack.has('me')) rack.place('me', player.sandalColors);
+  sendMove();
+  goQueued();
 }
 
 // Người (thật hoặc khách) đang đứng/ngồi gần mình nhất trong bán kính r
@@ -1599,6 +1633,7 @@ function frame() {
   botsThink(elapsed);
   incenseRitual();
   meritRitual();
+  scriptWatchdog(dt);
   rack.update(dt);
   world.update(elapsed, dt);
   updateCamera(dt);
