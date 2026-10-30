@@ -96,6 +96,8 @@ try { await document.fonts.load('700 40px "Noto Serif"'); } catch { /* dùng fon
 const world = buildWorld(renderer, { quality: settings.quality });
 const { scene, seats } = world;
 Avatar.ground = groundY;
+// ?gio=20.5 trên địa chỉ trang: xem thử chánh điện lúc 20 giờ 30 (mặc định theo giờ Việt Nam thật)
+if (params.has('gio')) world.setHour(parseFloat(params.get('gio')));
 const rack = new SandalRack(scene);
 
 const sound = new Sound(settings);

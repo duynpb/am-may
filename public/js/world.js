@@ -93,8 +93,10 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   path.rotation.x = -Math.PI / 2;
 
   const ridgeColors = ['#8fa3a6', '#a8b8b6', '#c2cbc4'];
+  const ridgeMats = [];
   ridgeColors.forEach((c, i) => {
     const mat = new THREE.MeshBasicMaterial({ map: T.ridge(c, i * 1.7 + 1), transparent: true, depthWrite: false });
+    ridgeMats.push(mat);
     const d = 60 + i * 28;
     for (const [x, z, ry] of [[d, 0, -Math.PI / 2], [-d, 0, Math.PI / 2], [0, d + 10, Math.PI]]) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(320, 70), mat);
@@ -553,8 +555,10 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   })();
 
   // ---------- Đèn lồng ----------
+  let lanternMat;
+  const lanternGlows = [];
   {
-    const red = std('#c4301e', { emissive: '#ff4a20', emissiveIntensity: 0.55, roughness: 0.6 });
+    const red = (lanternMat = std('#c4301e', { emissive: '#ff4a20', emissiveIntensity: 0.55, roughness: 0.6 }));
     const lanterns = [];
     for (const x of [-5, 5]) for (const z of [-8, 0, 8]) {
       const g = new THREE.Group();
@@ -568,6 +572,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       cyl(0.03, 0.06, 0.5, std('#e0b04a'), 0, -3.5, 0, { parent: g, cast: false }, 6);
       const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ff8a4a', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
       gl.scale.set(2.4, 2.8, 1);
+      lanternGlows.push(gl);
       gl.position.y = -2.6;
       g.add(gl);
       g.userData.seed = Math.random() * 6;
@@ -602,7 +607,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   pickables.push(matMesh, cushionMesh);
 
   // ---------- Ánh sáng ----------
-  scene.add(new THREE.HemisphereLight(0xfff0d8, 0x5a3a26, 1.25));
+  const hemi = new THREE.HemisphereLight(0xfff0d8, 0x5a3a26, 1.25);
+  scene.add(hemi);
   const fill = new THREE.DirectionalLight(0xfff2e0, 0.55);
   fill.position.set(-4, 9, 30);
   scene.add(fill);
@@ -648,6 +654,108 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     }
   });
 
+  // ---------- Ngày và đêm theo giờ Việt Nam (UTC+7) ----------
+  // [giờ, đỉnh trời, chân trời, mặt đất xa, màu nắng, độ nắng, độ sáng trời, mức đêm 0..1]
+  const DAY_KEYS = [
+    [0, '#050a1a', '#0f1830', '#0a0d16', '#000000', 0, 0.22, 1],
+    [4.8, '#08102a', '#1c2240', '#10121c', '#000000', 0, 0.26, 1],
+    [5.6, '#22335c', '#c27a62', '#4a3a40', '#ff9a60', 0.4, 0.5, 0.55],
+    [6.5, '#5a80b0', '#f2b98a', '#a08070', '#ffc48a', 1.8, 0.85, 0.1],
+    [8, '#7ea7c6', '#d6e3e4', '#efe1c4', '#ffe4b8', 3.0, 1.15, 0],
+    [12, '#7ea7c6', '#d6e3e4', '#efe1c4', '#fff2da', 3.4, 1.25, 0],
+    [16.5, '#7aa2c2', '#e8dcc4', '#ead8b8', '#ffdcaa', 3.0, 1.15, 0],
+    [17.6, '#4d6a98', '#f2a26e', '#a07058', '#ff9c5c', 1.6, 0.8, 0.1],
+    [18.4, '#22305a', '#b0605a', '#4a3438', '#ff7a48', 0.4, 0.5, 0.5],
+    [19.2, '#0a1228', '#28284a', '#14141e', '#000000', 0, 0.28, 1],
+    [24, '#050a1a', '#0f1830', '#0a0d16', '#000000', 0, 0.22, 1],
+  ].map(([h, top, mid, bottom, sunC, sunI, hemiI, night]) => ({
+    h, top: new THREE.Color(top), mid: new THREE.Color(mid), bottom: new THREE.Color(bottom), sunC: new THREE.Color(sunC), sunI, hemiI, night,
+  }));
+
+  // Sao và trăng (chỉ hiện về đêm)
+  const starGeo = new THREE.BufferGeometry();
+  {
+    const pts = [];
+    for (let i = 0; i < 900; i++) {
+      const y = rnd(0.08, 1), r = Math.sqrt(1 - y * y), a = rnd(0, Math.PI * 2);
+      pts.push(Math.cos(a) * r * 230, y * 230, Math.sin(a) * r * 230);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  }
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  scene.add(stars);
+  const moonTex = T.canvasTexture(256, 256, (g, w) => {
+    const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    r.addColorStop(0, 'rgba(255,252,235,1)');
+    r.addColorStop(0.17, 'rgba(250,244,220,1)');
+    r.addColorStop(0.2, 'rgba(220,230,255,0.35)');
+    r.addColorStop(1, 'rgba(160,180,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, w, w);
+  });
+  const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: moonTex, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  moon.position.set(-70, 95, 170);
+  moon.scale.setScalar(55);
+  scene.add(moon);
+  const moonLight = new THREE.DirectionalLight(0x9fb4ff, 0);
+  moonLight.position.set(-20, 30, 25);
+  scene.add(moonLight);
+  // đèn trong chánh điện bật sáng về đêm
+  const nightLamps = [new THREE.Vector3(0, 7, -7), new THREE.Vector3(0, 7, 4)].map((p) => {
+    const L = new THREE.PointLight(0xffb070, 0, 15, 2);
+    L.position.copy(p);
+    scene.add(L);
+    return L;
+  });
+
+  const vnHour = () => ((((Date.now() / 3.6e6 + 7) % 24) + 24) % 24);
+  let hourOverride = null;
+  const dayCol = { top: new THREE.Color(), mid: new THREE.Color(), bottom: new THREE.Color(), sun: new THREE.Color() };
+  const hemiDay = new THREE.Color(0xfff0d8), hemiNight = new THREE.Color(0x7d8cc0);
+  const ridgeNight = new THREE.Color('#1c2440'), white = new THREE.Color('#ffffff');
+  let night = 0;
+  function applyDayTime(h) {
+    let k = 0;
+    while (k < DAY_KEYS.length - 2 && h >= DAY_KEYS[k + 1].h) k++;
+    const a = DAY_KEYS[k], b = DAY_KEYS[k + 1];
+    const t = (h - a.h) / (b.h - a.h);
+    const mix = (x, y) => x + (y - x) * t;
+    dayCol.top.lerpColors(a.top, b.top, t);
+    dayCol.mid.lerpColors(a.mid, b.mid, t);
+    dayCol.bottom.lerpColors(a.bottom, b.bottom, t);
+    dayCol.sun.lerpColors(a.sunC, b.sunC, t);
+    night = mix(a.night, b.night);
+    sky.material.uniforms.top.value.copy(dayCol.top);
+    sky.material.uniforms.mid.value.copy(dayCol.mid);
+    sky.material.uniforms.bottom.value.copy(dayCol.bottom);
+    scene.fog.color.copy(dayCol.mid).lerp(dayCol.bottom, 0.4);
+    // mặt trời mọc ở phía đông (+x) lúc 6 giờ, lặn ở phía tây lúc 18 giờ
+    const th = (Math.PI * (h - 6)) / 12;
+    sun.intensity = mix(a.sunI, b.sunI);
+    sun.color.copy(dayCol.sun);
+    sun.position.set(Math.cos(th) * 30, 6 + Math.max(Math.sin(th), 0.05) * 22, 12);
+    hemi.intensity = mix(a.hemiI, b.hemiI);
+    hemi.color.copy(hemiDay).lerp(hemiNight, night);
+    fill.intensity = 0.55 * (1 - night) + 0.08 * night;
+    moonLight.intensity = 0.35 * night;
+    for (const L of nightLamps) L.intensity = 60 * night;
+    if (lanternMat) lanternMat.emissiveIntensity = 0.55 + 1.5 * night;
+    for (const g of lanternGlows) g.material.opacity = 0.35 + 0.45 * night;
+    for (const m of ridgeMats) m.color.copy(white).lerp(ridgeNight, night);
+    stars.material.opacity = night;
+    moon.material.opacity = night;
+    stars.visible = moon.visible = night > 0.02;
+    scene.environmentIntensity = 0.35 * (1 - 0.85 * night);
+    renderer.toneMappingExposure = 1.05 + 0.1 * night;
+  }
+  let lastDay = -99;
+  updaters.push((t) => {
+    if (t - lastDay < 10) return; // cập nhật mỗi 10 giây là đủ
+    lastDay = t;
+    applyDayTime(hourOverride ?? vnHour());
+  });
+  applyDayTime(vnHour());
+
   function setQuality(q) {
     const size = q === 'high' ? 2048 : 1024;
     sun.shadow.mapSize.set(size, size);
@@ -656,6 +764,14 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   setQuality(quality);
 
   return {
+    // ép một giờ cụ thể (để xem thử), null = theo giờ thật
+    setHour(h) {
+      hourOverride = h == null || Number.isNaN(h) ? null : ((h % 24) + 24) % 24;
+      lastDay = -99;
+    },
+    get night() {
+      return night;
+    },
     scene,
     seats,
     pickables,

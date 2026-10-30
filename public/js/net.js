@@ -46,7 +46,8 @@ class Net {
 }
 
 // Trả về Net khi đã nhận 'welcome', hoặc null nếu không kết nối được
-export function connect({ room, name, robe, sandals, uid }, timeout = 3000) {
+// timeout rộng: lúc mới mở trang, máy yếu còn bận dựng cảnh 3D
+export function connect({ room, name, robe, sandals, uid }, timeout = 8000) {
   return new Promise((resolve) => {
     if (!/^https?:$/.test(location.protocol)) return resolve(null);
     let ws;
