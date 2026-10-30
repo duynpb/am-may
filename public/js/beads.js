@@ -110,6 +110,7 @@ export class Beads {
     if (this.count % TOTAL === 0) {
       this.round++;
       this.sound.bigBell();
+      this.onRound?.();
       this.flash('Tròn một chuỗi 108 hạt. Nam mô A Di Đà Phật.');
     }
     this.updateText();

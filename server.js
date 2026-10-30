@@ -1,12 +1,16 @@
 // Máy chủ Am Mây: phục vụ file tĩnh + WebSocket cho các chánh điện nhiều người.
 import http from 'node:http';
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
+import { applyEvent, newProfile, publicProfile, vnDate, CLIENT_KINDS } from './public/js/karma.js';
 
 const PORT = Number(process.env.PORT) || 3000;
-const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC = path.join(ROOT, 'public');
+const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const MAX_PER_ROOM = 120;
 const ROOMS = Array.from({ length: 8 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}` }));
 const rooms = new Map(ROOMS.map((r) => [r.id, new Map()]));
@@ -92,7 +96,6 @@ const clamp = (v, a, b) => (Number.isFinite(+v) ? Math.min(b, Math.max(a, +v)) :
 // ---------- Công đức: đếm chung cả chùa theo ngày giờ Việt Nam ----------
 const MERIT_PER_DAY = 3; // mỗi người
 const MERIT_PER_IP = 30; // chặn lạm dụng (nhiều người dùng chung mạng vẫn đủ)
-const vnDate = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 const merit = { date: vnDate(), total: 0, recent: [], byUser: new Map(), byIp: new Map() };
 function meritToday() {
   const d = vnDate();
@@ -100,6 +103,46 @@ function meritToday() {
   return merit;
 }
 const meritPublic = () => ({ date: meritToday().date, total: merit.total, recent: merit.recent });
+
+// ---------- Hồ sơ Phật tử: điểm phước / nghiệp, lưu ra file ----------
+const PROFILE_FILE = path.join(DATA_DIR, 'profiles.json');
+const profiles = new Map();
+try {
+  for (const [k, v] of Object.entries(JSON.parse(readFileSync(PROFILE_FILE, 'utf8')))) profiles.set(k, v);
+  console.log(`Đã nạp ${profiles.size} hồ sơ Phật tử`);
+} catch { /* chưa có file */ }
+let profilesDirty = false;
+function saveProfiles() {
+  if (!profilesDirty) return;
+  profilesDirty = false;
+  try {
+    mkdirSync(DATA_DIR, { recursive: true });
+    writeFileSync(PROFILE_FILE + '.tmp', JSON.stringify(Object.fromEntries(profiles)));
+    renameSync(PROFILE_FILE + '.tmp', PROFILE_FILE);
+  } catch (e) {
+    console.error('Không lưu được hồ sơ:', e.message);
+  }
+}
+setInterval(saveProfiles, 5000);
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { saveProfiles(); process.exit(0); });
+
+function getProfile(uid, name) {
+  let p = profiles.get(uid);
+  if (!p) {
+    p = newProfile(name);
+    profiles.set(uid, p);
+    profilesDirty = true;
+  }
+  return p;
+}
+// Ghi nhận một việc; nếu được tính điểm thì báo cho chính người đó
+function award(ws, uid, kind, opts) {
+  const p = profiles.get(uid);
+  const entry = p && applyEvent(p, kind, opts);
+  if (!entry) return;
+  profilesDirty = true;
+  ws.send(JSON.stringify({ t: 'karma', entry, phuoc: p.phuoc, nghiep: p.nghiep }));
+}
 
 function broadcast(roomId, msg, exceptId) {
   const data = JSON.stringify(msg);
@@ -116,6 +159,7 @@ wss.on('connection', (ws, req) => {
   ws.isAlive = true;
   ws.on('pong', () => (ws.isAlive = true));
   const refill = setInterval(() => (tokens = Math.min(20, tokens + 5)), 1000);
+  let bellTimes = []; // phát hiện thỉnh chuông dồn dập
 
   ws.on('message', (buf) => {
     if (--tokens < 0) return; // giới hạn tốc độ
@@ -136,13 +180,15 @@ wss.on('connection', (ws, req) => {
       };
       uid = typeof m.uid === 'string' && /^[a-z0-9]{8,32}$/i.test(m.uid) ? m.uid : 'ip:' + ip;
       const used = meritToday().byUser.get(uid) || 0;
+      getProfile(uid, me.name).name = me.name;
       ws.send(JSON.stringify({
         t: 'welcome', id: me.id, room: roomId, peers: [...members.values()].map((p) => p.p),
         merit: { ...meritPublic(), used },
       }));
       broadcast(roomId, { t: 'join', p: me });
-      members.set(me.id, { ws, p: me });
+      members.set(me.id, { ws, p: me, uid });
       sendCount(roomId);
+      award(ws, uid, 'visit');
       return;
     }
     if (!me) return;
@@ -153,11 +199,23 @@ wss.on('connection', (ws, req) => {
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat }, me.id);
     } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense'].includes(m.a)) {
-      broadcast(roomId, {
-        t: 'act', id: me.id, a: m.a,
-        to: typeof m.to === 'string' ? m.to.slice(0, 12) : undefined,
-        n: m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined,
-      }, me.id);
+      const to = typeof m.to === 'string' ? m.to.slice(0, 12) : undefined;
+      const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
+      broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n }, me.id);
+      if (m.a === 'bow') award(ws, uid, 'bow');
+      else if (m.a === 'gassho' && to && to !== me.id && rooms.get(roomId).has(to)) award(ws, uid, 'greet');
+      else if (m.a === 'incense') award(ws, uid, 'incense', { n });
+      else if (m.a === 'bell' || m.a === 'drum') {
+        const now = Date.now();
+        bellTimes = bellTimes.filter((t) => now - t < 30e3);
+        bellTimes.push(now);
+        if (bellTimes.length >= 5) {
+          bellTimes = [];
+          award(ws, uid, 'noise');
+        } else {
+          award(ws, uid, 'bell');
+        }
+      }
     } else if (m.t === 'merit') {
       const st = meritToday();
       const used = st.byUser.get(uid) || 0;
@@ -174,8 +232,21 @@ wss.on('connection', (ws, req) => {
       st.recent.length = Math.min(st.recent.length, 12);
       ws.send(JSON.stringify({ t: 'merit-ok', used: used + 1, total: st.total, recent: st.recent }));
       broadcast(roomId, { t: 'merit', id: me.id, total: st.total, recent: st.recent }, me.id);
+      award(ws, uid, 'merit');
+    } else if (m.t === 'karma' && CLIENT_KINDS.includes(m.kind)) {
+      award(ws, uid, m.kind);
+    } else if (m.t === 'profile') {
+      // xem hồ sơ: 'me' hoặc mã người đang ở cùng chánh điện (không lộ mã người dùng)
+      const member = m.id === 'me' ? { uid } : rooms.get(roomId).get(String(m.id));
+      const p = member && profiles.get(member.uid);
+      ws.send(JSON.stringify({ t: 'profile', req: m.req, profile: p ? publicProfile(p) : null }));
     } else if (m.t === 'name') {
       me.name = clean(m.name);
+      const p = profiles.get(uid);
+      if (p) {
+        p.name = me.name;
+        profilesDirty = true;
+      }
       broadcast(roomId, { t: 'name', id: me.id, name: me.name }, me.id);
     }
   });

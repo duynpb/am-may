@@ -129,7 +129,10 @@
       <div class="sheet-head"><h2 id="set-title">Cài đặt</h2><button class="x" data-close aria-label="Đóng">×</button></div>
       <label class="field">
         <span>Pháp danh <em>(được lưu trên trình duyệt này)</em></span>
-        <input id="set-name" maxlength="20" autocomplete="off">
+        <div class="name-row">
+          <input id="set-name" maxlength="20" autocomplete="off">
+          <button type="button" class="ghost" id="btn-my-profile">Hồ sơ của tôi</button>
+        </div>
       </label>
       <div class="card row">
         <div><b>Hiện pháp danh mọi người</b><small>Tên nhỏ trên đầu những người trong chùa</small></div>
@@ -207,6 +210,20 @@
     </div>
   </div>
 
+  <!-- Hồ sơ Phật tử -->
+  <div class="modal" id="modal-profile" hidden role="dialog" aria-modal="true" aria-labelledby="pf-name">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div class="pf-id">
+          <span class="pf-avatar" id="pf-avatar"></span>
+          <div><h2 id="pf-name"></h2><small id="pf-since"></small></div>
+        </div>
+        <button class="x" data-close aria-label="Đóng">×</button>
+      </div>
+      <div id="pf-body"></div>
+    </div>
+  </div>
+
   <!-- Giới thiệu -->
   <div class="modal" id="modal-info" hidden role="dialog" aria-modal="true" aria-labelledby="info-title">
     <div class="sheet">
@@ -218,6 +235,7 @@
         <li><b>Ngồi</b> Chạm vào một bồ đoàn còn trống.</li>
         <li><b>Nhìn quanh</b> Kéo màn hình. Cuộn chuột hoặc chụm hai ngón để phóng to.</li>
         <li><b>Chào nhau</b> Chạm vào một người để chắp tay chào.</li>
+        <li><b>Hồ sơ Phật tử</b> Chạm vào pháp danh trên đầu một người (hoặc tên của mình) để xem điểm phước / nghiệp và lịch sử.</li>
         <li><b>Thắp nhang</b> Bấm “Thắp nhang”, chọn số nén và (nếu muốn) viết lời nguyện riêng. Nhang cháy trong lư khoảng ba phút.</li>
         <li><b>Góp công đức</b> Bấm “Công đức” hoặc chạm vào thùng công đức cạnh bàn thờ. Mỗi người được góp 3 lần mỗi ngày (mang ý nghĩa tượng trưng).</li>
         <li><b>Thỉnh chuông, đánh trống</b> Chạm vào quả chuông hoặc chiếc trống hai bên bàn thờ.</li>

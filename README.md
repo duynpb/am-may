@@ -48,6 +48,7 @@ public/
 | Lạy Phật | Nút “Lạy Phật” (có tiếng chuông) |
 | Thắp nhang | Nút “Thắp nhang”: chọn 1 hoặc 3 nén, viết lời nguyện riêng (không gửi đi). Nhân vật bước lên bàn thờ, vái lạy, cắm nhang; nhang cháy ngắn dần khoảng 3 phút, mọi người cùng thấy |
 | Công đức | Nút “Công đức” hoặc chạm vào thùng công đức cạnh bàn thờ: nhân vật bước tới, chắp tay, bỏ phong bì đỏ vào thùng. Mỗi người 3 lần/ngày (theo giờ Việt Nam), có thể ẩn danh, lời hồi hướng chỉ mình mình thấy. Sổ công đức và tổng lượt trong ngày dùng chung cả chùa. Mang ý nghĩa tượng trưng, không dùng tiền thật |
+| Hồ sơ Phật tử | Chạm vào pháp danh trên đầu một người (hoặc tên mình, hoặc Cài đặt → Hồ sơ của tôi) để xem điểm phước, điểm nghiệp, thống kê và lịch sử. Người mới bắt đầu từ 0 điểm |
 | Tràng hạt | Vuốt xuống / chạm / phím cách; đếm 108 hạt, lưu số hạt mỗi ngày |
 | Tụng kinh | “Nam mô A Di Đà Phật” với mõ, chuông, chữ chạy theo nhịp |
 | Thỉnh chuông, đánh trống | Chạm vào chuông (trái) hoặc trống (phải) bàn thờ |
@@ -62,6 +63,24 @@ Khi bấm “Nghe tụng kinh”, website tự chọn giọng tốt nhất có s
 1. **Bản ghi âm**: nếu có file `public/audio/tung-kinh.mp3`, website phát lặp file này. Đây là cách cho giọng tụng thật, giống nhau trên mọi thiết bị. Nên dùng bản tự thu hoặc bản được phép sử dụng.
 2. **Giọng đọc tiếng Việt của thiết bị**: đọc “Nam mô A Di Đà Phật” chậm rãi theo nhịp mõ, phụ đề sáng theo từng chữ. Có sẵn trên hầu hết điện thoại Android, iPhone/iPad, trình duyệt Edge (giọng HoaiMy, NamMinh), Safari trên Mac. Chrome trên Windows chỉ có khi máy cài gói giọng nói tiếng Việt (Cài đặt Windows → Thời gian và ngôn ngữ → Giọng nói).
 3. **Giọng ngân tổng hợp**: dùng khi thiết bị không có hai lựa chọn trên.
+
+## Điểm phước / nghiệp
+
+Quy tắc nằm trong `public/js/karma.js` (máy chủ và trình duyệt dùng chung). Mỗi việc chỉ được tính điểm một số lần trong ngày (giờ Việt Nam):
+
+| Việc | Điểm | Tối đa mỗi ngày |
+|---|---|---|
+| Vào chùa | +2 phước | 1 |
+| Lạy Phật | +1 phước | 20 |
+| Chắp tay chào một người thật | +1 phước | 20 |
+| Thắp nhang | +3 phước | 5 |
+| Góp công đức | +10 phước | 3 |
+| Lần tròn chuỗi 108 hạt | +5 phước | 10 |
+| Nghe tụng kinh 10 phút | +2 phước | 12 |
+| Thỉnh chuông, đánh trống | +1 phước | 5 |
+| Thỉnh chuông dồn dập (5 lần trong 30 giây) | +2 nghiệp | 3 |
+
+Khi chạy máy chủ, hồ sơ được lưu vào `data/profiles.json` (đổi thư mục bằng biến môi trường `DATA_DIR`). Khi ngoại tuyến, hồ sơ chỉ lưu trên trình duyệt.
 
 ## Đưa lên mạng
 

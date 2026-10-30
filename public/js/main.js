@@ -5,6 +5,7 @@ import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, fetchMerit, ROOMS } from './net.js';
+import { applyEvent, newProfile, publicProfile, RULES, CLIENT_KINDS } from './karma.js';
 
 const $ = (s) => document.querySelector(s);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -112,6 +113,8 @@ function addAvatar(a) {
     a.nameEl.className = 'label name';
     a.nameEl.textContent = a.name;
     a.nameEl.hidden = true;
+    a.nameEl.title = 'Xem hồ sơ';
+    a.nameEl.addEventListener('click', () => openProfile(a));
     labelsEl.append(a.nameEl);
   }
   return a;
@@ -132,7 +135,9 @@ player.setSandals(SANDAL_COLORS[mySandals]);
 addAvatar(player);
 player.placeAt(0, COURTYARD.z, Math.PI);
 player.labelEl = document.createElement('div');
-player.labelEl.className = 'label';
+player.labelEl.className = 'label me';
+player.labelEl.title = 'Hồ sơ của tôi';
+player.labelEl.addEventListener('click', () => openProfile(player));
 labelsEl.append(player.labelEl);
 const renderMyLabel = () => {
   player.labelEl.innerHTML = '<i>Tôi</i>';
@@ -439,6 +444,13 @@ function wireNet(n) {
     const a = avatars.get('n' + m.id);
     if (a && !a.leaving) offerMerit(a);
   });
+  n.on('karma', (m) => showGain(m.entry));
+  n.on('profile', (m) => {
+    const resolve = profileWaiters.get(m.req);
+    if (!resolve) return;
+    profileWaiters.delete(m.req);
+    resolve(m.profile);
+  });
   n.on('merit-ok', (m) => {
     Object.assign(meritBoard, { total: m.total, recent: m.recent });
     setMeritUsed(m.used);
@@ -497,6 +509,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     if (!intro) sendMove();
   } else {
     botTarget = Math.floor(rnd(16, 30));
+    earn('visit');
   }
   for (let i = 0; i < botTarget; i++) makeBot({ seated: Math.random() < 0.85 });
   $('#info-mode').textContent = online
@@ -559,6 +572,7 @@ function doGassho(target = null) {
   net?.send({ t: 'act', a: 'gassho', to: target?.id?.startsWith('n') ? target.id.slice(1) : undefined });
   if (target) {
     toast(`Bạn chắp tay chào ${target.name}`);
+    earn('greet');
     if (bots.has(target) && Math.random() < 0.8) {
       setTimeout(() => {
         if (!avatars.has(target.id)) return;
@@ -587,6 +601,149 @@ function doBow() {
   player.act('bow', faceBuddhaRy(player));
   sound.bow();
   net?.send({ t: 'act', a: 'bow' });
+  earn('bow');
+}
+
+// ---------- Hồ sơ Phật tử: điểm phước / nghiệp ----------
+// Trực tuyến: máy chủ tính điểm và gửi lại ('karma'). Ngoại tuyến: tính ngay trên máy theo cùng quy tắc.
+let localProfile = store.get('profile', null) || newProfile(myName);
+let bellTimes = [];
+
+function earn(kind, opts) {
+  if (net) {
+    if (CLIENT_KINDS.includes(kind)) net.send({ t: 'karma', kind });
+    return;
+  }
+  localProfile.name = myName;
+  const entry = applyEvent(localProfile, kind, opts);
+  if (!entry) return;
+  store.set('profile', localProfile);
+  showGain(entry);
+}
+
+// Thỉnh chuông / đánh trống: dồn dập quá (5 lần trong 30 giây) thì thành nghiệp
+function earnBell() {
+  if (net) return; // máy chủ tự tính
+  const now = Date.now();
+  bellTimes = bellTimes.filter((t) => now - t < 30e3);
+  bellTimes.push(now);
+  if (bellTimes.length >= 5) {
+    bellTimes = [];
+    earn('noise');
+  } else {
+    earn('bell');
+  }
+}
+
+// Điểm vừa được cộng: nhãn nhỏ bay lên trên đầu mình
+const gains = [];
+function showGain(entry) {
+  const el = document.createElement('div');
+  el.className = 'label gain' + (entry.nghiep ? ' bad' : '');
+  el.textContent = entry.phuoc ? `+${entry.phuoc} phước · ${entry.label}` : `+${entry.nghiep} nghiệp · ${entry.label}`;
+  labelsEl.append(el);
+  gains.push({ el, born: performance.now() });
+}
+function updateGains(now) {
+  for (let i = gains.length - 1; i >= 0; i--) {
+    const g = gains[i];
+    const k = (now - g.born) / 2200;
+    if (k >= 1) {
+      g.el.remove();
+      gains.splice(i, 1);
+      continue;
+    }
+    placeLabel(g.el, player, { lift: 30 + k * 46 + (gains.length - 1 - i) * 22 });
+    g.el.style.opacity = k < 0.7 ? 1 : (1 - k) / 0.3;
+  }
+}
+
+// Chờ máy chủ trả hồ sơ theo mã yêu cầu
+let profileReq = 0;
+const profileWaiters = new Map();
+function requestProfile(id) {
+  return new Promise((resolve) => {
+    const req = ++profileReq;
+    profileWaiters.set(req, resolve);
+    net.send({ t: 'profile', id, req });
+    setTimeout(() => profileWaiters.delete(req) && resolve(undefined), 5000);
+  });
+}
+
+const fmtDate = (t) => new Date(t).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+const fmtTime = (t) => new Date(t).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+
+function renderProfile(name, p, note) {
+  $('#pf-avatar').textContent = (name || '?').trim().charAt(0).toUpperCase();
+  $('#pf-name').textContent = name;
+  $('#pf-since').textContent = p ? `Phật tử từ ${fmtDate(p.created)} · ${p.visits} ngày đến chùa` : '';
+  const body = $('#pf-body');
+  body.innerHTML = '';
+  if (!p) {
+    body.append(el('p', 'pf-note', note));
+    return;
+  }
+  const scores = el('div', 'pf-scores');
+  for (const [cls, val, label] of [['phuoc', p.phuoc, 'Điểm phước'], ['nghiep', p.nghiep, 'Điểm nghiệp'], ['total', p.phuoc - p.nghiep, 'Tổng (phước − nghiệp)']]) {
+    const box = el('div', 'pf-score ' + cls);
+    box.append(el('b', null, val.toLocaleString('vi-VN')), el('span', null, label));
+    scores.append(box);
+  }
+  const s = p.stats;
+  const stats = el('div', 'pf-stats');
+  for (const [label, val] of [
+    ['Lạy Phật', s.bow], ['Chào bạn đạo', s.greet], ['Nén nhang', s.incense],
+    ['Góp công đức', s.merit], ['Chuỗi 108 hạt', s.beads], ['Phút tụng kinh', s.chant * 10],
+  ]) {
+    const d = el('div', null, label);
+    d.prepend(el('b', null, (val || 0).toLocaleString('vi-VN')));
+    stats.append(d);
+  }
+  const hist = el('div', 'pf-history');
+  hist.append(el('h3', null, 'Lịch sử phước / nghiệp'));
+  const ul = el('ul');
+  if (!p.history.length) ul.append(el('li', 'empty', 'Chưa có — mọi người mới vào đều bắt đầu từ 0 điểm'));
+  for (const h of p.history) {
+    const li = el('li');
+    li.append(
+      el('span', null, h.label),
+      el('small', null, fmtTime(h.at)),
+      el('em', h.nghiep ? 'bad' : null, h.phuoc ? `+${h.phuoc} phước` : `+${h.nghiep} nghiệp`),
+    );
+    ul.append(li);
+  }
+  hist.append(ul);
+  const rules = el('details', 'pf-rules');
+  rules.append(el('summary', null, 'Cách tính điểm'));
+  const rl = el('ul');
+  for (const r of Object.values(RULES)) {
+    rl.append(el('li', null, `${r.label}: +${r.phuoc || r.nghiep} ${r.phuoc ? 'phước' : 'nghiệp'} (tối đa ${r.cap} lần/ngày)`));
+  }
+  rules.append(rl);
+  body.append(scores, stats, hist, rules);
+}
+
+async function openProfile(a) {
+  renderProfile(a.name, null, 'Đang mở hồ sơ…');
+  openModal('#modal-profile');
+  if (bots.has(a)) {
+    renderProfile(a.name, null, 'Đây là khách mô phỏng nên chưa có hồ sơ Phật tử.');
+    return;
+  }
+  if (!net) {
+    if (a === player) renderProfile(myName, publicProfile(localProfile));
+    return;
+  }
+  const p = await requestProfile(a === player ? 'me' : a.id.slice(1));
+  if ($('#modal-profile').hidden) return;
+  if (p) renderProfile(p.name, p);
+  else renderProfile(a.name, null, p === null ? 'Chưa có hồ sơ.' : 'Không tải được hồ sơ, bạn thử lại nhé.');
 }
 
 // ---------- Thắp nhang ----------
@@ -669,6 +826,7 @@ function incenseRitual() {
   sound.incense();
   net?.send({ t: 'act', a: 'incense', n });
   offerIncense(player, n, () => {
+    earn('incense', { n });
     ritual = null;
     incBtn.disabled = false;
     const st = incenseStats();
@@ -791,6 +949,7 @@ function meritRitual() {
     setMeritUsed(used);
     if (net) net.send({ t: 'merit', anon });
     else {
+      earn('merit');
       meritBoard.total++;
       meritBoard.recent.unshift({ name: anon ? null : myName, at: Date.now() });
       meritBoard.recent.length = Math.min(meritBoard.recent.length, 12);
@@ -836,6 +995,19 @@ document.querySelectorAll('.actions button').forEach((b) => {
 });
 
 const beads = new Beads($('#beads'), { sound, store, onClose: () => {} });
+beads.onRound = () => earn('beads');
+
+// Nghe tụng kinh: cứ đủ 10 phút đang phát thì được tính phước
+let chantSec = 0, chantTick = Date.now();
+setInterval(() => {
+  const now = Date.now();
+  if (sound.chanting && sound.ctx?.state === 'running' && !settings.muted) chantSec += Math.min(60, (now - chantTick) / 1000);
+  chantTick = now;
+  if (chantSec >= 600) {
+    chantSec = 0;
+    earn('chant');
+  }
+}, 15000);
 
 // ---------- Camera & điều khiển ----------
 const cam = { yaw: 0, pitch: 0.36, dist: 7.5, curDist: 15, curPitch: 0.7, maxZ: 45, target: new THREE.Vector3(0, 1.1, 31) };
@@ -884,6 +1056,7 @@ function handleTap(x, y) {
   if (kind === 'bell' || kind === 'drum') {
     ringInstrument(kind);
     net?.send({ t: 'act', a: kind });
+    earnBell();
     return;
   }
   if (kind === 'merit') {
@@ -1043,6 +1216,7 @@ function placeLabel(el, a, { lift = 0, fade = false } = {}) {
 }
 function updateLabels(now) {
   placeLabel(player.labelEl, player);
+  updateGains(now);
   for (const a of avatars.values()) {
     if (a === player) continue;
     if (a.nameEl) {
@@ -1082,7 +1256,8 @@ function openModal(id) {
 }
 function closeModal(m) {
   m.classList.remove('show');
-  setTimeout(() => (m.hidden = true), 250);
+  // chỉ ẩn nếu chưa được mở lại trong lúc đang đóng
+  setTimeout(() => !m.classList.contains('show') && (m.hidden = true), 250);
 }
 document.querySelectorAll('.modal').forEach((m) => {
   m.addEventListener('click', (e) => {
@@ -1234,6 +1409,10 @@ $('#btn-shot').addEventListener('click', () => {
     if (chanting()) sound.setChant(true);
   });
 
+  $('#btn-my-profile').addEventListener('click', () => {
+    closeModal($('#modal-settings'));
+    openProfile(player);
+  });
   $('#btn-settings').addEventListener('click', () => {
     nameIn.value = myName;
     renderVoices();
