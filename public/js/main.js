@@ -11,17 +11,35 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-const store = {
-  get(k, d) {
-    try {
-      const v = localStorage.getItem('ammay.' + k);
-      return v == null ? d : JSON.parse(v);
-    } catch { return d; }
+// Thông tin nhận diện (pháp danh, áo, dép, mã) lưu thêm vào cookie 1 năm,
+// phòng khi bộ nhớ localStorage bị trình duyệt xóa.
+const IDENTITY = ['name', 'uid', 'robe', 'sandals'];
+const cookie = {
+  get(k) {
+    const m = document.cookie.match(new RegExp('(?:^|; )ammay_' + k + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
   },
   set(k, v) {
-    try { localStorage.setItem('ammay.' + k, JSON.stringify(v)); } catch { /* chế độ riêng tư */ }
+    try {
+      document.cookie = `ammay_${k}=${encodeURIComponent(v)}; max-age=31536000; path=/; SameSite=Lax`;
+    } catch { /* bị chặn cookie */ }
   },
 };
+const store = {
+  get(k, d) {
+    let v = null;
+    try { v = localStorage.getItem('ammay.' + k); } catch { /* chế độ riêng tư */ }
+    if (v == null && IDENTITY.includes(k)) v = cookie.get(k);
+    try { return v == null ? d : JSON.parse(v); } catch { return d; }
+  },
+  set(k, v) {
+    const s = JSON.stringify(v);
+    try { localStorage.setItem('ammay.' + k, s); } catch { /* chế độ riêng tư */ }
+    if (IDENTITY.includes(k)) cookie.set(k, s);
+  },
+};
+// xin trình duyệt không tự xóa dữ liệu của trang
+navigator.storage?.persist?.().catch(() => {});
 
 const NOUNS = ['Mây', 'Sen', 'Trăng', 'Gió', 'Suối', 'Lá', 'Sương', 'Nắng', 'Trúc', 'Sóng', 'Hạt mưa', 'Cánh hạc', 'Bông súng', 'Ngọn đèn'];
 const ADJS = ['an nhiên', 'lặng lẽ', 'thong thả', 'dịu dàng', 'hiền hòa', 'thanh tịnh', 'nhẹ nhàng', 'bình yên', 'tĩnh tại', 'ấm áp'];
@@ -33,8 +51,9 @@ const settings = Object.assign(
   store.get('settings', {}),
 );
 const saveSettings = () => store.set('settings', settings);
-let myName = store.get('name', null) || randomName();
-store.set('name', myName);
+// chưa có pháp danh → hỏi khi vào chùa lần đầu (xem askName ở cuối file)
+const savedName = store.get('name', null);
+let myName = savedName || randomName();
 const myRobe = store.get('robe', Math.floor(Math.random() * ROBES.length));
 store.set('robe', myRobe);
 const mySandals = store.get('sandals', Math.floor(Math.random() * SANDAL_COLORS.length)) % SANDAL_COLORS.length;
@@ -106,7 +125,7 @@ function removeAvatar(id) {
 const player = new Avatar({ id: 'me', name: myName, robe: myRobe, isPlayer: true });
 player.setSandals(SANDAL_COLORS[mySandals]);
 addAvatar(player);
-player.placeAt(ENTRANCE.x, ENTRANCE.z - 4, Math.PI);
+player.placeAt(0, COURTYARD.z, Math.PI);
 player.labelEl = document.createElement('div');
 player.labelEl.className = 'label';
 labelsEl.append(player.labelEl);
@@ -1062,11 +1081,11 @@ function closeModal(m) {
 }
 document.querySelectorAll('.modal').forEach((m) => {
   m.addEventListener('click', (e) => {
-    if (e.target === m || e.target.closest('[data-close]')) closeModal(m);
+    if (m.dataset.locked == null && (e.target === m || e.target.closest('[data-close]'))) closeModal(m);
   });
 });
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') document.querySelectorAll('.modal.show').forEach(closeModal);
+  if (e.key === 'Escape') document.querySelectorAll('.modal.show:not([data-locked])').forEach(closeModal);
 });
 
 $('#btn-info').addEventListener('click', () => openModal('#modal-info'));
@@ -1218,12 +1237,39 @@ $('#btn-shot').addEventListener('click', () => {
   nameIn.addEventListener('change', () => {
     const v = nameIn.value.trim().slice(0, 20);
     if (!v || v === myName) return;
-    myName = v;
-    player.name = v;
-    store.set('name', v);
-    renderMyLabel();
-    net?.send({ t: 'name', name: v });
-    toast(`Tên của bạn: ${v}`);
+    setMyName(v);
+    toast(`Pháp danh của bạn: ${v}`);
+  });
+}
+
+function setMyName(v) {
+  myName = v;
+  player.name = v;
+  store.set('name', v);
+  renderMyLabel();
+  net?.send({ t: 'name', name: v });
+}
+
+// Lần đầu vào chùa: hỏi pháp danh (gợi ý sẵn một tên, có thể đổi)
+function askName() {
+  return new Promise((resolve) => {
+    const m = $('#modal-welcome');
+    const input = $('#welcome-name');
+    input.value = myName;
+    $('#welcome-suggest').onclick = () => {
+      input.value = randomName();
+      input.focus();
+    };
+    const done = (e) => {
+      e?.preventDefault();
+      setMyName(input.value.trim().slice(0, 20) || myName);
+      closeModal(m);
+      sound.init();
+      resolve();
+    };
+    $('#welcome-form').onsubmit = done;
+    openModal('#modal-welcome');
+    setTimeout(() => !isCoarse && input.select(), 300);
   });
 }
 
@@ -1253,8 +1299,13 @@ function frame() {
   }
 }
 
-await joinRoom(roomId);
 renderer.setAnimationLoop(frame);
 // làm nóng shader rồi mới ẩn màn hình chờ
 renderer.compile(scene, camera);
-setTimeout(() => $('#loader').classList.add('done'), 400);
+if (!savedName) {
+  $('#loader').classList.add('done');
+  await askName();
+} else {
+  setTimeout(() => $('#loader').classList.add('done'), 400);
+}
+await joinRoom(roomId);

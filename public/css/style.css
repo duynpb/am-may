@@ -184,6 +184,10 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary:active { transform: scale(0.98); }
 .center { text-align: center; }
+.name-row { display: flex; gap: 8px; }
+.name-row input { flex: 1; min-width: 0; }
+.ghost { flex: none; padding: 0 14px; border-radius: 12px; font-size: 13px; font-weight: 500; color: var(--gold); background: rgba(156, 116, 48, 0.1); }
+.ghost:hover { background: rgba(156, 116, 48, 0.18); }
 .btn-primary:disabled { background: #c9bfae; box-shadow: none; cursor: default; filter: none; }
 
 .merit-stat { display: flex; align-items: baseline; gap: 10px; margin: 4px 0 12px; }

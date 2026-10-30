@@ -97,6 +97,22 @@
     </button>
   </nav>
 
+  <!-- Lần đầu vào chùa: chọn pháp danh -->
+  <div class="modal" id="modal-welcome" hidden data-locked role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+    <form class="sheet" id="welcome-form">
+      <div class="sheet-head"><h2 id="welcome-title">Chào mừng đến Am Mây</h2></div>
+      <p class="muted">Bạn muốn được gọi bằng pháp danh nào? Mọi người trong chùa sẽ thấy tên này. Pháp danh được lưu lại cho những lần sau, và bạn có thể đổi trong Cài đặt.</p>
+      <label class="field">
+        <span>Pháp danh</span>
+        <div class="name-row">
+          <input id="welcome-name" maxlength="20" autocomplete="nickname" required>
+          <button type="button" class="ghost" id="welcome-suggest">Gợi ý khác</button>
+        </div>
+      </label>
+      <button class="btn-primary" type="submit">Vào chùa</button>
+    </form>
+  </div>
+
   <!-- Chọn chánh điện -->
   <div class="modal" id="modal-room" hidden role="dialog" aria-modal="true" aria-labelledby="room-title">
     <div class="sheet">
@@ -112,7 +128,7 @@
     <div class="sheet">
       <div class="sheet-head"><h2 id="set-title">Cài đặt</h2><button class="x" data-close aria-label="Đóng">×</button></div>
       <label class="field">
-        <span>Pháp danh / tên hiển thị</span>
+        <span>Pháp danh <em>(được lưu trên trình duyệt này)</em></span>
         <input id="set-name" maxlength="20" autocomplete="off">
       </label>
       <div class="card row">
