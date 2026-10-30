@@ -260,8 +260,8 @@ function sculpt(parts) {
   const nor = new Float32Array(n * 3);
   const col = new Float32Array(n * 3);
   // đồng đánh bóng: chỗ nổi sáng nâu vàng, kẽ lõm sẫm gần đen
-  const gold = new THREE.Color('#a08a5c').convertSRGBToLinear();
-  const deep = new THREE.Color('#231a0e').convertSRGBToLinear();
+  const gold = new THREE.Color('#f6d273').convertSRGBToLinear();
+  const deep = new THREE.Color('#8c5e1e').convertSRGBToLinear();
   const e = 0.004;
   for (let v = 0; v < n; v++) {
     const f = owner[v];
@@ -283,7 +283,7 @@ function sculpt(parts) {
     // vân thếp vàng loang nhẹ
     const grain = 0.93 + 0.07 * Math.sin(x * 23 + Math.sin(y * 17) * 2) * Math.sin(z * 19 + y * 7);
     const k = ao * grain;
-    const m = 0.6 + 0.4 * k;
+    const m = 0.72 + 0.28 * k;
     col[v * 3] = (deep.r + (gold.r - deep.r) * ao) * m;
     col[v * 3 + 1] = (deep.g + (gold.g - deep.g) * ao) * m;
     col[v * 3 + 2] = (deep.b + (gold.b - deep.b) * ao) * m;
@@ -319,8 +319,8 @@ function petalGeometry() {
   const g = new THREE.ExtrudeGeometry(s, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.045, bevelSegments: 5, curveSegments: 20 });
   const p = g.attributes.position;
   const col = new Float32Array(p.count * 3);
-  const base = new THREE.Color('#2b2015').convertSRGBToLinear();
-  const tip = new THREE.Color('#9c8758').convertSRGBToLinear();
+  const base = new THREE.Color('#b8862e').convertSRGBToLinear();
+  const tip = new THREE.Color('#ffe08a').convertSRGBToLinear();
   for (let i = 0; i < p.count; i++) {
     const y = p.getY(i), x = p.getX(i);
     p.setZ(i, p.getZ(i) + 0.16 * (y / 0.56) ** 2 - 0.1 * (x / 0.36) ** 2); // uốn cong nhẹ
@@ -342,9 +342,9 @@ export function makeBuddha({ quality = 'high' } = {}) {
   const g = new THREE.Group();
   const q = quality === 'high' ? 1 : 1.45; // máy yếu: lưới thưa hơn
 
-  const gilt = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.85, roughness: 0.32, envMapIntensity: 2.2 });
-  const goldDeep = new THREE.MeshStandardMaterial({ color: '#6e5232', metalness: 0.85, roughness: 0.36, envMapIntensity: 2.2 });
-  const petalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.8, roughness: 0.36, envMapIntensity: 2.2 });
+  const gilt = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.95, roughness: 0.26, envMapIntensity: 1.8 });
+  const goldDeep = new THREE.MeshStandardMaterial({ color: '#e2b24c', metalness: 0.95, roughness: 0.3, envMapIntensity: 1.8 });
+  const petalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.9, roughness: 0.3, envMapIntensity: 1.8 });
 
   // Tòa sen ba tầng cánh
   const base = new THREE.Mesh(new THREE.CylinderGeometry(1.12, 1.28, 0.26, 48), goldDeep);
