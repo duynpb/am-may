@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: am-may
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/rooms
+    autoDeploy: true
