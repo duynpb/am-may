@@ -1,0 +1,16 @@
+{
+  "name": "am-may",
+  "version": "1.0.0",
+  "description": "Am Mây — ngôi chùa 3D trực tuyến, dùng được trên máy tính và điện thoại",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

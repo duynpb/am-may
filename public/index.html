@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#24251f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Am Mây">
+  <title>Am Mây — Chùa trực tuyến</title>
+  <meta name="description" content="Am Mây — ngôi chùa trực tuyến, nơi mọi người lặng lẽ ngồi cùng nhau.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="vi_VN">
+  <meta property="og:title" content="Am Mây · Chùa trực tuyến">
+  <meta property="og:description" content="Lặng lẽ ngồi cùng nhau trong chánh điện trên mạng.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+<main id="app">
+  <canvas id="scene" aria-label="Chánh điện 3D"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+  <div id="flash" class="flash"></div>
+
+  <header class="hud hud-tl">
+    <button class="pill round" id="btn-info" aria-label="Giới thiệu">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+    </button>
+    <button class="pill brand" id="btn-room" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" class="logo"><path d="M12 3 3.5 8h17Z"/><path d="M6 8.5v1.2h12V8.5M7.5 10v9M16.5 10v9M4 19.5h16M10.5 19.5v-4h3v4"/></svg>
+      <strong>Am Mây</strong>
+      <span class="sep"></span>
+      <span id="room-name">Chánh điện 1</span>
+      <svg viewBox="0 0 24 24" class="chev"><path d="m7 10 5 5 5-5"/></svg>
+    </button>
+  </header>
+
+  <div class="hud hud-tr">
+    <div class="pill group">
+      <span class="count" title="Số người đang ở đây">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.7 3 2.6 3 5.2"/></svg>
+        <b id="people">1</b>
+      </span>
+      <button class="icon-btn" id="btn-mute" aria-label="Tắt / bật âm thanh">
+        <svg viewBox="0 0 24 24" class="on"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+        <svg viewBox="0 0 24 24" class="off"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-settings" aria-label="Cài đặt">
+        <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-shot" aria-label="Chụp ảnh">
+        <svg viewBox="0 0 24 24"><path d="M4 8.5h3l1.5-2.5h7L17 8.5h3V19H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>
+      </button>
+    </div>
+    <button class="pill chant-btn" id="btn-chant" aria-pressed="false">
+      <span class="dot"></span><span class="txt">Nghe tụng kinh</span>
+    </button>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="chant-caption" class="chant-caption" hidden></div>
+  <p id="hint" class="hint"></p>
+
+  <nav class="actions pill" aria-label="Hành động">
+    <button data-act="gassho">
+      <svg viewBox="0 0 24 24"><path d="M12 3.5c-1 1.6-1.5 4-1.5 7.2V20M12 3.5c1 1.6 1.5 4 1.5 7.2V20"/><path d="M10.5 12 7 15.5V20M13.5 12l3.5 3.5V20"/></svg>
+      <span>Chắp tay</span>
+    </button>
+    <button data-act="bow">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.4"/><path d="M5 20c0-4 2.2-8.5 7-8.5s7 4.5 7 8.5"/><path d="M9.5 15.5h5"/></svg>
+      <span>Lạy Phật</span>
+    </button>
+    <button data-act="beads">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="1.6"/><circle cx="17.2" cy="6.8" r="1.6"/><circle cx="19.4" cy="12" r="1.6"/><circle cx="17.2" cy="17.2" r="1.6"/><circle cx="6.8" cy="6.8" r="1.6"/><circle cx="4.6" cy="12" r="1.6"/><circle cx="6.8" cy="17.2" r="1.6"/><circle cx="12" cy="19.6" r="2.1"/></svg>
+      <span>Tràng hạt</span>
+    </button>
+  </nav>
+
+  <!-- Chọn chánh điện -->
+  <div class="modal" id="modal-room" hidden role="dialog" aria-modal="true" aria-labelledby="room-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="room-title">Chọn chánh điện</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p class="muted">Mỗi chánh điện là một phòng riêng. Ở phòng nào bạn cũng được ngồi cùng mọi người.</p>
+      <p class="note" id="room-note" hidden></p>
+      <div id="room-list" class="room-grid"></div>
+    </div>
+  </div>
+
+  <!-- Cài đặt -->
+  <div class="modal" id="modal-settings" hidden role="dialog" aria-modal="true" aria-labelledby="set-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="set-title">Cài đặt</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <label class="field">
+        <span>Pháp danh / tên hiển thị</span>
+        <input id="set-name" maxlength="20" autocomplete="off">
+      </label>
+      <div class="card">
+        <div class="row"><div><b>Âm thanh thiên nhiên</b><small>Gió và chuông gió</small></div><input type="checkbox" class="switch" id="set-ambient"></div>
+        <input type="range" id="set-ambient-vol" min="0" max="1" step="0.01">
+      </div>
+      <div class="card">
+        <div class="row"><div><b>Tụng kinh</b><small>Nam mô A Di Đà Phật, có mõ và chuông</small></div></div>
+        <input type="range" id="set-chant-vol" min="0" max="1" step="0.01">
+      </div>
+      <div class="card">
+        <div class="row"><div><b>Hiệu ứng</b><small>Chuông khi lạy, tiếng hạt, trống</small></div><input type="checkbox" class="switch" id="set-fx"></div>
+        <input type="range" id="set-fx-vol" min="0" max="1" step="0.01">
+      </div>
+      <div class="card row">
+        <div><b>Phát khi chuyển tab</b><small>Vẫn nghe tiếng khi bạn mở ứng dụng khác</small></div>
+        <input type="checkbox" class="switch" id="set-bg">
+      </div>
+      <div class="card row">
+        <div><b>Đồ họa</b><small>Chọn “Nhẹ” nếu máy bị nóng hoặc giật</small></div>
+        <div class="seg" id="set-quality"><button data-q="low">Nhẹ</button><button data-q="high">Đẹp</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Giới thiệu -->
+  <div class="modal" id="modal-info" hidden role="dialog" aria-modal="true" aria-labelledby="info-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="info-title">Về Am Mây</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p>Am Mây là một ngôi chùa nhỏ trên mạng — nơi mọi người lặng lẽ ngồi cùng nhau. Không cần nói gì: chỉ chắp tay, lạy Phật, lần tràng hạt và nghe tiếng chuông.</p>
+      <ul class="howto">
+        <li><b>Đi lại</b> Chạm / nhấp lên sàn. Trên máy tính có thể dùng phím W A S D.</li>
+        <li><b>Ngồi</b> Chạm vào một bồ đoàn còn trống.</li>
+        <li><b>Nhìn quanh</b> Kéo màn hình. Cuộn chuột hoặc chụm hai ngón để phóng to.</li>
+        <li><b>Chào nhau</b> Chạm vào một người để chắp tay chào.</li>
+        <li><b>Thỉnh chuông, đánh trống</b> Chạm vào quả chuông hoặc chiếc trống hai bên bàn thờ.</li>
+      </ul>
+      <p class="muted" id="info-mode"></p>
+    </div>
+  </div>
+
+  <!-- Tràng hạt -->
+  <section id="beads" class="beads" hidden aria-label="Lần tràng hạt">
+    <canvas></canvas>
+    <button class="pill light back" data-bead-back>
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg> Quay lại
+    </button>
+    <div class="beads-count">
+      <div><b data-bead-n>0</b><span> / 108</span></div>
+      <small data-bead-round>Chuỗi thứ 1</small>
+      <small data-bead-today></small>
+    </div>
+    <p class="beads-hint">Vuốt xuống hoặc chạm để lần hạt</p>
+    <p class="beads-msg" data-bead-msg></p>
+  </section>
+
+  <div id="loader" class="loader">
+    <svg viewBox="0 0 24 24"><path d="M12 3 3.5 8h17Z"/><path d="M6 8.5v1.2h12V8.5M7.5 10v9M16.5 10v9M4 19.5h16M10.5 19.5v-4h3v4"/></svg>
+    <h1>Am Mây</h1>
+    <p id="loader-text">Đang mở cửa chánh điện</p>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </div>
+</main>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
