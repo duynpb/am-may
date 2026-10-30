@@ -46,11 +46,16 @@ const ADJS = ['an nhiên', 'lặng lẽ', 'thong thả', 'dịu dàng', 'hiền 
 const randomName = () => `${pick(NOUNS)} ${pick(ADJS)}`;
 
 const isCoarse = matchMedia('(pointer: coarse)').matches;
+const SETTINGS_VERSION = 2;
 const settings = Object.assign(
-  { ambient: true, ambientVol: 0.45, chantVol: 0.5, fx: true, fxVol: 0.55, bg: false, quality: isCoarse ? 'low' : 'high', muted: false, showNames: true },
+  { ambient: true, ambientVol: 0.45, chantVol: 0.5, fx: true, fxVol: 0.55, bg: true, quality: isCoarse ? 'low' : 'high', muted: false, showNames: true },
   store.get('settings', {}),
 );
+// v2: "Phát khi chuyển tab" mặc định bật — bật lại một lần cho cài đặt đã lưu từ trước
+if ((settings.v || 1) < 2) settings.bg = true;
+settings.v = SETTINGS_VERSION;
 const saveSettings = () => store.set('settings', settings);
+saveSettings();
 // chưa có pháp danh → hỏi khi vào chùa lần đầu (xem askName ở cuối file)
 const savedName = store.get('name', null);
 let myName = savedName || randomName();
