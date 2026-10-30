@@ -661,7 +661,19 @@ muteBtn.addEventListener('click', () => {
 
 const chantBtn = $('#btn-chant');
 const caption = $('#chant-caption');
-caption.innerHTML = CHANT_SYLLABLES.map((s) => `<span>${s}</span>`).join('');
+caption.innerHTML = CHANT_SYLLABLES.map((s) => `<span data-text="${s}">${s}</span>`).join('');
+const capSpans = [...caption.querySelectorAll('span')];
+
+// Hiệu ứng karaoke: chữ đang tụng tô vàng dần từ trái sang phải
+function updateCaption() {
+  if (caption.hidden) return;
+  const pos = sound.karaoke();
+  capSpans.forEach((s, k) => {
+    const p = !pos ? 0 : pos.all ? 1 : k < pos.i ? 1 : k === pos.i ? pos.k : 0;
+    s.style.setProperty('--p', p.toFixed(3));
+    s.classList.toggle('on', !!pos && !pos.all && k === pos.i);
+  });
+}
 chantBtn.addEventListener('click', () => {
   const on = chantBtn.getAttribute('aria-pressed') !== 'true';
   sound.setChant(on);
@@ -673,14 +685,9 @@ chantBtn.addEventListener('click', () => {
   chantBtn.setAttribute('aria-pressed', on);
   chantBtn.querySelector('.txt').textContent = on ? 'Dừng tụng kinh' : 'Nghe tụng kinh';
   caption.hidden = !on;
-  // bản ghi âm không có mốc từng chữ → sáng cả câu
-  caption.querySelectorAll('span').forEach((s) => s.classList.toggle('on', on && sound.mode === 'record'));
   hintEl.classList.add('hide');
 });
 const chanting = () => chantBtn.getAttribute('aria-pressed') === 'true';
-sound.onSyllable = (i) => {
-  caption.querySelectorAll('span').forEach((s, k) => s.classList.toggle('on', k === i));
-};
 
 $('#btn-shot').addEventListener('click', () => {
   renderer.render(scene, camera);
@@ -748,10 +755,7 @@ $('#btn-shot').addEventListener('click', () => {
     settings.chantVoice = voiceSel.value;
     saveSettings();
     voiceStatus.textContent = sound.chantModeLabel();
-    if (chanting()) {
-      sound.setChant(true);
-      caption.querySelectorAll('span').forEach((s) => s.classList.toggle('on', sound.mode === 'record'));
-    }
+    if (chanting()) sound.setChant(true);
   });
 
   $('#btn-settings').addEventListener('click', () => {
@@ -790,6 +794,7 @@ function frame() {
   if (!beads.isOpen) {
     renderer.render(scene, camera);
     updateLabels(performance.now());
+    updateCaption();
   }
 }
 

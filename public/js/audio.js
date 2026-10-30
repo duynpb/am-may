@@ -44,12 +44,18 @@ export class Sound {
     this.s = settings;
     this.ctx = null;
     this.chanting = false;
-    this.onSyllable = null;
     this.hidden = false;
     this.hasRecording = false;
+    this.beatMarks = [];
+    this.ttsMarks = [];
     this.recordingChecked = fetch(RECORDING_URL, { method: 'HEAD', cache: 'no-store' })
       .then((r) => (this.hasRecording = r.ok && !/text\/html/.test(r.headers.get('content-type') || '')))
       .catch(() => false);
+    // mốc thời gian từng chữ của bản ghi âm (cho hiệu ứng karaoke)
+    fetch(RECORDING_URL.replace(/\.mp3$/, '.json'))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => (this.timing = j))
+      .catch(() => {});
     if ('speechSynthesis' in window) {
       speechSynthesis.getVoices();
       speechSynthesis.addEventListener?.('voiceschanged', () => this.onVoices?.());
@@ -93,7 +99,7 @@ export class Sound {
       const i = SYL_POS.findIndex((p, k) => e.charIndex >= p && (k === SYL_POS.length - 1 || e.charIndex < SYL_POS[k + 1]));
       if (i >= 0 && this.chanting) {
         this.ttsBoundary = true;
-        this.onSyllable?.(i);
+        this.mark(this.ttsMarks, this.ctx.currentTime, i, i === 5 ? 0.6 : 0.4);
       }
     };
     speechSynthesis.cancel();
@@ -111,7 +117,40 @@ export class Sound {
     this.recEl.play().catch(() => {});
   }
 
+  mark(list, t, i, dur) {
+    list.push({ t, i, dur });
+    if (list.length > 16) list.shift();
+  }
+
+  // Vị trí karaoke hiện tại: { i: chữ đang tụng (0–5), k: phần đã tụng của chữ (0–1) },
+  // { all: true } khi không biết mốc, hoặc null khi chưa tới chữ nào.
+  karaoke() {
+    if (!this.chanting || !this.ctx) return null;
+    if (this.mode === 'record') {
+      const el = this.recEl, tm = this.timing;
+      if (!el || !tm?.beats?.length) return { all: true };
+      const b = tm.beats, t = el.currentTime + (tm.offset || 0);
+      if (t < b[0]) return null;
+      let lo = 0, hi = b.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (b[mid] <= t) lo = mid;
+        else hi = mid - 1;
+      }
+      const end = b[lo + 1] ?? (el.duration || b[lo] + 0.7);
+      return { i: (lo + (tm.firstSyllable || 0)) % 6, k: Math.min(1, (t - b[lo]) / (end - b[lo])) };
+    }
+    const list = this.mode === 'tts' && this.ttsBoundary ? this.ttsMarks : this.beatMarks;
+    const now = this.ctx.currentTime;
+    let cur = null;
+    for (const m of list) if (m.t <= now) cur = m;
+    if (!cur) return null;
+    return { i: cur.i, k: Math.min(1, (now - cur.t) / cur.dur) };
+  }
+
   stopVoices() {
+    this.beatMarks = [];
+    this.ttsMarks = [];
     clearInterval(this.timer);
     if ('speechSynthesis' in window) speechSynthesis.cancel();
     this.recEl?.pause();
@@ -377,7 +416,7 @@ export class Sound {
       } else {
         this.voice(t, SYL[i], i === 5 ? BEAT * 1.7 : BEAT * 0.94);
       }
-      setTimeout(() => this.chanting && !this.ttsBoundary && this.onSyllable?.(i), delay);
+      this.mark(this.beatMarks, t, i, i === 5 ? BEAT * 1.6 : BEAT * 0.92);
       this.nextT += i === 5 ? BEAT * 2 : BEAT;
       this.beat++;
     }
