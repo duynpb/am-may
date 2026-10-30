@@ -41,14 +41,38 @@ const server = http.createServer(async (req, res) => {
   try {
     const s = await stat(file);
     if (!s.isFile()) throw new Error('not file');
-    const body = await readFile(file);
     const ext = path.extname(file);
-    res.writeHead(200, {
+    const modified = s.mtime.toUTCString();
+    const headers = {
       'content-type': MIME[ext] || 'application/octet-stream',
       'cache-control': 'no-cache',
-      'last-modified': s.mtime.toUTCString(),
-    });
-    res.end(body);
+      'last-modified': modified,
+      'accept-ranges': 'bytes',
+    };
+    // trình duyệt đã có bản mới nhất
+    const since = Date.parse(req.headers['if-modified-since'] || '');
+    if (since && Math.floor(s.mtimeMs / 1000) * 1000 <= since) {
+      res.writeHead(304, headers).end();
+      return;
+    }
+    const body = await readFile(file);
+    // tải theo đoạn — Safari cần để phát audio
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (range && (range[1] || range[2])) {
+      let start = range[1] ? +range[1] : body.length - +range[2];
+      let end = range[1] && range[2] ? +range[2] : body.length - 1;
+      start = Math.max(0, start);
+      end = Math.min(end, body.length - 1);
+      if (start > end) {
+        res.writeHead(416, { 'content-range': `bytes */${body.length}` }).end();
+        return;
+      }
+      res.writeHead(206, { ...headers, 'content-range': `bytes ${start}-${end}/${body.length}`, 'content-length': end - start + 1 });
+      res.end(req.method === 'HEAD' ? undefined : body.subarray(start, end + 1));
+      return;
+    }
+    res.writeHead(200, { ...headers, 'content-length': body.length });
+    res.end(req.method === 'HEAD' ? undefined : body);
   } catch {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Không tìm thấy');
   }

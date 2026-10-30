@@ -71,6 +71,7 @@ export class Sound {
     const m = this.chantMode;
     if (m === 'record') return 'Đang dùng bản ghi âm tụng kinh.';
     if (m === 'tts') return `Đang dùng giọng tiếng Việt: ${this.ttsVoice()?.name}.`;
+    if (this.s.chantVoice === 'synth') return 'Đang dùng giọng ngân tổng hợp.';
     return 'Thiết bị này chưa có giọng tiếng Việt — đang dùng giọng ngân tổng hợp.';
   }
 
@@ -173,7 +174,11 @@ export class Sound {
     if (hidden && !this.s.bg) {
       this.ctx.suspend();
       if ('speechSynthesis' in window) speechSynthesis.cancel();
-    } else if (!hidden) this.ctx.resume();
+      this.recEl?.pause();
+    } else if (!hidden) {
+      this.ctx.resume();
+      if (this.chanting && this.mode === 'record') this.recEl?.play().catch(() => {});
+    }
   }
 
   get live() {
