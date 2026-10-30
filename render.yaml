@@ -7,3 +7,7 @@ services:
     startCommand: npm start
     healthCheckPath: /api/rooms
     autoDeploy: true
+    envVars:
+      # Chuỗi kết nối Postgres (Neon, Supabase…) — điền trong Render, không ghi vào code
+      - key: DATABASE_URL
+        sync: false

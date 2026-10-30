@@ -80,7 +80,21 @@ Quy tắc nằm trong `public/js/karma.js` (máy chủ và trình duyệt dùng 
 | Thỉnh chuông, đánh trống | +1 phước | 5 |
 | Thỉnh chuông dồn dập (5 lần trong 30 giây) | +2 nghiệp | 3 |
 
-Khi chạy máy chủ, hồ sơ được lưu vào `data/profiles.json` (đổi thư mục bằng biến môi trường `DATA_DIR`). Khi ngoại tuyến, hồ sơ chỉ lưu trên trình duyệt.
+## Lưu trữ dữ liệu (hồ sơ, sổ công đức)
+
+- Có biến môi trường `DATABASE_URL` → máy chủ lưu vào **Postgres** (bảng `profiles` và `kv` tự tạo khi chạy lần đầu). Dùng được với Neon, Supabase hoặc bất kỳ Postgres nào.
+- Không có `DATABASE_URL` (hoặc không kết nối được) → lưu vào file trong `data/` (đổi bằng `DATA_DIR`). Trên Render gói miễn phí, file này mất mỗi khi máy chủ khởi động lại, nên khi chạy thật hãy dùng Postgres.
+- Khi ngoại tuyến (không có máy chủ), hồ sơ chỉ lưu trên trình duyệt.
+
+### Tạo cơ sở dữ liệu miễn phí trên Neon
+
+1. Đăng ký tại https://neon.tech (có thể đăng nhập bằng GitHub).
+2. Tạo project, chọn vùng **AWS Asia Pacific (Singapore)** cho gần Việt Nam.
+3. Ở trang project, bấm **Connect**, sao chép chuỗi kết nối dạng `postgresql://…@….neon.tech/neondb?sslmode=require`.
+4. Vào Render → dịch vụ `am-may` → **Environment** → thêm biến `DATABASE_URL` với chuỗi vừa chép → **Save**. Render tự khởi động lại.
+5. Xem **Logs** trên Render, thấy dòng `Lưu trữ: cơ sở dữ liệu Postgres` là xong.
+
+Không đưa chuỗi kết nối vào code hay GitHub — nó chứa mật khẩu cơ sở dữ liệu.
 
 ## Đưa lên mạng
 

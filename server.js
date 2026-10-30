@@ -1,11 +1,11 @@
 // Máy chủ Am Mây: phục vụ file tĩnh + WebSocket cho các chánh điện nhiều người.
 import http from 'node:http';
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { applyEvent, newProfile, publicProfile, vnDate, CLIENT_KINDS } from './public/js/karma.js';
+import { openStorage } from './storage.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -97,41 +97,71 @@ const clamp = (v, a, b) => (Number.isFinite(+v) ? Math.min(b, Math.max(a, +v)) :
 const MERIT_PER_DAY = 3; // mỗi người
 const MERIT_PER_IP = 30; // chặn lạm dụng (nhiều người dùng chung mạng vẫn đủ)
 const merit = { date: vnDate(), total: 0, recent: [], byUser: new Map(), byIp: new Map() };
+let meritDirty = false;
 function meritToday() {
   const d = vnDate();
-  if (merit.date !== d) Object.assign(merit, { date: d, total: 0, recent: [], byUser: new Map(), byIp: new Map() });
+  if (merit.date !== d) {
+    Object.assign(merit, { date: d, total: 0, recent: [], byUser: new Map(), byIp: new Map() });
+    meritDirty = true;
+  }
   return merit;
 }
 const meritPublic = () => ({ date: meritToday().date, total: merit.total, recent: merit.recent });
 
-// ---------- Hồ sơ Phật tử: điểm phước / nghiệp, lưu ra file ----------
-const PROFILE_FILE = path.join(DATA_DIR, 'profiles.json');
-const profiles = new Map();
-try {
-  for (const [k, v] of Object.entries(JSON.parse(readFileSync(PROFILE_FILE, 'utf8')))) profiles.set(k, v);
-  console.log(`Đã nạp ${profiles.size} hồ sơ Phật tử`);
-} catch { /* chưa có file */ }
-let profilesDirty = false;
-function saveProfiles() {
-  if (!profilesDirty) return;
-  profilesDirty = false;
-  try {
-    mkdirSync(DATA_DIR, { recursive: true });
-    writeFileSync(PROFILE_FILE + '.tmp', JSON.stringify(Object.fromEntries(profiles)));
-    renameSync(PROFILE_FILE + '.tmp', PROFILE_FILE);
-  } catch (e) {
-    console.error('Không lưu được hồ sơ:', e.message);
+// ---------- Lưu trữ lâu dài (Postgres hoặc file) ----------
+const storage = await openStorage({ dataDir: DATA_DIR });
+const profiles = await storage.loadProfiles();
+console.log(`Lưu trữ: ${storage.kind === 'postgres' ? 'cơ sở dữ liệu Postgres' : 'file trong ' + DATA_DIR} · đã nạp ${profiles.size} hồ sơ Phật tử`);
+{
+  const saved = await storage.loadKV('merit');
+  if (saved?.date === vnDate()) {
+    Object.assign(merit, { ...saved, byUser: new Map(saved.byUser), byIp: new Map(saved.byIp) });
   }
 }
-setInterval(saveProfiles, 5000);
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { saveProfiles(); process.exit(0); });
+const dirtyProfiles = new Set();
+let flushing = null;
+// Ghi những hồ sơ đã đổi + sổ công đức (gom lại mỗi vài giây)
+async function flush() {
+  if (flushing) return flushing;
+  const uids = [...dirtyProfiles];
+  const meritChanged = meritDirty;
+  if (!uids.length && !meritChanged) return;
+  dirtyProfiles.clear();
+  meritDirty = false;
+  flushing = (async () => {
+    try {
+      await storage.saveProfiles(uids.map((u) => [u, profiles.get(u)]));
+      if (meritChanged) {
+        await storage.saveKV('merit', { ...merit, byUser: [...merit.byUser], byIp: [...merit.byIp] });
+      }
+    } catch (e) {
+      // lỗi mạng tạm thời: để lần sau ghi lại
+      console.error('Không lưu được dữ liệu:', e.message);
+      uids.forEach((u) => dirtyProfiles.add(u));
+      if (meritChanged) meritDirty = true;
+    } finally {
+      flushing = null;
+    }
+  })();
+  return flushing;
+}
+setInterval(flush, 4000);
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, async () => {
+    await flush();
+    await flush(); // phần đổi trong lúc đang ghi
+    await storage.close();
+    process.exit(0);
+  });
+}
 
+// ---------- Hồ sơ Phật tử: điểm phước / nghiệp ----------
 function getProfile(uid, name) {
   let p = profiles.get(uid);
   if (!p) {
     p = newProfile(name);
     profiles.set(uid, p);
-    profilesDirty = true;
+    dirtyProfiles.add(uid);
   }
   return p;
 }
@@ -140,7 +170,7 @@ function award(ws, uid, kind, opts) {
   const p = profiles.get(uid);
   const entry = p && applyEvent(p, kind, opts);
   if (!entry) return;
-  profilesDirty = true;
+  dirtyProfiles.add(uid);
   ws.send(JSON.stringify({ t: 'karma', entry, phuoc: p.phuoc, nghiep: p.nghiep }));
 }
 
@@ -181,6 +211,7 @@ wss.on('connection', (ws, req) => {
       uid = typeof m.uid === 'string' && /^[a-z0-9]{8,32}$/i.test(m.uid) ? m.uid : 'ip:' + ip;
       const used = meritToday().byUser.get(uid) || 0;
       getProfile(uid, me.name).name = me.name;
+      dirtyProfiles.add(uid);
       ws.send(JSON.stringify({
         t: 'welcome', id: me.id, room: roomId, peers: [...members.values()].map((p) => p.p),
         merit: { ...meritPublic(), used },
@@ -230,6 +261,7 @@ wss.on('connection', (ws, req) => {
       const name = m.anon ? null : me.name;
       st.recent.unshift({ name, at: Date.now() });
       st.recent.length = Math.min(st.recent.length, 12);
+      meritDirty = true;
       ws.send(JSON.stringify({ t: 'merit-ok', used: used + 1, total: st.total, recent: st.recent }));
       broadcast(roomId, { t: 'merit', id: me.id, total: st.total, recent: st.recent }, me.id);
       award(ws, uid, 'merit');
@@ -245,7 +277,7 @@ wss.on('connection', (ws, req) => {
       const p = profiles.get(uid);
       if (p) {
         p.name = me.name;
-        profilesDirty = true;
+        dirtyProfiles.add(uid);
       }
       broadcast(roomId, { t: 'name', id: me.id, name: me.name }, me.id);
     }
