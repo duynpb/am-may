@@ -29,7 +29,7 @@ const randomName = () => `${pick(NOUNS)} ${pick(ADJS)}`;
 
 const isCoarse = matchMedia('(pointer: coarse)').matches;
 const settings = Object.assign(
-  { ambient: true, ambientVol: 0.45, chantVol: 0.5, fx: true, fxVol: 0.55, bg: false, quality: isCoarse ? 'low' : 'high', muted: false },
+  { ambient: true, ambientVol: 0.45, chantVol: 0.5, fx: true, fxVol: 0.55, bg: false, quality: isCoarse ? 'low' : 'high', muted: false, showNames: true },
   store.get('settings', {}),
 );
 const saveSettings = () => store.set('settings', settings);
@@ -79,6 +79,14 @@ const labelsEl = $('#labels');
 function addAvatar(a) {
   avatars.set(a.id, a);
   scene.add(a.root);
+  if (!a.isPlayer) {
+    // nhãn pháp danh trên đầu (tắt được trong Cài đặt)
+    a.nameEl = document.createElement('div');
+    a.nameEl.className = 'label name';
+    a.nameEl.textContent = a.name;
+    a.nameEl.hidden = true;
+    labelsEl.append(a.nameEl);
+  }
   return a;
 }
 function removeAvatar(id) {
@@ -87,6 +95,7 @@ function removeAvatar(id) {
   a.script = null;
   a.dispose();
   a.bubbleEl?.remove();
+  a.nameEl?.remove();
   avatars.delete(id);
   rack.release(id);
 }
@@ -104,13 +113,14 @@ const renderMyLabel = () => {
 };
 renderMyLabel();
 
-function bubble(a, text, ms = 2600) {
+// Bong bóng hành động; khi đã hiện pháp danh thì không lặp lại tên
+function bubble(a, action, ms = 2600) {
   if (!a.bubbleEl) {
     a.bubbleEl = document.createElement('div');
     a.bubbleEl.className = 'label bubble hidden';
     labelsEl.append(a.bubbleEl);
   }
-  a.bubbleEl.textContent = text;
+  a.bubbleEl.textContent = settings.showNames ? action : `${a.name} · ${action}`;
   a.bubbleEl.classList.remove('hidden');
   a.bubbleUntil = performance.now() + ms;
 }
@@ -269,7 +279,7 @@ function botsThink(t) {
       a.act('gassho');
       if (player.pos.distanceTo(a.pos) < 4.5) {
         a.act('gassho', a.sitting ? null : faceRy(a, player));
-        bubble(a, a.name);
+        bubble(a, 'chắp tay');
         socialToast(`${a.name} chắp tay chào bạn`);
       }
     } else if (r < 0.66) {
@@ -345,7 +355,7 @@ function addRemote(p, { entering = false } = {}) {
 function wireNet(n) {
   n.on('join', (m) => {
     addRemote(m.p, { entering: true });
-    bubble(avatars.get('n' + m.p.id), m.p.name, 4000);
+    bubble(avatars.get('n' + m.p.id), 'vừa đến chùa', 4000);
   });
   n.on('leave', (m) => {
     const a = avatars.get('n' + m.id);
@@ -367,11 +377,11 @@ function wireNet(n) {
     if (m.a === 'gassho') {
       const toMe = m.to === n.welcome.id;
       a.act('gassho', toMe && !a.sitting ? faceRy(a, player) : null);
-      bubble(a, a.name);
+      bubble(a, 'chắp tay');
       if (toMe) toast(`${a.name} chắp tay chào bạn`);
     } else if (m.a === 'bow') {
       a.act('bow', faceBuddhaRy(a));
-      bubble(a, `${a.name} · lạy Phật`);
+      bubble(a, 'lạy Phật');
     } else if (m.a === 'bell' || m.a === 'drum') {
       ringInstrument(m.a, a);
     } else if (m.a === 'incense') {
@@ -380,7 +390,9 @@ function wireNet(n) {
   });
   n.on('name', (m) => {
     const a = avatars.get('n' + m.id);
-    if (a) a.name = m.name;
+    if (!a) return;
+    a.name = m.name;
+    if (a.nameEl) a.nameEl.textContent = m.name;
   });
   n.on('count', (m) => {
     onlineCount = m.n;
@@ -482,7 +494,7 @@ function doGassho(target = null) {
       setTimeout(() => {
         if (!avatars.has(target.id)) return;
         target.act('gassho', target.sitting ? null : faceRy(target, player));
-        bubble(target, target.name);
+        bubble(target, 'chắp tay đáp lễ');
         toast(`${target.name} chắp tay đáp lễ`);
       }, rnd(900, 1800));
     }
@@ -494,7 +506,7 @@ function doGassho(target = null) {
       setTimeout(() => {
         if (!avatars.has(b.id)) return;
         b.act('gassho', b.sitting ? null : faceRy(b, player));
-        bubble(b, b.name);
+        bubble(b, 'chắp tay');
         socialToast(`${b.name} chắp tay chào lại`);
       }, rnd(1000, 2200));
     }
@@ -528,7 +540,7 @@ function offerIncense(a, n, onDone) {
   a.busy = true;
   a.holdIncense(n);
   a.act('bow', faceBuddhaRy(a));
-  if (a !== player) bubble(a, `${a.name} · thắp nhang`, 3600);
+  if (a !== player) bubble(a, 'thắp nhang', 3600);
   setTimeout(() => {
     a.busy = false;
     if (!avatars.has(a.id)) return;
@@ -605,7 +617,7 @@ function ringInstrument(kind, by = null) {
     sound.drum();
     obj.userData.hit = 1;
   }
-  if (by) bubble(by, `${by.name} · ${kind === 'bell' ? 'thỉnh chuông' : 'đánh trống'}`);
+  if (by) bubble(by, kind === 'bell' ? 'thỉnh chuông' : 'đánh trống');
 }
 
 document.querySelectorAll('.actions button').forEach((b) => {
@@ -812,22 +824,32 @@ function updateCamera(dt) {
 
 // ---------- Nhãn ----------
 const v3 = new THREE.Vector3();
-function placeLabel(el, a, now) {
+// lift: đẩy nhãn lên thêm (px, trước khi co theo khoảng cách); fade: mờ dần khi ở xa
+function placeLabel(el, a, { lift = 0, fade = false } = {}) {
   a.labelAnchor(v3);
   v3.y += 0.15;
+  const dist = camera.position.distanceTo(v3);
+  const s = fade ? clamp(9 / dist, 0.6, 1) : 1;
+  const op = fade ? clamp((27 - dist) / 8, 0, 1) : 1;
   v3.project(camera);
-  const behind = v3.z > 1;
   const x = (v3.x * 0.5 + 0.5) * window.innerWidth;
-  const y = (-v3.y * 0.5 + 0.5) * window.innerHeight;
-  el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-  el.style.visibility = behind ? 'hidden' : 'visible';
+  const y = (-v3.y * 0.5 + 0.5) * window.innerHeight - lift * s;
+  el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%) scale(${s.toFixed(3)})`;
+  el.style.opacity = op;
+  el.style.visibility = v3.z > 1 || op === 0 ? 'hidden' : 'visible';
 }
 function updateLabels(now) {
-  placeLabel(player.labelEl, player, now);
+  placeLabel(player.labelEl, player);
   for (const a of avatars.values()) {
+    if (a === player) continue;
+    if (a.nameEl) {
+      a.nameEl.hidden = !settings.showNames;
+      if (settings.showNames) placeLabel(a.nameEl, a, { fade: true });
+    }
     if (!a.bubbleEl) continue;
     if (now > a.bubbleUntil) a.bubbleEl.classList.add('hidden');
-    placeLabel(a.bubbleEl, a, now);
+    // khi đang hiện pháp danh, bong bóng hành động nằm ngay trên nhãn tên
+    placeLabel(a.bubbleEl, a, { lift: settings.showNames ? 26 : 0, fade: true });
   }
 }
 
@@ -974,6 +996,7 @@ $('#btn-shot').addEventListener('click', () => {
   bind('#set-fx', 'fx');
   bind('#set-fx-vol', 'fxVol', 'value');
   bind('#set-bg', 'bg');
+  bind('#set-names', 'showNames');
   const seg = $('#set-quality');
   const syncQ = () => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.q === settings.quality));
   syncQ();
