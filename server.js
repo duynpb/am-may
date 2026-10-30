@@ -279,6 +279,7 @@ wss.on('connection', (ws, req) => {
       if (!target || target.p.id === me.id || target.p.missing) return;
       target.p.missing = true;
       broadcast(roomId, { t: 'sandal-taken', id: target.p.id, by: me.id });
+      award(ws, uid, 'steal');
     } else if (m.t === 'sandal-return') {
       if (!me.missing) return;
       me.missing = false;

@@ -718,7 +718,9 @@ function takeSandal(owner) {
   a.missingSandal = true;
   sound.bead();
   toast(`Bạn đã lấy một chiếc dép của ${a.name}`);
-  if (owner.startsWith('n')) net?.send({ t: 'take-sandal', id: owner.slice(1) });
+  // người thật: máy chủ ghi nghiệp khi nhận lệnh lấy dép; khách mô phỏng: tự ghi
+  if (owner.startsWith('n') && net) net.send({ t: 'take-sandal', id: owner.slice(1) });
+  else earn('steal');
 }
 
 // Mất dép mà muốn ra ngoài: chặn lại, đếm ngược 10 giây rồi dép được trả lại.

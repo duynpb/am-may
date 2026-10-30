@@ -86,6 +86,7 @@ Quy tắc nằm trong `public/js/karma.js` (máy chủ và trình duyệt dùng 
 | Nghe tụng kinh (ghi từng phút vào hồ sơ, đủ mỗi 10 phút thì cộng điểm) | +2 phước | 12 |
 | Thỉnh chuông, đánh trống | +1 phước | 5 |
 | Thỉnh chuông dồn dập (5 lần trong 30 giây) | +2 nghiệp | 3 |
+| Lấy dép của người khác | +1 nghiệp | 20 |
 
 ## Lưu trữ dữ liệu (hồ sơ, sổ công đức)
 

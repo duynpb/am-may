@@ -12,10 +12,11 @@ export const RULES = {
   chant: { label: 'Nghe tụng kinh đủ 10 phút', phuoc: 2, cap: 12 },
   bell: { label: 'Thỉnh chuông, đánh trống', phuoc: 1, cap: 5 },
   noise: { label: 'Làm ồn chánh điện (thỉnh chuông dồn dập)', nghiep: 2, cap: 3 },
+  steal: { label: 'Lấy dép của người khác', nghiep: 1, cap: 20 },
 };
 
 // Những việc trình duyệt được tự báo lên máy chủ (các việc khác máy chủ tự ghi nhận)
-export const CLIENT_KINDS = ['beads', 'chant', 'greet'];
+export const CLIENT_KINDS = ['beads', 'chant', 'greet', 'steal'];
 const CHANT_MIN_CAP = 180; // tối đa 180 phút nghe tụng kinh được ghi mỗi ngày
 const CHANT_MIN_GAP = 50e3; // mỗi lần báo cách nhau ít nhất 50 giây
 
