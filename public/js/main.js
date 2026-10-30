@@ -226,11 +226,19 @@ async function enterTemple(a) {
     rack.place(a.id, a.sandalColors, { messy: true });
     await a.walk(slot.x, slot.z - 0.75);
     if (!alive(a, token)) return false;
-    // quay lại, cúi xuống xoay dép cho ngay ngắn
-    a.act('stoop', 0);
+    // quay hẳn người lại phía dép (hướng ra sân)…
+    a.faceRy = 0;
+    await wait(500);
+    if (!alive(a, token)) return false;
+    // …cúi xuống xoay dép cho ngay ngắn, mũi dép hướng ra sân…
+    a.act('stoop');
     await wait(550);
     rack.straighten(a.id, 0.9);
     await wait(1500);
+    if (!alive(a, token)) return false;
+    // …đứng lên, quay vào chánh điện rồi mới bước vào
+    a.faceRy = Math.PI;
+    await wait(450);
     if (!alive(a, token)) return false;
   } else {
     a.wearSandals(false);
