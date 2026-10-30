@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, groundY } from './world.js';
+import { buildWorld, HALL, GARDEN, BUDDHA, ENTRANCE, COURTYARD, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
@@ -134,6 +134,7 @@ function removeAvatar(id) {
 
 const player = new Avatar({ id: 'me', name: myName, robe: myRobe, isPlayer: true });
 player.setSandals(SANDAL_COLORS[mySandals]);
+player.zone = 'in';
 addAvatar(player);
 player.placeAt(0, COURTYARD.z, Math.PI);
 player.labelEl = document.createElement('div');
@@ -168,7 +169,20 @@ function seatTaken(index, except) {
 }
 const freeSeats = (except) => seats.filter((s) => !seatTaken(s.index, except));
 
-const faceBuddhaRy = (a) => Math.atan2(BUDDHA.x - a.pos.x, BUDDHA.z - a.pos.z);
+// Trong / ngoài chánh điện: ranh giới là thềm
+const zoneOf = (z) => (z > 19.3 ? 'out' : 'in');
+const zoneOfA = (a) => a.zone || 'in';
+function clampZone(zone, x, z) {
+  if (zone === 'in') return [clamp(x, HALL.minX, HALL.maxX), clamp(z, HALL.minZ, HALL.maxZ)];
+  return world.pushOut(clamp(x, GARDEN.minX, GARDEN.maxX), clamp(z, GARDEN.minZ, GARDEN.maxZ));
+}
+// Hướng mặt về nơi thờ: tượng Phật trong chánh điện, tượng Quan Âm ngoài sân
+const shrineOf = (a) => (zoneOfA(a) === 'out' ? world.quanAm.head : BUDDHA);
+const faceShrineRy = (a) => {
+  const t = shrineOf(a);
+  return Math.atan2(t.x - a.pos.x, t.z - a.pos.z);
+};
+const burnerOf = (place) => (place === 'out' ? world.incenseOut : world.incense);
 const faceRy = (a, b) => Math.atan2(b.pos.x - a.pos.x, b.pos.z - a.pos.z);
 
 // ---------- Toast ----------
@@ -226,7 +240,7 @@ async function enterTemple(a) {
 }
 
 // Đến chỗ để dép, mang dép vào rồi đi ra sân
-async function exitTemple(a) {
+async function exitTemple(a, dest = null) {
   const token = (a.script = {});
   const slot = rack.slotOf(a.id);
   if (slot && rack.has(a.id)) {
@@ -239,11 +253,30 @@ async function exitTemple(a) {
     await wait(300);
     await a.walk(clamp(slot.x, -3, 3), STEP_Z);
   } else {
+    a.wearSandals(true);
     await a.walk(rnd(-1.5, 1.5), STEP_Z);
   }
   if (!alive(a, token)) return false;
-  await a.walk(rnd(-1.5, 1.5), COURTYARD.z + 2);
-  return alive(a, token);
+  await a.walk(dest ? dest.x : rnd(-1.5, 1.5), dest ? dest.z : COURTYARD.z + 2);
+  if (!alive(a, token)) return false;
+  a.script = null;
+  return true;
+}
+
+// Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn
+async function crossZone(a, x, z, seat = null) {
+  const target = zoneOf(z);
+  [x, z] = clampZone(target, x, z);
+  if (target === 'out') {
+    a.seat = null;
+    if (!(await exitTemple(a, { x, z }))) return false;
+    a.zone = 'out';
+  } else {
+    if (!(await enterTemple(a))) return false;
+    a.zone = 'in';
+    a.walkTo(x, z, seat);
+  }
+  return true;
 }
 
 // Ngắt kịch bản đang chạy: dép coi như đã để ngay ngắn trên thềm
@@ -292,7 +325,7 @@ function makeBot({ seated }) {
 
 function botsThink(t) {
   for (const a of bots) {
-    if (a.leaving || a.script) continue;
+    if (a.leaving || a.script || a.trip) continue;
     if (a.pendingIncense && !a.moving) {
       const n = a.pendingIncense;
       a.pendingIncense = 0;
@@ -322,7 +355,7 @@ function botsThink(t) {
     if (t < a.brain.next || a.moving || a.leaving || a.busy) continue;
     a.brain.next = t + rnd(10, 45);
     const r = Math.random();
-    if (r < 0.32) a.act('bow', faceBuddhaRy(a));
+    if (r < 0.32) a.act('bow', faceShrineRy(a));
     else if (r < 0.55) {
       a.act('gassho');
       if (player.pos.distanceTo(a.pos) < 4.5) {
@@ -346,6 +379,8 @@ function botsThink(t) {
       const spot = meritSpot(a);
       a.pendingMerit = true;
       a.walkTo(spot.x, spot.z);
+    } else if (r < 0.88) {
+      botGardenTrip(a);
     }
   }
   if (bots.size < botTarget && Math.random() < 0.004) makeBot({ seated: false });
@@ -353,6 +388,27 @@ function botsThink(t) {
     const a = pick([...bots].filter((b) => !b.leaving && !b.script && !b.busy));
     if (a) botLeave(a);
   }
+}
+
+// Khách mô phỏng ra sân: mang dép, thắp nhang dâng Quan Âm, ngắm hồ sen rồi vào lại chánh điện
+async function botGardenTrip(a) {
+  a.trip = true;
+  const spot = leastCrowded(world.incenseOut.spots, a);
+  if (!(await crossZone(a, spot.x, spot.z))) return (a.trip = false);
+  await wait(rnd(500, 1500));
+  if (!avatars.has(a.id) || a.leaving) return;
+  await new Promise((res) => offerIncense(a, Math.random() < 0.6 ? 3 : 1, res, 'out'));
+  await wait(rnd(3000, 8000));
+  if (!avatars.has(a.id) || a.leaving || a.script) return;
+  if (Math.random() < 0.6) {
+    const [px, pz] = pick([[7.6, 35.4], [10.8, 38.3], [14.0, 35.8]]);
+    await a.walk(px, pz);
+    await wait(rnd(4000, 10000));
+    if (!avatars.has(a.id) || a.leaving || a.script) return;
+  }
+  const s = pick(freeSeats(a));
+  await crossZone(a, s ? s.x : rnd(-6, 6), s ? s.z : 10, s ?? null);
+  a.trip = false;
 }
 
 function botLeave(a) {
@@ -394,8 +450,20 @@ function addRemote(p, { entering = false } = {}) {
   const a = addAvatar(new Avatar({ id: 'n' + p.id, name: p.name, robe: p.robe }));
   a.setSandals(SANDAL_COLORS[(p.sandals ?? +p.id) % SANDAL_COLORS.length]);
   if (entering) {
+    a.zone = 'out';
     a.placeAt(rnd(-1.5, 1.5), COURTYARD.z, Math.PI);
-    enterTemple(a).then((ok) => ok && a.walkTo(rnd(-1.5, 1.5), ENTRANCE.z - 4));
+    enterTemple(a).then((ok) => {
+      if (!ok) return;
+      a.zone = 'in';
+      a.walkTo(rnd(-1.5, 1.5), ENTRANCE.z - 4);
+    });
+    return;
+  }
+  if (zoneOf(p.z) === 'out') {
+    // đang ở ngoài sân: mang dép, không có dép trên thềm
+    a.zone = 'out';
+    a.wearSandals(true);
+    a.placeAt(p.x, p.z, Math.PI);
     return;
   }
   const seat = p.seat != null ? seats[p.seat] : null;
@@ -418,10 +486,11 @@ function wireNet(n) {
   n.on('move', (m) => {
     const a = avatars.get('n' + m.id);
     if (!a || a.leaving) return;
-    cancelScript(a);
     const seat = m.seat != null ? seats[m.seat] : null;
     if (seat) yieldSeat(seat.index);
-    a.walkTo(m.x, m.z, seat);
+    // đổi vùng (hoặc đang mang/cởi dép dở) → đi qua thềm cho đúng
+    if (a.script || zoneOfA(a) !== zoneOf(m.z)) crossZone(a, m.x, m.z, seat);
+    else a.walkTo(m.x, m.z, seat);
   });
   n.on('act', (m) => {
     const a = avatars.get('n' + m.id);
@@ -432,12 +501,12 @@ function wireNet(n) {
       bubble(a, 'chắp tay');
       if (toMe) toast(`${a.name} chắp tay chào bạn`);
     } else if (m.a === 'bow') {
-      a.act('bow', faceBuddhaRy(a));
+      a.act('bow', faceShrineRy(a));
       bubble(a, 'lạy Phật');
     } else if (m.a === 'bell' || m.a === 'drum') {
       ringInstrument(m.a, a);
     } else if (m.a === 'incense') {
-      offerIncense(a, m.n === 3 ? 3 : 1);
+      offerIncense(a, m.n === 3 ? 3 : 1, null, m.place === 'out' ? 'out' : 'in');
     }
   });
   n.on('merit', (m) => {
@@ -533,12 +602,14 @@ function startIntro() {
   player.holdIncense(0);
   player.holdEnvelope(false);
   rack.release('me');
+  player.zone = 'out';
   player.placeAt(rnd(-1, 1), COURTYARD.z, Math.PI);
   cam.yaw = 0;
   showHint('Để dép ngay ngắn ở thềm trước khi vào chánh điện · chạm màn hình để bỏ qua', 0);
   enterTemple(player).then((ok) => {
     if (!ok || !intro) return;
     intro = false;
+    player.zone = 'in';
     movePlayerTo(rnd(-1, 1), ENTRANCE.z - 4);
     showHint(baseHint, 8000);
   });
@@ -547,23 +618,36 @@ function skipIntro() {
   if (!intro) return;
   intro = false;
   cancelScript(player);
+  player.zone = 'in';
   player.placeAt(rnd(-1, 1), ENTRANCE.z - 4, Math.PI);
   sendMove();
   showHint(baseHint, 8000);
 }
 
 function sendMove() {
-  if (!net || intro) return;
+  if (!net || intro || player.script) return;
   const g = player.goal ?? player.pos;
   net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: player.goalSeat?.index ?? player.seat ?? null });
 }
 
 // ---------- Hành động ----------
 function movePlayerTo(x, z, seat = null) {
-  x = clamp(x, HALL.minX, HALL.maxX);
-  z = clamp(z, HALL.minZ, HALL.maxZ);
+  if (player.script) return; // đang mang / cởi dép ở thềm
+  const target = zoneOf(z);
+  if (zoneOfA(player) !== target) {
+    // đi qua thềm: báo đích đến trước để người khác thấy mình ra / vào
+    [x, z] = clampZone(target, x, z);
+    world.showMarker(x, z, groundY(x, z) + 0.04);
+    net?.send({ t: 'move', x: +x.toFixed(2), z: +z.toFixed(2), seat: seat?.index ?? null });
+    toast(target === 'out' ? 'Mang dép vào rồi ra sân…' : 'Để dép ngay ngắn trên thềm rồi vào chánh điện…', 2600);
+    crossZone(player, x, z, seat).then((ok) => {
+      if (ok && target === 'out') toast('Bạn đang ở ngoài sân — có thể thắp nhang dâng Quan Âm Bồ Tát', 3600);
+    });
+    return;
+  }
+  [x, z] = clampZone(target, x, z);
   player.walkTo(x, z, seat);
-  world.showMarker(x, z, seat ? 0.21 : 0.04);
+  world.showMarker(x, z, groundY(x, z) + (seat ? 0.21 : 0.04));
   sendMove();
 }
 
@@ -614,7 +698,7 @@ function doGassho(target = null) {
 
 function doBow() {
   sound.init();
-  player.act('bow', faceBuddhaRy(player));
+  player.act('bow', faceShrineRy(player));
   sound.bow();
   net?.send({ t: 'act', a: 'bow' });
   earn('bow');
@@ -780,16 +864,17 @@ const altarSpot = (except) => leastCrowded(world.incense.spots, except);
 const meritSpot = (except) => leastCrowded(world.merit.spots, except);
 
 // Cầm nhang, vái lạy, rồi cắm vào lư hương
-function offerIncense(a, n, onDone) {
+function offerIncense(a, n, onDone, place = zoneOfA(a)) {
+  const burner = burnerOf(place);
   a.busy = true;
   a.holdIncense(n);
-  a.act('bow', faceBuddhaRy(a));
+  a.act('bow', Math.atan2(burner.target.x - a.pos.x, burner.target.z - a.pos.z));
   if (a !== player) bubble(a, 'thắp nhang', 3600);
   setTimeout(() => {
     a.busy = false;
     if (!avatars.has(a.id)) return;
     a.holdIncense(0);
-    world.incense.add(n, { mine: a === player });
+    burner.add(n, { mine: a === player });
     onDone?.();
   }, 3300);
 }
@@ -804,8 +889,17 @@ function incenseStats() {
 }
 function openIncenseDialog() {
   if (ritual) return;
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
   const st = incenseStats();
   $('#inc-stats').textContent = st.today ? `Hôm nay bạn đã thắp ${st.today} nén nhang.` : '';
+  const out = zoneOfA(player) === 'out';
+  $('#inc-title').textContent = out ? 'Thắp nhang dâng Quan Âm Bồ Tát' : 'Thắp nhang';
+  $('#modal-incense .muted').textContent = out
+    ? 'Bạn sẽ bước tới lư hương đá trước tượng Quan Âm, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.'
+    : 'Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.';
   openModal('#modal-incense');
 }
 $('#inc-count').addEventListener('click', (e) => {
@@ -819,8 +913,9 @@ $('#inc-go').addEventListener('click', () => {
   const wishEl = $('#inc-wish');
   const wish = wishEl.value.trim(); // lời nguyện chỉ ở máy người dùng, không gửi đi
   wishEl.value = '';
-  const spot = altarSpot(player);
-  ritual = { n: incN, wish, spot, started: false };
+  const place = zoneOfA(player);
+  const spot = leastCrowded(burnerOf(place).spots, player);
+  ritual = { n: incN, wish, spot, place, started: false };
   incBtn.disabled = true;
   movePlayerTo(spot.x, spot.z);
   hideHint();
@@ -828,7 +923,7 @@ $('#inc-go').addEventListener('click', () => {
 
 // Chạy mỗi khung hình: tới nơi thì bắt đầu nghi thức; đi chỗ khác thì hủy
 function incenseRitual() {
-  if (!ritual || ritual.started) return;
+  if (!ritual || ritual.started || player.script) return;
   const g = player.goal;
   if (g && Math.hypot(g.x - ritual.spot.x, g.z - ritual.spot.z) > 0.01) {
     ritual = null;
@@ -838,9 +933,9 @@ function incenseRitual() {
   }
   if (player.moving) return;
   ritual.started = true;
-  const { n, wish } = ritual;
+  const { n, wish, place } = ritual;
   sound.incense();
-  net?.send({ t: 'act', a: 'incense', n });
+  net?.send({ t: 'act', a: 'incense', n, place });
   offerIncense(player, n, () => {
     earn('incense', { n });
     ritual = null;
@@ -849,7 +944,7 @@ function incenseRitual() {
     st.today += n;
     st.total += n;
     store.set('incense', st);
-    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang`, 4200);
+    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${place === 'out' ? ' dâng Quan Âm Bồ Tát' : ''}`, 4200);
   });
 }
 
@@ -906,6 +1001,10 @@ async function openMeritDialog() {
     toast('Bạn đang đi tới thùng công đức…');
     return;
   }
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
   renderMerit();
   openModal('#modal-merit');
   if (online) {
@@ -949,7 +1048,7 @@ function offerMerit(a, onDone) {
 
 // Chạy mỗi khung hình: tới thùng thì góp; đi chỗ khác thì hủy
 function meritRitual() {
-  if (!meritRun || meritRun.started) return;
+  if (!meritRun || meritRun.started || player.script) return;
   const g = player.goal;
   if (g && Math.hypot(g.x - meritRun.spot.x, g.z - meritRun.spot.z) > 0.01) {
     meritRun = null;
@@ -1083,9 +1182,16 @@ function handleTap(x, y) {
     openMeritDialog();
     return;
   }
+  if (kind === 'quanam') {
+    // tới trước tượng Quan Âm
+    const f = world.quanAm.front;
+    movePlayerTo(f.x, f.z + rnd(-0.8, 0.8));
+    hideHint();
+    return;
+  }
   let seat = null;
   if (kind === 'seat') seat = seats[firstHit.instanceId];
-  else {
+  else if (kind === 'floor') {
     const p = firstHit.point;
     seat = seats.find((s) => Math.abs(s.x - p.x) < 0.7 && Math.abs(s.z - p.z) < 0.9) ?? null;
   }
@@ -1157,7 +1263,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || !!pickAvatar());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || !!pickAvatar());
 }
 
 // Bàn phím (máy tính)
@@ -1191,8 +1297,8 @@ function keyMove(t) {
   const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
   const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
   const len = Math.hypot(f, s);
-  const x = clamp(player.pos.x + ((fx * f + rx * s) / len) * 0.7, HALL.minX, HALL.maxX);
-  const z = clamp(player.pos.z + ((fz * f + rz * s) / len) * 0.7, HALL.minZ, HALL.maxZ);
+  if (player.script) return;
+  const [x, z] = clampZone(zoneOfA(player), player.pos.x + ((fx * f + rx * s) / len) * 0.7, player.pos.z + ((fz * f + rz * s) / len) * 0.7);
   player.walkTo(x, z);
   if (t - keySendT > 0.25) {
     keySendT = t;

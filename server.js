@@ -225,14 +225,16 @@ wss.on('connection', (ws, req) => {
     if (!me) return;
 
     if (m.t === 'move') {
-      me.x = clamp(m.x, -14, 14);
-      me.z = clamp(m.z, -14, 18);
+      // trong chánh điện và ngoài sân (khu Quan Âm)
+      me.x = clamp(m.x, -17, 17);
+      me.z = clamp(m.z, -14, 40);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat }, me.id);
     } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense'].includes(m.a)) {
       const to = typeof m.to === 'string' ? m.to.slice(0, 12) : undefined;
       const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
-      broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n }, me.id);
+      const place = m.a === 'incense' && m.place === 'out' ? 'out' : undefined;
+      broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n, place }, me.id);
       if (m.a === 'bow') award(ws, uid, 'bow');
       else if (m.a === 'incense') award(ws, uid, 'incense', { n });
       else if (m.a === 'bell' || m.a === 'drum') {

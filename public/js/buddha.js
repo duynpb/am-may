@@ -44,6 +44,8 @@ function seg2(px, py, ax, ay, bx, by) {
   return Math.sqrt(ex * ex + ey * ey);
 }
 
+export { smin, smax, sph, ell, cone, smooth };
+
 // ---------- Hình khối (dáng tượng đồng ngồi thiền: đầu nhỏ, thân cao, vai rộng) ----------
 const NECK = (x, y, z) => cone(x, y, z, [0, 2.0, -0.02], [0, 2.46, 0.0], 0.15, 0.13);
 const SPLIT_Y = 2.22; // thân dựng thưa, đầu dựng dày để rõ nét mặt
@@ -247,7 +249,8 @@ function polygonize(sdf, [x0, y0, z0], [x1, y1, z1], step, out) {
 }
 
 // Dựng lưới từ SDF: pháp tuyến theo gradient, bóng kẽ lõm + vân thếp vàng vào màu đỉnh
-function sculpt(parts) {
+// colors: { hi, deep } — màu chỗ nổi và màu kẽ lõm (mặc định vàng thếp)
+export function sculpt(parts, { hi = '#f6d273', deep: deepC = '#8c5e1e', grainAmp = 0.07 } = {}) {
   const out = { pos: [], idx: [] };
   const owner = [];
   for (const p of parts) {
@@ -259,9 +262,8 @@ function sculpt(parts) {
   const pos = new Float32Array(out.pos);
   const nor = new Float32Array(n * 3);
   const col = new Float32Array(n * 3);
-  // đồng đánh bóng: chỗ nổi sáng nâu vàng, kẽ lõm sẫm gần đen
-  const gold = new THREE.Color('#f6d273').convertSRGBToLinear();
-  const deep = new THREE.Color('#8c5e1e').convertSRGBToLinear();
+  const gold = new THREE.Color(hi).convertSRGBToLinear();
+  const deep = new THREE.Color(deepC).convertSRGBToLinear();
   const e = 0.004;
   for (let v = 0; v < n; v++) {
     const f = owner[v];
@@ -281,7 +283,7 @@ function sculpt(parts) {
     }
     const ao = clamp01(1 - occ * 3.2);
     // vân thếp vàng loang nhẹ
-    const grain = 0.93 + 0.07 * Math.sin(x * 23 + Math.sin(y * 17) * 2) * Math.sin(z * 19 + y * 7);
+    const grain = 1 - grainAmp + grainAmp * Math.sin(x * 23 + Math.sin(y * 17) * 2) * Math.sin(z * 19 + y * 7);
     const k = ao * grain;
     const m = 0.72 + 0.28 * k;
     col[v * 3] = (deep.r + (gold.r - deep.r) * ao) * m;
@@ -310,7 +312,7 @@ function sculpt(parts) {
 }
 
 // Cánh sen: hình giọt nước đùn khối, uốn cong mũi cánh ra ngoài, màu đậm ở gốc nhạt ở mũi
-function petalGeometry() {
+export function petalGeometry({ baseC = '#b8862e', tipC = '#ffe08a' } = {}) {
   const s = new THREE.Shape();
   s.moveTo(0, 0);
   // cánh tròn mập
@@ -319,8 +321,8 @@ function petalGeometry() {
   const g = new THREE.ExtrudeGeometry(s, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.045, bevelSegments: 5, curveSegments: 20 });
   const p = g.attributes.position;
   const col = new Float32Array(p.count * 3);
-  const base = new THREE.Color('#b8862e').convertSRGBToLinear();
-  const tip = new THREE.Color('#ffe08a').convertSRGBToLinear();
+  const base = new THREE.Color(baseC).convertSRGBToLinear();
+  const tip = new THREE.Color(tipC).convertSRGBToLinear();
   for (let i = 0; i < p.count; i++) {
     const y = p.getY(i), x = p.getX(i);
     p.setZ(i, p.getZ(i) + 0.16 * (y / 0.56) ** 2 - 0.1 * (x / 0.36) ** 2); // uốn cong nhẹ

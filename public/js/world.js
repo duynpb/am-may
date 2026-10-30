@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as T from './textures.js';
 import { makeBuddha } from './buddha.js';
+import { makeQuanAm } from './quanam.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -11,6 +12,8 @@ export const ENTRANCE = new THREE.Vector3(0, 0, 17);
 // Thềm đá trước chánh điện (z 19 → 21.6), bậc xuống sân (thấp hơn 0.36)
 export const PORCH = { z0: 19, z1: 21.6, courtY: -0.36 };
 export const COURTYARD = new THREE.Vector3(0, PORCH.courtY, 31);
+// Vùng đi lại ngoài sân (ngoài chánh điện)
+export const GARDEN = { minX: -16, maxX: 16, minZ: 22.4, maxZ: 39 };
 export function groundY(x, z) {
   if (z <= PORCH.z1 - 0.05) return 0;
   if (z >= PORCH.z1 + 0.6) return PORCH.courtY;
@@ -31,6 +34,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   scene.environmentIntensity = 0.35;
 
   const updaters = [];
+  const nightHooks = []; // f(night 0..1) — gọi khi đổi giờ
   const pickables = [];
 
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o });
@@ -86,11 +90,17 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
 
   const ground = mesh(new THREE.PlaneGeometry(500, 500), std('#8b9670', { roughness: 1 }), 0, PORCH.courtY - 0.03, 0, { cast: false });
   ground.rotation.x = -Math.PI / 2;
+  ground.userData.kind = 'ground';
+  pickables.push(ground);
   const court = mesh(new THREE.PlaneGeometry(34, 18), std('#978e7e', { roughness: 1 }), 0, PORCH.courtY + 0.005, 30.5, { cast: false });
   court.rotation.x = -Math.PI / 2;
+  court.userData.kind = 'ground';
+  pickables.push(court);
   // lối đi lát gạch giữa sân
   const path = mesh(new THREE.PlaneGeometry(3, 17), std('#a0533a', { roughness: 0.95 }), 0, PORCH.courtY + 0.01, 30.6, { cast: false });
   path.rotation.x = -Math.PI / 2;
+  path.userData.kind = 'ground';
+  pickables.push(path);
 
   const ridgeColors = ['#8fa3a6', '#a8b8b6', '#c2cbc4'];
   const ridgeMats = [];
@@ -114,7 +124,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const side = i % 2 ? 1 : -1;
       spots.push([side * rnd(16.6, 30), rnd(-26, 28)]);
     }
-    for (let i = 0; i < 24; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(8, 28), rnd(34, 44)]);
+    for (let i = 0; i < 24; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(8, 28), rnd(42, 52)]);
     const stalkGeo = new THREE.CylinderGeometry(0.07, 0.1, 11, 6);
     stalkGeo.translate(0, 5.5, 0);
     const stalks = new THREE.InstancedMesh(stalkGeo, std('#7d9a4c', { roughness: 0.6 }), spots.length);
@@ -187,7 +197,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const porchMat = std('#9d9587', { roughness: 0.92 });
     const edgeMat = std('#7d766a', { roughness: 0.95 });
     const depth = PORCH.z1 - PORCH.z0;
-    box(30.6, 0.42, depth, porchMat, 0, -0.21, PORCH.z0 + depth / 2, { cast: false });
+    const porchTop = box(30.6, 0.42, depth, porchMat, 0, -0.21, PORCH.z0 + depth / 2, { cast: false });
+    porchTop.userData.kind = 'ground';
+    pickables.push(porchTop);
     box(30.6, 0.06, 0.18, edgeMat, 0, -0.03, PORCH.z1 - 0.09, { cast: false });
     box(9, 0.24, 0.34, edgeMat, 0, -0.24, PORCH.z1 + 0.17);
     box(9, 0.12, 0.34, porchMat, 0, -0.30, PORCH.z1 + 0.5);
@@ -264,91 +276,94 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const a = (i / 3) * Math.PI * 2;
     cyl(0.03, 0.02, 0.1, M.bronze, Math.cos(a) * 0.22, TY + 0.03, -14.7 + Math.sin(a) * 0.22);
   }
-  // Nhang cắm trong lư: cháy ngắn dần, hết thì tàn. Luôn giữ ít nhất 3 nén.
-  const BURNER = new THREE.Vector3(0, TY + 0.39, -14.7);
+  // Lư nhang: nhang cắm vào cháy ngắn dần, hết thì tàn; luôn giữ ít nhất `min` nén
   const STEM = 0.14, BODY = 0.42, MAX_STICKS = 30;
   const stemGeo = new THREE.CylinderGeometry(0.009, 0.009, 1, 6).translate(0, 0.5, 0);
   const stemMat = std('#b8322a', { roughness: 0.6 });
   const bodyMat = std('#7a4a2c', { roughness: 0.9 });
   const emberGeo = new THREE.SphereGeometry(0.014, 8, 6);
   const emberMat = new THREE.MeshBasicMaterial({ color: '#ff6a1a' });
-  const sticks = [];
-  const v = new THREE.Vector3();
 
-  function addStick({ age = 0, life = rnd(170, 200), mine = false, spread = 1 } = {}) {
-    if (sticks.length >= MAX_STICKS) sticks[0].age = Math.max(sticks[0].age, sticks[0].life - 2);
-    const g = new THREE.Group();
-    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.21 * spread;
-    g.position.set(BURNER.x + Math.cos(a) * r, BURNER.y, BURNER.z + Math.sin(a) * r);
-    g.rotation.set(rnd(-0.12, 0.12), rnd(0, 6), rnd(-0.12, 0.12));
-    const stem = new THREE.Mesh(stemGeo, stemMat);
-    stem.scale.y = STEM;
-    const body = new THREE.Mesh(stemGeo, bodyMat);
-    body.position.y = STEM;
-    const ember = new THREE.Mesh(emberGeo, emberMat);
-    const glowS = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ff7a30', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    glowS.scale.setScalar(0.09);
-    g.add(stem, body, ember, glowS);
-    scene.add(g);
-    const s = { g, body, ember, glowS, age, life, seed: Math.random() * 9, mine };
-    sticks.push(s);
-    return s;
-  }
-  for (let i = 0; i < 3; i++) addStick({ age: rnd(20, 140) });
+  // center: mặt cát trong lư; spots: chỗ đứng để thắp; target: điểm người thắp hướng mặt vào khi vái
+  function makeBurner({ center, radius = 0.21, spots, target, smoke = 48, min = 3 }) {
+    const sticks = [];
+    function addStick({ age = 0, life = rnd(170, 200), mine = false } = {}) {
+      if (sticks.length >= MAX_STICKS) sticks[0].age = Math.max(sticks[0].age, sticks[0].life - 2);
+      const g = new THREE.Group();
+      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * radius;
+      g.position.set(center.x + Math.cos(a) * r, center.y, center.z + Math.sin(a) * r);
+      g.rotation.set(rnd(-0.12, 0.12), rnd(0, 6), rnd(-0.12, 0.12));
+      const stem = new THREE.Mesh(stemGeo, stemMat);
+      stem.scale.y = STEM;
+      const body = new THREE.Mesh(stemGeo, bodyMat);
+      body.position.y = STEM;
+      const ember = new THREE.Mesh(emberGeo, emberMat);
+      const glowS = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ff7a30', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      glowS.scale.setScalar(0.09);
+      g.add(stem, body, ember, glowS);
+      scene.add(g);
+      sticks.push({ g, body, ember, glowS, age, life, seed: Math.random() * 9, mine });
+    }
+    for (let i = 0; i < min; i++) addStick({ age: rnd(20, 140) });
 
-  const smokeParts = [];
-  for (let i = 0; i < 48; i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 }));
-    s.userData = { age: Math.random() * 6, life: rnd(5, 7), seed: Math.random() * 10, tip: new THREE.Vector3(), live: false };
-    scene.add(s);
-    smokeParts.push(s);
+    const smokeParts = [];
+    for (let i = 0; i < smoke; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 }));
+      s.userData = { age: Math.random() * 6, life: rnd(5, 7), seed: Math.random() * 10, tip: new THREE.Vector3(), live: false };
+      scene.add(s);
+      smokeParts.push(s);
+    }
+    updaters.push((t, dt) => {
+      for (let i = sticks.length - 1; i >= 0; i--) {
+        const s = sticks[i];
+        s.age += dt;
+        const k = s.age / s.life;
+        if (k >= 1) {
+          s.g.removeFromParent();
+          s.glowS.material.dispose();
+          sticks.splice(i, 1);
+          continue;
+        }
+        const len = Math.max(0.001, BODY * (1 - k));
+        s.body.scale.y = len;
+        s.ember.position.y = s.glowS.position.y = STEM + len;
+        s.glowS.scale.setScalar(0.08 * (0.8 + Math.sin(t * 3 + s.seed) * 0.2));
+      }
+      if (sticks.length < min) addStick();
+      for (const p of smokeParts) {
+        const u = p.userData;
+        u.age += dt;
+        if (u.age > u.life) {
+          u.age = 0;
+          u.seed = Math.random() * 10;
+          const s = sticks[Math.floor(Math.random() * sticks.length)];
+          u.live = !!s;
+          if (s) s.g.localToWorld(u.tip.copy(s.ember.position));
+        }
+        const k = u.age / u.life;
+        p.position.set(u.tip.x + Math.sin(t * 0.9 + u.seed) * 0.25 * k + Math.sin(u.seed) * 0.4 * k * k,
+          u.tip.y + u.age * 0.42, u.tip.z + Math.cos(t * 0.7 + u.seed) * 0.15 * k);
+        p.scale.setScalar(0.12 + k * 1.1);
+        p.material.opacity = u.live ? 0.3 * Math.sin(Math.PI * k) : 0;
+      }
+    });
+    return {
+      // cắm n nén vào lư hương
+      add(n = 1, { mine = false } = {}) {
+        for (let i = 0; i < n; i++) addStick({ mine });
+      },
+      get count() {
+        return sticks.length;
+      },
+      spots,
+      target,
+    };
   }
-  updaters.push((t, dt) => {
-    for (let i = sticks.length - 1; i >= 0; i--) {
-      const s = sticks[i];
-      s.age += dt;
-      const k = s.age / s.life;
-      if (k >= 1) {
-        s.g.removeFromParent();
-        s.glowS.material.dispose();
-        sticks.splice(i, 1);
-        continue;
-      }
-      const len = Math.max(0.001, BODY * (1 - k));
-      s.body.scale.y = len;
-      s.ember.position.y = s.glowS.position.y = STEM + len;
-      const pulse = 0.8 + Math.sin(t * 3 + s.seed) * 0.2;
-      s.glowS.scale.setScalar(0.08 * pulse);
-    }
-    if (sticks.length < 3) addStick();
-    for (const p of smokeParts) {
-      const u = p.userData;
-      u.age += dt;
-      if (u.age > u.life) {
-        u.age = 0;
-        u.seed = Math.random() * 10;
-        const s = sticks[Math.floor(Math.random() * sticks.length)];
-        u.live = !!s;
-        if (s) s.g.localToWorld(u.tip.copy(s.ember.position));
-      }
-      const k = u.age / u.life;
-      p.position.set(u.tip.x + Math.sin(t * 0.9 + u.seed) * 0.25 * k + Math.sin(u.seed) * 0.4 * k * k,
-        u.tip.y + u.age * 0.42, u.tip.z + Math.cos(t * 0.7 + u.seed) * 0.15 * k);
-      p.scale.setScalar(0.12 + k * 1.1);
-      p.material.opacity = u.live ? 0.3 * Math.sin(Math.PI * k) : 0;
-    }
-  });
-  const incense = {
-    // cắm n nén vào lư hương (gom gần nhau như một bó)
-    add(n = 1, { mine = false } = {}) {
-      for (let i = 0; i < n; i++) addStick({ mine, spread: 1 });
-    },
-    get count() {
-      return sticks.length;
-    },
-    // điểm đứng trước bàn thờ để thắp nhang
+  const incense = makeBurner({
+    center: new THREE.Vector3(0, TY + 0.39, -14.7),
     spots: [-1.6, -0.8, 0, 0.8, 1.6].map((x) => ({ x, z: -12.75 })),
-  };
+    target: BUDDHA,
+  });
 
   const flames = [];
   function flame(x, y, z, size = 1) {
@@ -554,6 +569,246 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     };
   })();
 
+  // ---------- Khu cầu nguyện ngoài sân: tượng Quan Âm, lư hương đá, hồ sen, tiểu cảnh ----------
+  const GY = PORCH.courtY;
+  const QA = new THREE.Vector3(10.6, GY, 29.4); // tâm bệ tượng
+  const URN = new THREE.Vector3(7.9, GY, 29.4); // lư hương đá trước tượng
+  const PD = { x: 10.9, z: 35.6, rx: 2.6, rz: 1.7 }; // hồ sen
+  const stoneM = std('#a9a49a', { roughness: 0.95 });
+  const stoneL = std('#cbc6ba', { roughness: 0.9 });
+  const rockM = std('#86837a', { roughness: 1 });
+  const leafM = std('#4f7a3a', { roughness: 0.9 });
+  const leafD = std('#3a6130', { roughness: 0.9 });
+  const obstacles = [];
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // thảm cỏ
+  const grass = mesh(new THREE.CircleGeometry(6.6, 48), std('#6c8a4a', { roughness: 1 }), 11.3, GY + 0.008, 31.8, { cast: false });
+  grass.rotation.x = -Math.PI / 2;
+  grass.userData.kind = 'ground';
+  pickables.push(grass);
+
+  // bệ đá hai tầng + trụ bát giác + tượng
+  const shrine = new THREE.Group();
+  shrine.position.copy(QA);
+  shrine.userData.kind = 'quanam';
+  scene.add(shrine);
+  pickables.push(shrine);
+  cyl(2.3, 2.45, 0.34, stoneM, 0, 0.17, 0, { parent: shrine }, 40);
+  cyl(1.75, 1.85, 0.3, stoneL, 0, 0.49, 0, { parent: shrine }, 40);
+  cyl(0.82, 0.95, 1.1, stoneL, 0, 1.19, 0, { parent: shrine }, 8);
+  cyl(0.98, 0.98, 0.08, stoneM, 0, 1.78, 0, { parent: shrine }, 8);
+  const quanAm = makeQuanAm({ quality });
+  quanAm.position.y = 1.82;
+  quanAm.rotation.y = -Math.PI / 2; // nhìn ra lối đi giữa sân
+  quanAm.scale.setScalar(1.45);
+  shrine.add(quanAm);
+  obstacles.push({ x: QA.x, z: QA.z, r: 2.55 });
+  // đèn chiếu tượng, sáng hơn về đêm
+  const qaLight = new THREE.SpotLight(0xfff0dd, 0, 18, 0.45, 0.6, 2);
+  qaLight.position.set(QA.x - 5, GY + 6, QA.z + 1);
+  qaLight.target.position.set(QA.x, GY + 4.2, QA.z);
+  scene.add(qaLight, qaLight.target);
+
+  // lư hương đá + nền đá chỗ đứng thắp nhang
+  box(1.5, 0.04, 2.8, stoneL, 6.75, GY + 0.02, URN.z, { cast: false });
+  cyl(0.32, 0.38, 0.25, stoneM, URN.x, GY + 0.125, URN.z, {}, 16);
+  lathe([[0, 0], [0.3, 0], [0.42, 0.12], [0.46, 0.3], [0.4, 0.42], [0.44, 0.46], [0.4, 0.46]], stoneM, URN.x, GY + 0.25, URN.z);
+  obstacles.push({ x: URN.x, z: URN.z, r: 0.6 });
+  const incenseOut = makeBurner({
+    center: new THREE.Vector3(URN.x, GY + 0.66, URN.z),
+    radius: 0.3,
+    spots: [28.6, 29.4, 30.2].map((z) => ({ x: 6.75, z })),
+    target: new THREE.Vector3(QA.x, GY + 4.6, QA.z),
+    smoke: 30,
+    min: 2,
+  });
+
+  // hồ sen: đáy tối, mặt nước trong, viền đá, lá sen, hoa sen, non bộ, cá koi
+  const pondBottom = mesh(new THREE.CircleGeometry(1, 40), std('#1a2a27', { roughness: 1 }), PD.x, GY + 0.012, PD.z, { cast: false });
+  pondBottom.scale.set(PD.rx, PD.rz, 1);
+  pondBottom.rotation.x = -Math.PI / 2;
+  const water = mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshStandardMaterial({
+    color: '#2e5c63', roughness: 0.06, metalness: 0.3, transparent: true, opacity: 0.78, envMapIntensity: 1.6,
+  }), PD.x, GY + 0.07, PD.z, { cast: false });
+  water.scale.set(PD.rx, PD.rz, 1);
+  water.rotation.x = -Math.PI / 2;
+  obstacles.push({ x: PD.x, z: PD.z, rx: PD.rx + 0.35, rz: PD.rz + 0.35 });
+  {
+    const n = 30;
+    const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), rockM, n + 4);
+    const o = new THREE.Object3D();
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + rnd(-0.05, 0.05);
+      o.position.set(PD.x + Math.cos(a) * (PD.rx + 0.12), GY + 0.02, PD.z + Math.sin(a) * (PD.rz + 0.12));
+      o.rotation.set(rnd(0, 3), rnd(0, 3), rnd(0, 3));
+      o.scale.set(rnd(0.24, 0.38), rnd(0.14, 0.26), rnd(0.22, 0.36));
+      o.updateMatrix();
+      rocks.setMatrixAt(i, o.matrix);
+    }
+    // non bộ nhỏ giữa hồ
+    [[1.1, 0.25, -0.3, 0.42, 0.7], [1.45, 0.1, -0.15, 0.3, 0.45], [0.8, 0.05, -0.55, 0.26, 0.35], [1.25, 0.6, -0.35, 0.22, 0.4]].forEach(([dx, y, dz, s, h], k) => {
+      o.position.set(PD.x + dx, GY + y, PD.z + dz);
+      o.rotation.set(rnd(0, 0.4), rnd(0, 3), rnd(0, 0.4));
+      o.scale.set(s, h, s);
+      o.updateMatrix();
+      rocks.setMatrixAt(n + k, o.matrix);
+    });
+    rocks.castShadow = rocks.receiveShadow = true;
+    scene.add(rocks);
+    // cây bonsai nhỏ trên non bộ
+    cyl(0.025, 0.04, 0.4, std('#5a4330'), PD.x + 1.2, GY + 1.05, PD.z - 0.35, { cast: false }, 6);
+    for (const [dx, dy, dz, r] of [[0, 1.3, 0, 0.2], [0.15, 1.22, 0.08, 0.14], [-0.14, 1.2, -0.05, 0.13]]) {
+      mesh(new THREE.SphereGeometry(r, 10, 8), leafD, PD.x + 1.2 + dx, GY + dy, PD.z - 0.35 + dz);
+    }
+
+    const padGeo = new THREE.CircleGeometry(0.3, 20, 0.35, Math.PI * 2 - 0.7);
+    const padMat = std('#4c7a35', { roughness: 0.85, side: THREE.DoubleSide });
+    const pinkM = std('#f3a3b6', { roughness: 0.6 });
+    const yellowM = std('#f0c64e');
+    [[-1.4, 0.4], [-0.9, -0.6], [-0.3, 0.7], [0.4, -0.2], [-1.8, -0.3], [0.2, 0.9], [-0.6, 0.1]].forEach(([dx, dz], i) => {
+      const pad = new THREE.Mesh(padGeo, padMat);
+      pad.rotation.set(-Math.PI / 2, 0, rnd(0, 6));
+      pad.position.set(PD.x + dx, GY + 0.078, PD.z + dz);
+      pad.scale.setScalar(rnd(0.8, 1.3));
+      scene.add(pad);
+      if (i % 2 === 0) {
+        // hoa sen nở trên lá
+        const f = new THREE.Group();
+        f.position.set(PD.x + dx + 0.08, GY + 0.08, PD.z + dz);
+        for (let k = 0; k < 8; k++) {
+          const p = new THREE.Group();
+          p.rotation.y = (k / 8) * Math.PI * 2;
+          const petal = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), pinkM);
+          petal.scale.set(0.04, 0.09, 0.02);
+          petal.position.set(0, 0.07, 0.05);
+          petal.rotation.x = 0.55;
+          p.add(petal);
+          f.add(p);
+        }
+        const c = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), yellowM);
+        c.position.y = 0.06;
+        f.add(c);
+        scene.add(f);
+      }
+    });
+
+    // cá koi bơi vòng trong hồ
+    const koiBody = new THREE.SphereGeometry(1, 12, 8);
+    const koiTail = new THREE.ConeGeometry(0.05, 0.12, 6).rotateX(Math.PI / 2);
+    const koi = ['#f07a2a', '#f4efe6', '#e8452c', '#f2a03a'].map((c, i) => {
+      const g = new THREE.Group();
+      const b = new THREE.Mesh(koiBody, std(c, { roughness: 0.5 }));
+      b.scale.set(0.055, 0.026, 0.16);
+      const tail = new THREE.Mesh(koiTail, b.material);
+      tail.position.z = -0.2;
+      g.add(b, tail);
+      g.userData = { phase: (i / 4) * Math.PI * 2, speed: rnd(0.18, 0.3) * (i % 2 ? 1 : -1), r: rnd(0.45, 0.8), tail };
+      scene.add(g);
+      return g;
+    });
+    updaters.push((t) => {
+      for (const g of koi) {
+        const u = g.userData;
+        const a = u.phase + t * u.speed;
+        const x = PD.x - 0.4 + Math.cos(a) * PD.rx * u.r * 0.7, z = PD.z + Math.sin(a) * PD.rz * u.r * 0.7;
+        g.position.set(x, GY + 0.04, z);
+        g.lookAt(x - Math.sin(a) * Math.sign(u.speed), GY + 0.04, z + Math.cos(a) * Math.sign(u.speed));
+        u.tail.rotation.y = Math.sin(t * 8 + u.phase) * 0.4;
+      }
+      water.material.opacity = 0.76 + Math.sin(t * 0.8) * 0.02;
+    });
+  }
+
+  // đèn đá: sáng lên về đêm
+  const lampMat = std('#e9dfc6', { emissive: '#ffb860', emissiveIntensity: 0, roughness: 0.8 });
+  const lampGlows = [];
+  function stoneLantern(x, z) {
+    const g = new THREE.Group();
+    g.position.set(x, GY, z);
+    scene.add(g);
+    box(0.55, 0.12, 0.55, stoneM, 0, 0.06, 0, { parent: g });
+    cyl(0.09, 0.11, 0.8, stoneL, 0, 0.52, 0, { parent: g }, 8);
+    box(0.5, 0.08, 0.5, stoneM, 0, 0.96, 0, { parent: g });
+    box(0.34, 0.3, 0.34, lampMat, 0, 1.15, 0, { parent: g });
+    const roof = mesh(new THREE.ConeGeometry(0.44, 0.26, 4), stoneM, 0, 1.43, 0, { parent: g });
+    roof.rotation.y = Math.PI / 4;
+    mesh(new THREE.SphereGeometry(0.06, 8, 6), stoneM, 0, 1.6, 0, { parent: g });
+    const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffb46a', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    gl.position.y = 1.15;
+    gl.scale.setScalar(1.6);
+    g.add(gl);
+    lampGlows.push(gl);
+    obstacles.push({ x, z, r: 0.45 });
+  }
+  stoneLantern(7.5, 25.8);
+  stoneLantern(7.3, 33.2);
+
+  // bụi cây và bồn hoa quanh bệ tượng
+  const flowerColors = ['#f3a3b6', '#f6d36b', '#ffffff', '#e2534a', '#c58ae0'].map((c) => std(c, { roughness: 0.7 }));
+  function bush(x, z, s = 1) {
+    for (let k = 0; k < 3; k++) {
+      mesh(new THREE.SphereGeometry(rnd(0.38, 0.55) * s, 12, 10), k % 2 ? leafM : leafD,
+        x + rnd(-0.35, 0.35) * s, GY + rnd(0.25, 0.4) * s, z + rnd(-0.35, 0.35) * s);
+    }
+    obstacles.push({ x, z, r: 0.7 * s });
+  }
+  function flowers(x, z, n = 14) {
+    for (let k = 0; k < n; k++) {
+      const a = rnd(0, 6.28), r = rnd(0, 0.55);
+      mesh(new THREE.SphereGeometry(0.06, 6, 5), pick(flowerColors), x + Math.cos(a) * r, GY + rnd(0.12, 0.22), z + Math.sin(a) * r, { cast: false });
+    }
+    mesh(new THREE.SphereGeometry(0.42, 10, 8), leafM, x, GY + 0.05, z, { cast: false }).scale.set(1.4, 0.35, 1.4);
+  }
+  bush(13.6, 26.0); bush(14.2, 28.3, 1.1); bush(14.1, 31.0); bush(13.4, 32.9, 0.9); bush(9.9, 26.2, 0.8);
+  flowers(8.7, 26.4); flowers(8.6, 32.4); flowers(12.6, 25.4, 10); flowers(14.6, 34.4, 10);
+
+  // cây hoa sứ (đại) cạnh hồ
+  {
+    const trunkM = std('#8a7a68', { roughness: 0.95 });
+    const tx = 15.0, tz = 36.8;
+    const curve = new THREE.CatmullRomCurve3([[0, 0, 0], [0.15, 0.9, 0.05], [0.05, 1.8, 0.2], [0.35, 2.6, 0.1]].map((p) => new THREE.Vector3(tx + p[0], GY + p[1], tz + p[2])));
+    mesh(new THREE.TubeGeometry(curve, 20, 0.12, 8), trunkM);
+    for (const [dx, dz] of [[-0.6, 0.3], [0.7, -0.2], [0.2, 0.7]]) {
+      const c = new THREE.CatmullRomCurve3([new THREE.Vector3(tx + 0.3, GY + 2.4, tz + 0.1), new THREE.Vector3(tx + 0.3 + dx * 0.6, GY + 2.9, tz + 0.1 + dz * 0.6), new THREE.Vector3(tx + 0.3 + dx, GY + 3.2, tz + 0.1 + dz)]);
+      mesh(new THREE.TubeGeometry(c, 10, 0.06, 6), trunkM);
+      mesh(new THREE.SphereGeometry(0.6, 12, 10), leafM, tx + 0.3 + dx, GY + 3.35, tz + 0.1 + dz).scale.set(1, 0.6, 1);
+      for (let k = 0; k < 6; k++) {
+        mesh(new THREE.SphereGeometry(0.07, 6, 5), flowerColors[2], tx + 0.3 + dx + rnd(-0.45, 0.45), GY + 3.55 + rnd(-0.05, 0.1), tz + 0.1 + dz + rnd(-0.45, 0.45), { cast: false });
+      }
+    }
+    obstacles.push({ x: tx, z: tz, r: 0.5 });
+  }
+
+  nightHooks.push((night) => {
+    lampMat.emissiveIntensity = 2.2 * night;
+    for (const g of lampGlows) g.material.opacity = 0.7 * night;
+    qaLight.intensity = 80 * night;
+  });
+
+  // Đẩy điểm đến ra khỏi bệ tượng, hồ, cây… (đi lại ngoài sân)
+  function pushOut(x, z) {
+    for (const o of obstacles) {
+      if (o.rx) {
+        const nx = (x - o.x) / o.rx, nz = (z - o.z) / o.rz;
+        const d = Math.hypot(nx, nz);
+        if (d < 1) {
+          const k = d < 1e-3 ? 1 : 1.02 / d;
+          x = o.x + (d < 1e-3 ? -o.rx * 1.02 : nx * k * o.rx);
+          z = o.z + nz * (d < 1e-3 ? 0 : k * o.rz);
+        }
+      } else {
+        const dx = x - o.x, dz = z - o.z, d = Math.hypot(dx, dz);
+        if (d < o.r) {
+          const k = d < 1e-3 ? 1 : (o.r * 1.02) / d;
+          x = o.x + (d < 1e-3 ? -o.r * 1.02 : dx * k);
+          z = o.z + (d < 1e-3 ? 0 : dz * k);
+        }
+      }
+    }
+    return [x, z];
+  }
+
   // ---------- Đèn lồng ----------
   let lanternMat;
   const lanternGlows = [];
@@ -747,6 +1002,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     stars.visible = moon.visible = night > 0.02;
     scene.environmentIntensity = 0.35 * (1 - 0.85 * night);
     renderer.toneMappingExposure = 1.05 + 0.1 * night;
+    for (const f of nightHooks) f(night);
   }
   let lastDay = -99;
   updaters.push((t) => {
@@ -776,7 +1032,11 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     seats,
     pickables,
     incense,
+    incenseOut,
     merit,
+    // khu Quan Âm: tâm bệ tượng, điểm đứng chiêm bái phía trước
+    quanAm: { center: QA, front: new THREE.Vector3(6.75, 0, QA.z), head: new THREE.Vector3(QA.x, GY + 4.6, QA.z) },
+    pushOut,
     setQuality,
     showMarker(x, z, y = 0.04) {
       marker.position.set(x, y, z);
