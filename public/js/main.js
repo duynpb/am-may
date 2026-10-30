@@ -250,6 +250,13 @@ async function enterTemple(a) {
 // Đến chỗ để dép, mang dép vào rồi đi ra sân
 async function exitTemple(a, dest = null) {
   const token = (a.script = {});
+  if (a.missingSandal && bots.has(a)) {
+    bubble(a, 'mất một chiếc dép…', 10000);
+    await wait(10000);
+    if (!alive(a, token)) return false;
+    a.missingSandal = false;
+    rack.restore(a.id);
+  }
   const slot = rack.slotOf(a.id);
   if (slot && rack.has(a.id)) {
     await a.walk(slot.x, slot.z - 0.75);
@@ -456,6 +463,10 @@ function clearOthers(keepMySandals) {
 function addRemote(p, { entering = false } = {}) {
   if (avatars.has('n' + p.id)) return;
   const a = addAvatar(new Avatar({ id: 'n' + p.id, name: p.name, robe: p.robe }));
+  if (p.missing) {
+    a.missingSandal = true;
+    rack.takeOne(a.id);
+  }
   a.setSandals(SANDAL_COLORS[(p.sandals ?? +p.id) % SANDAL_COLORS.length]);
   if (entering) {
     a.zone = 'out';
@@ -524,6 +535,24 @@ function wireNet(n) {
     if (a && !a.leaving) offerMerit(a);
   });
   n.on('karma', (m) => showGain(m.entry));
+  n.on('sandal-taken', (m) => {
+    if (m.id === n.welcome.id) {
+      if (player.missingSandal) return;
+      player.missingSandal = true;
+      rack.takeOne('me');
+      const by = avatars.get('n' + m.by);
+      toast(`${by ? by.name : 'Ai đó'} đã lấy mất một chiếc dép của bạn!`, 4000);
+      return;
+    }
+    const a = avatars.get('n' + m.id);
+    if (a) a.missingSandal = true;
+    rack.takeOne('n' + m.id);
+  });
+  n.on('sandal-returned', (m) => {
+    const a = avatars.get('n' + m.id);
+    if (a) a.missingSandal = false;
+    rack.restore('n' + m.id);
+  });
   n.on('profile', (m) => {
     const resolve = profileWaiters.get(m.req);
     if (!resolve) return;
@@ -610,6 +639,9 @@ function startIntro() {
   player.holdIncense(0);
   player.holdEnvelope(false);
   rack.release('me');
+  player.missingSandal = false;
+  clearInterval(sandalTimer);
+  sandalTimer = null;
   player.zone = 'out';
   player.placeAt(rnd(-1, 1), COURTYARD.z, Math.PI);
   cam.yaw = 0;
@@ -647,6 +679,10 @@ function movePlayerTo(x, z, seat = null) {
     return;
   }
   const target = zoneOf(z);
+  if (zoneOfA(player) !== target && target === 'out' && player.missingSandal) {
+    sandalWait();
+    return;
+  }
   if (zoneOfA(player) !== target) {
     // đi qua thềm: báo đích đến trước để người khác thấy mình ra / vào
     [x, z] = clampZone(target, x, z);
@@ -664,6 +700,45 @@ function movePlayerTo(x, z, seat = null) {
   player.walkTo(x, z, seat);
   world.showMarker(x, z, groundY(x, z) + (seat ? 0.21 : 0.04));
   sendMove();
+}
+
+// ---------- Lấy dép (đùa vui) ----------
+// Bấm vào dép của người khác trên thềm để lấy đi một chiếc
+function takeSandal(owner) {
+  if (owner === 'me') {
+    toast('Đây là dép của bạn');
+    return;
+  }
+  const a = avatars.get(owner);
+  if (!a) return;
+  if (!rack.takeOne(owner)) {
+    toast(`Dép của ${a.name} đã mất một chiếc rồi`);
+    return;
+  }
+  a.missingSandal = true;
+  sound.bead();
+  toast(`Bạn đã lấy một chiếc dép của ${a.name}`);
+  if (owner.startsWith('n')) net?.send({ t: 'take-sandal', id: owner.slice(1) });
+}
+
+// Mất dép mà muốn ra ngoài: chặn lại, đếm ngược 10 giây rồi dép được trả lại.
+// Chỉ bắt đầu đếm khi người chơi định ra ngoài.
+let sandalTimer = null, sandalLeft = 0;
+const showSandalWait = () => toast(`Phật tử đã bị mất dép — chờ ${sandalLeft} giây để dép được trả lại`, 1300);
+function sandalWait() {
+  if (sandalTimer) return showSandalWait();
+  sandalLeft = 10;
+  showSandalWait();
+  sandalTimer = setInterval(() => {
+    sandalLeft--;
+    if (sandalLeft > 0) return showSandalWait();
+    clearInterval(sandalTimer);
+    sandalTimer = null;
+    player.missingSandal = false;
+    rack.restore('me');
+    net?.send({ t: 'sandal-return' });
+    toast('Dép đã được trả lại — bạn có thể ra ngoài', 3500);
+  }, 1000);
 }
 
 // Đi tới chỗ người chơi đã chọn trong lúc đang mang / cởi dép
@@ -1206,6 +1281,11 @@ function handleTap(x, y) {
   const hits = ray.intersectObjects(world.pickables, true);
   const avatarHit = pickAvatar();
   const firstHit = hits[0];
+  const sandalHit = ray.intersectObjects(rack.hitboxes(), false)[0];
+  if (sandalHit && (!firstHit || sandalHit.distance <= firstHit.distance + 0.05)) {
+    takeSandal(sandalHit.object.userData.owner);
+    return;
+  }
   if (avatarHit && (!firstHit || avatarHit.pos.distanceTo(firstHit.point) < 1.2 || camera.position.distanceTo(avatarHit.pos) < firstHit.distance)) {
     doGassho(avatarHit);
     return;
@@ -1305,7 +1385,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || !!pickAvatar());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
 }
 
 // Bàn phím (máy tính)

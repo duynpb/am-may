@@ -273,6 +273,16 @@ wss.on('connection', (ws, req) => {
       const member = m.id === 'me' ? { uid } : rooms.get(roomId).get(String(m.id));
       const p = member && profiles.get(member.uid);
       ws.send(JSON.stringify({ t: 'profile', req: m.req, profile: p ? publicProfile(p) : null }));
+    } else if (m.t === 'take-sandal') {
+      // lấy một chiếc dép của người đang ở cùng chánh điện
+      const target = rooms.get(roomId).get(String(m.id));
+      if (!target || target.p.id === me.id || target.p.missing) return;
+      target.p.missing = true;
+      broadcast(roomId, { t: 'sandal-taken', id: target.p.id, by: me.id });
+    } else if (m.t === 'sandal-return') {
+      if (!me.missing) return;
+      me.missing = false;
+      broadcast(roomId, { t: 'sandal-returned', id: me.id }, me.id);
     } else if (m.t === 'name') {
       me.name = clean(m.name);
       const p = profiles.get(uid);

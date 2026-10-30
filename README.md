@@ -51,6 +51,7 @@ public/
 | Chắp tay | Nút “Chắp tay” hoặc chạm vào người khác để chào |
 | Lạy Phật | Nút “Lạy Phật” (có tiếng chuông) |
 | Khu cầu nguyện ngoài sân | Chạm xuống sân để ra ngoài: nhân vật tự đến chỗ để dép trên thềm, mang dép rồi ra sân; chạm vào trong chánh điện để vào lại (tự cởi dép, xếp ngay ngắn). Ngoài sân có tượng Quan Âm Bồ Tát đứng trên tòa sen, lư hương đá, hồ sen có cá koi, đèn đá, bụi cây, bồn hoa, cây hoa sứ. Khi đang ở ngoài sân, nút Thắp nhang sẽ dâng nhang lên Quan Âm |
+| Lấy dép (đùa vui) | Bấm vào dép của người khác trên thềm để lấy đi một chiếc. Người bị mất dép vẫn đi lại trong chánh điện bình thường; khi muốn ra sân sẽ bị chặn với thông báo "Phật tử đã bị mất dép" và phải chờ 10 giây (chỉ bắt đầu đếm khi định ra ngoài) để dép được trả lại |
 | Thắp nhang | Nút “Thắp nhang”: chọn 1 hoặc 3 nén, viết lời nguyện riêng (không gửi đi). Nhân vật bước lên bàn thờ, vái lạy, cắm nhang; nhang cháy ngắn dần khoảng 3 phút, mọi người cùng thấy |
 | Công đức | Nút “Công đức” hoặc chạm vào thùng công đức cạnh bàn thờ: nhân vật bước tới, chắp tay, bỏ phong bì đỏ vào thùng. Mỗi người 3 lần/ngày (theo giờ Việt Nam), có thể ẩn danh, lời hồi hướng chỉ mình mình thấy. Sổ công đức và tổng lượt trong ngày dùng chung cả chùa. Mang ý nghĩa tượng trưng, không dùng tiền thật |
 | Hồ sơ Phật tử | Chạm vào pháp danh trên đầu một người (hoặc tên mình, hoặc Cài đặt → Hồ sơ của tôi) để xem điểm phước, điểm nghiệp, thống kê và lịch sử. Người mới bắt đầu từ 0 điểm |

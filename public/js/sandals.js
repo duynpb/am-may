@@ -54,6 +54,15 @@ export class SandalRack {
     }
     this.pairs = new Map();
     this.anims = [];
+    this.missing = new Set(); // chủ những đôi đang bị lấy mất một chiếc
+    // vùng bấm vô hình quanh mỗi đôi dép (dép nhỏ, khó bấm trúng)
+    this.hitGeo = new THREE.BoxGeometry(0.42, 0.16, 0.5);
+    this.hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  }
+
+  // các vùng bấm để dò tia nhấp chuột
+  hitboxes() {
+    return [...this.pairs.values()].map((p) => p.hit);
   }
 
   slotOf(id) {
@@ -88,8 +97,34 @@ export class SandalRack {
       pair.add(s);
       return { s, from, neat };
     });
+    const hit = new THREE.Mesh(this.hitGeo, this.hitMat);
+    hit.position.y = 0.06;
+    hit.userData = { kind: 'sandal', owner: id };
+    pair.add(hit);
+    // đôi dép đang bị lấy mất một chiếc thì chỉ còn một chiếc
+    sides[0].s.visible = !this.missing.has(id);
     this.scene.add(pair);
-    this.pairs.set(id, { pair, sides });
+    this.pairs.set(id, { pair, sides, hit });
+  }
+
+  isMissing(id) {
+    return this.missing.has(id);
+  }
+
+  // Lấy đi một chiếc dép của người này; trả về false nếu đôi đó đã mất một chiếc rồi
+  takeOne(id) {
+    if (this.missing.has(id)) return false;
+    this.missing.add(id);
+    const p = this.pairs.get(id);
+    if (p) p.sides[0].s.visible = false;
+    return true;
+  }
+
+  // Trả lại chiếc dép bị lấy
+  restore(id) {
+    this.missing.delete(id);
+    const p = this.pairs.get(id);
+    if (p) p.sides[0].s.visible = true;
   }
 
   // Xoay dép lại cho ngay ngắn, mũi hướng ra sân
@@ -110,6 +145,7 @@ export class SandalRack {
 
   release(id) {
     this.take(id);
+    this.missing.delete(id);
     const s = this.slotOf(id);
     if (s) s.owner = null;
   }
