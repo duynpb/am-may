@@ -1,0 +1,7 @@
+Đặt file ghi âm tụng kinh vào thư mục này với tên:
+
+    tung-kinh.mp3
+
+Website sẽ tự phát lặp lại file này khi bấm "Nghe tụng kinh" (thay cho giọng đọc máy).
+Nên dùng bản ghi âm do bạn tự thu, hoặc bản được phép sử dụng. File nên dài 1–5 phút,
+cắt sao cho cuối nối liền với đầu để lặp lại không bị hụt.

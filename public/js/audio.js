@@ -10,6 +10,34 @@ const SYL = [
 export const CHANT_SYLLABLES = SYL.map((x) => x.s);
 const VOWELS = { a: [730, 1090, 2440], o: [430, 780, 2500], i: [300, 2150, 2900] };
 const BEAT = 0.66;
+const PHRASE = 'Nam mô A Di Đà Phật';
+// vị trí ký tự bắt đầu của từng chữ, để khớp sự kiện 'boundary' của giọng đọc
+const SYL_POS = (() => {
+  let at = 0;
+  return SYL.map((x) => {
+    const p = PHRASE.indexOf(x.s, at);
+    at = p + x.s.length;
+    return p;
+  });
+})();
+export const RECORDING_URL = 'audio/tung-kinh.mp3';
+
+// Giọng tiếng Việt có sẵn trên thiết bị (Web Speech API)
+export function vietnameseVoices() {
+  if (!('speechSynthesis' in window)) return [];
+  return speechSynthesis.getVoices().filter((v) => /^vi\b|^vi[-_]/i.test(v.lang));
+}
+function bestVoice(name) {
+  const vs = vietnameseVoices();
+  if (!vs.length) return null;
+  return (
+    vs.find((v) => v.name === name) ||
+    vs.find((v) => /NamMinh/i.test(v.name)) ||
+    vs.find((v) => /Natural|Online/i.test(v.name)) ||
+    vs.find((v) => /Google/i.test(v.name)) ||
+    vs[0]
+  );
+}
 
 export class Sound {
   constructor(settings) {
@@ -18,6 +46,74 @@ export class Sound {
     this.chanting = false;
     this.onSyllable = null;
     this.hidden = false;
+    this.hasRecording = false;
+    this.recordingChecked = fetch(RECORDING_URL, { method: 'HEAD', cache: 'no-store' })
+      .then((r) => (this.hasRecording = r.ok && !/text\/html/.test(r.headers.get('content-type') || '')))
+      .catch(() => false);
+    if ('speechSynthesis' in window) {
+      speechSynthesis.getVoices();
+      speechSynthesis.addEventListener?.('voiceschanged', () => this.onVoices?.());
+    }
+  }
+
+  // 'record' | 'tts' | 'synth' — theo cài đặt và khả năng của thiết bị
+  get chantMode() {
+    const want = this.s.chantVoice || 'auto';
+    if (want === 'record' && this.hasRecording) return 'record';
+    if (want === 'synth') return 'synth';
+    if (want.startsWith('tts:') && bestVoice(want.slice(4))) return 'tts';
+    if (this.hasRecording && want !== 'tts-auto') return 'record';
+    if (bestVoice()) return 'tts';
+    return 'synth';
+  }
+
+  chantModeLabel() {
+    const m = this.chantMode;
+    if (m === 'record') return 'Đang dùng bản ghi âm tụng kinh.';
+    if (m === 'tts') return `Đang dùng giọng tiếng Việt: ${this.ttsVoice()?.name}.`;
+    return 'Thiết bị này chưa có giọng tiếng Việt — đang dùng giọng ngân tổng hợp.';
+  }
+
+  ttsVoice() {
+    const want = this.s.chantVoice || '';
+    return bestVoice(want.startsWith('tts:') ? want.slice(4) : undefined);
+  }
+
+  speakPhrase() {
+    const voice = this.ttsVoice();
+    if (!voice || this.s.muted || this.hidden) return;
+    const u = new SpeechSynthesisUtterance(PHRASE);
+    u.voice = voice;
+    u.lang = voice.lang;
+    u.rate = 0.62;
+    u.pitch = 0.8;
+    u.volume = Math.min(1, this.s.chantVol * 1.4);
+    u.onboundary = (e) => {
+      const i = SYL_POS.findIndex((p, k) => e.charIndex >= p && (k === SYL_POS.length - 1 || e.charIndex < SYL_POS[k + 1]));
+      if (i >= 0 && this.chanting) {
+        this.ttsBoundary = true;
+        this.onSyllable?.(i);
+      }
+    };
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  }
+
+  playRecording() {
+    if (!this.recEl) {
+      this.recEl = new Audio(RECORDING_URL);
+      this.recEl.loop = true;
+      this.recEl.crossOrigin = 'anonymous';
+      this.ctx.createMediaElementSource(this.recEl).connect(this.bus.chant);
+    }
+    this.recEl.currentTime = 0;
+    this.recEl.play().catch(() => {});
+  }
+
+  stopVoices() {
+    clearInterval(this.timer);
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    this.recEl?.pause();
   }
 
   // Phải gọi sau một thao tác của người dùng (chính sách autoplay)
@@ -68,13 +164,16 @@ export class Sound {
     this.bus.ambient.gain.setTargetAtTime(s.ambient ? s.ambientVol * 0.9 : 0, t, 0.2);
     this.bus.chant.gain.setTargetAtTime(s.chantVol * 0.9, t, 0.1);
     this.bus.fx.gain.setTargetAtTime(s.fx ? s.fxVol : 0, t, 0.05);
+    if (s.muted && 'speechSynthesis' in window) speechSynthesis.cancel();
   }
 
   setHidden(hidden) {
     this.hidden = hidden;
     if (!this.ctx) return;
-    if (hidden && !this.s.bg) this.ctx.suspend();
-    else if (!hidden) this.ctx.resume();
+    if (hidden && !this.s.bg) {
+      this.ctx.suspend();
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+    } else if (!hidden) this.ctx.resume();
   }
 
   get live() {
@@ -242,8 +341,14 @@ export class Sound {
     this.init();
     if (!this.ctx) return;
     this.chanting = on;
-    clearInterval(this.timer);
+    this.stopVoices();
     if (!on) return;
+    this.mode = this.chantMode;
+    this.ttsBoundary = false;
+    if (this.mode === 'record') {
+      this.playRecording();
+      return;
+    }
     this.beat = 0;
     this.nextT = this.ctx.currentTime + 0.25;
     this.timer = setInterval(() => this.schedule(), 40);
@@ -259,10 +364,15 @@ export class Sound {
       const i = this.beat % 6, t = this.nextT;
       if (this.beat % 24 === 0) this.templeBell(t, 165, 0.2, this.bus.chant);
       this.mo(t, i === 0);
-      this.voice(t, SYL[i], i === 5 ? BEAT * 1.7 : BEAT * 0.94);
       if (i === 5) this.mo(t + BEAT, false);
-      const delay = (t - ctx.currentTime) * 1000;
-      setTimeout(() => this.chanting && this.onSyllable?.(i), Math.max(0, delay));
+      const delay = Math.max(0, (t - ctx.currentTime) * 1000);
+      if (this.mode === 'tts') {
+        // giọng đọc tiếng Việt: đọc cả câu mỗi vòng, mõ giữ nhịp đều
+        if (i === 0) setTimeout(() => this.chanting && this.speakPhrase(), delay);
+      } else {
+        this.voice(t, SYL[i], i === 5 ? BEAT * 1.7 : BEAT * 0.94);
+      }
+      setTimeout(() => this.chanting && !this.ttsBoundary && this.onSyllable?.(i), delay);
       this.nextT += i === 5 ? BEAT * 2 : BEAT;
       this.beat++;
     }

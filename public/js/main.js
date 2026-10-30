@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { buildWorld, HALL, BUDDHA, ENTRANCE } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
-import { Sound, CHANT_SYLLABLES } from './audio.js';
+import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, ROOMS } from './net.js';
 
@@ -673,8 +673,11 @@ chantBtn.addEventListener('click', () => {
   chantBtn.setAttribute('aria-pressed', on);
   chantBtn.querySelector('.txt').textContent = on ? 'Dừng tụng kinh' : 'Nghe tụng kinh';
   caption.hidden = !on;
+  // bản ghi âm không có mốc từng chữ → sáng cả câu
+  caption.querySelectorAll('span').forEach((s) => s.classList.toggle('on', on && sound.mode === 'record'));
   hintEl.classList.add('hide');
 });
+const chanting = () => chantBtn.getAttribute('aria-pressed') === 'true';
 sound.onSyllable = (i) => {
   caption.querySelectorAll('span').forEach((s, k) => s.classList.toggle('on', k === i));
 };
@@ -726,8 +729,34 @@ $('#btn-shot').addEventListener('click', () => {
     syncQ();
     saveSettings();
   });
+  // Chọn giọng tụng
+  const voiceSel = $('#set-chant-voice');
+  const voiceStatus = $('#voice-status');
+  const renderVoices = () => {
+    const opts = [['auto', 'Tự động (tốt nhất có sẵn)']];
+    if (sound.hasRecording) opts.push(['record', 'Bản ghi âm tụng kinh']);
+    for (const v of vietnameseVoices()) opts.push([`tts:${v.name}`, `Giọng đọc: ${v.name.replace(/^Microsoft |\s*\(.*\)$/g, '')}`]);
+    opts.push(['synth', 'Giọng ngân tổng hợp']);
+    voiceSel.innerHTML = '';
+    for (const [value, label] of opts) voiceSel.append(new Option(label, value));
+    voiceSel.value = opts.some(([v]) => v === settings.chantVoice) ? settings.chantVoice : 'auto';
+    voiceStatus.textContent = sound.chantModeLabel();
+  };
+  sound.onVoices = renderVoices;
+  sound.recordingChecked.then(renderVoices);
+  voiceSel.addEventListener('change', () => {
+    settings.chantVoice = voiceSel.value;
+    saveSettings();
+    voiceStatus.textContent = sound.chantModeLabel();
+    if (chanting()) {
+      sound.setChant(true);
+      caption.querySelectorAll('span').forEach((s) => s.classList.toggle('on', sound.mode === 'record'));
+    }
+  });
+
   $('#btn-settings').addEventListener('click', () => {
     nameIn.value = myName;
+    renderVoices();
     openModal('#modal-settings');
   });
   nameIn.addEventListener('change', () => {
