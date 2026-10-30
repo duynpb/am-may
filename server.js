@@ -171,7 +171,7 @@ function award(ws, uid, kind, opts) {
   const entry = p && applyEvent(p, kind, opts);
   if (!entry) return;
   dirtyProfiles.add(uid);
-  ws.send(JSON.stringify({ t: 'karma', entry, phuoc: p.phuoc, nghiep: p.nghiep }));
+  if (!entry.silent) ws.send(JSON.stringify({ t: 'karma', entry, phuoc: p.phuoc, nghiep: p.nghiep }));
 }
 
 function broadcast(roomId, msg, exceptId) {
@@ -234,7 +234,6 @@ wss.on('connection', (ws, req) => {
       const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
       broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n }, me.id);
       if (m.a === 'bow') award(ws, uid, 'bow');
-      else if (m.a === 'gassho' && to && to !== me.id && rooms.get(roomId).has(to)) award(ws, uid, 'greet');
       else if (m.a === 'incense') award(ws, uid, 'incense', { n });
       else if (m.a === 'bell' || m.a === 'drum') {
         const now = Date.now();

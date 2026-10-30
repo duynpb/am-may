@@ -565,6 +565,20 @@ function movePlayerTo(x, z, seat = null) {
   sendMove();
 }
 
+// Người (thật hoặc khách) đang đứng/ngồi gần mình nhất trong bán kính r
+function nearestPerson(r) {
+  let best = null, bestD = r;
+  for (const a of avatars.values()) {
+    if (a === player || a.leaving || a.script) continue;
+    const d = a.pos.distanceTo(player.pos);
+    if (d < bestD) {
+      best = a;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
 function doGassho(target = null) {
   sound.init();
   player.act('gassho', target && !player.sitting ? faceRy(player, target) : null);
@@ -618,7 +632,7 @@ function earn(kind, opts) {
   const entry = applyEvent(localProfile, kind, opts);
   if (!entry) return;
   store.set('profile', localProfile);
-  showGain(entry);
+  if (!entry.silent) showGain(entry);
 }
 
 // Thỉnh chuông / đánh trống: dồn dập quá (5 lần trong 30 giây) thì thành nghiệp
@@ -699,7 +713,7 @@ function renderProfile(name, p, note) {
   const stats = el('div', 'pf-stats');
   for (const [label, val] of [
     ['Lạy Phật', s.bow], ['Chào bạn đạo', s.greet], ['Nén nhang', s.incense],
-    ['Góp công đức', s.merit], ['Chuỗi 108 hạt', s.beads], ['Phút tụng kinh', s.chant * 10],
+    ['Góp công đức', s.merit], ['Chuỗi 108 hạt', s.beads], ['Phút tụng kinh', s.chantMin ?? (s.chant || 0) * 10],
   ]) {
     const d = el('div', null, label);
     d.prepend(el('b', null, (val || 0).toLocaleString('vi-VN')));
@@ -979,7 +993,11 @@ document.querySelectorAll('.actions button').forEach((b) => {
   b.addEventListener('click', () => {
     const act = b.dataset.act;
     skipIntro();
-    if (act === 'gassho') doGassho();
+    if (act === 'gassho') {
+      const near = nearestPerson(6);
+      doGassho(near);
+      if (!near) toast('Chưa có ai ở gần để chào — bạn lại gần một người nhé');
+    }
     else if (act === 'bow') doBow();
     else if (act === 'incense') {
       sound.init();
@@ -997,17 +1015,17 @@ document.querySelectorAll('.actions button').forEach((b) => {
 const beads = new Beads($('#beads'), { sound, store, onClose: () => {} });
 beads.onRound = () => earn('beads');
 
-// Nghe tụng kinh: cứ đủ 10 phút đang phát thì được tính phước
+// Nghe tụng kinh: mỗi phút đang phát được ghi vào hồ sơ; đủ 10 phút thì được phước
 let chantSec = 0, chantTick = Date.now();
 setInterval(() => {
   const now = Date.now();
   if (sound.chanting && sound.ctx?.state === 'running' && !settings.muted) chantSec += Math.min(60, (now - chantTick) / 1000);
   chantTick = now;
-  if (chantSec >= 600) {
-    chantSec = 0;
+  if (chantSec >= 60) {
+    chantSec -= 60;
     earn('chant');
   }
-}, 15000);
+}, 10000);
 
 // ---------- Camera & điều khiển ----------
 const cam = { yaw: 0, pitch: 0.36, dist: 7.5, curDist: 15, curPitch: 0.7, maxZ: 45, target: new THREE.Vector3(0, 1.1, 31) };

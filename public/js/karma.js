@@ -4,17 +4,20 @@
 export const RULES = {
   visit: { label: 'Vào chùa lễ Phật', phuoc: 2, cap: 1 },
   bow: { label: 'Lạy Phật', phuoc: 1, cap: 20 },
-  greet: { label: 'Chắp tay chào bạn đạo', phuoc: 1, cap: 20 },
+  greet: { label: 'Chắp tay chào bạn đạo', phuoc: 1, cap: 20, gap: 2e3 },
   incense: { label: 'Thắp nhang', phuoc: 3, cap: 5 },
   merit: { label: 'Góp công đức', phuoc: 10, cap: 3 },
   beads: { label: 'Lần tròn một chuỗi 108 hạt', phuoc: 5, cap: 10, gap: 40e3 },
-  chant: { label: 'Nghe tụng kinh 10 phút', phuoc: 2, cap: 12, gap: 9 * 60e3 },
+  // 'chant' được báo mỗi phút nghe; cứ đủ 10 phút trong ngày thì cộng phước
+  chant: { label: 'Nghe tụng kinh đủ 10 phút', phuoc: 2, cap: 12 },
   bell: { label: 'Thỉnh chuông, đánh trống', phuoc: 1, cap: 5 },
   noise: { label: 'Làm ồn chánh điện (thỉnh chuông dồn dập)', nghiep: 2, cap: 3 },
 };
 
 // Những việc trình duyệt được tự báo lên máy chủ (các việc khác máy chủ tự ghi nhận)
-export const CLIENT_KINDS = ['beads', 'chant'];
+export const CLIENT_KINDS = ['beads', 'chant', 'greet'];
+const CHANT_MIN_CAP = 180; // tối đa 180 phút nghe tụng kinh được ghi mỗi ngày
+const CHANT_MIN_GAP = 50e3; // mỗi lần báo cách nhau ít nhất 50 giây
 
 const HISTORY_MAX = 60;
 export const vnDate = (t = Date.now()) => new Date(t + 7 * 3600e3).toISOString().slice(0, 10);
@@ -39,6 +42,21 @@ export function applyEvent(p, kind, { n = 1 } = {}, now = Date.now()) {
   if (!rule) return null;
   const today = vnDate(now);
   if (p.day?.date !== today) p.day = { date: today, counts: {} };
+  if (kind === 'chant') {
+    // ghi thêm 1 phút nghe; chỉ khi tròn mỗi 10 phút mới tính điểm
+    const mins = p.day.counts.chantMin || 0;
+    if (mins >= CHANT_MIN_CAP || now - (p.last.chantMin || 0) < CHANT_MIN_GAP) return null;
+    p.day.counts.chantMin = mins + 1;
+    p.last.chantMin = now;
+    p.stats.chantMin = (p.stats.chantMin ?? (p.stats.chant || 0) * 10) + 1;
+    if ((mins + 1) % 10 !== 0 || (p.day.counts.chant || 0) >= rule.cap) return { silent: true };
+    p.day.counts.chant = (p.day.counts.chant || 0) + 1;
+    const entry = { at: now, kind, label: rule.label, phuoc: rule.phuoc };
+    p.phuoc += rule.phuoc;
+    p.history.unshift(entry);
+    if (p.history.length > HISTORY_MAX) p.history.length = HISTORY_MAX;
+    return entry;
+  }
   const used = p.day.counts[kind] || 0;
   if (used >= rule.cap) return null;
   if (rule.gap && now - (p.last[kind] || 0) < rule.gap) return null;

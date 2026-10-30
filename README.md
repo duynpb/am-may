@@ -72,11 +72,11 @@ Quy tắc nằm trong `public/js/karma.js` (máy chủ và trình duyệt dùng 
 |---|---|---|
 | Vào chùa | +2 phước | 1 |
 | Lạy Phật | +1 phước | 20 |
-| Chắp tay chào một người thật | +1 phước | 20 |
+| Chắp tay chào một người (bấm Chắp tay khi ở gần ai đó, hoặc chạm vào người đó) | +1 phước | 20 |
 | Thắp nhang | +3 phước | 5 |
 | Góp công đức | +10 phước | 3 |
 | Lần tròn chuỗi 108 hạt | +5 phước | 10 |
-| Nghe tụng kinh 10 phút | +2 phước | 12 |
+| Nghe tụng kinh (ghi từng phút vào hồ sơ, đủ mỗi 10 phút thì cộng điểm) | +2 phước | 12 |
 | Thỉnh chuông, đánh trống | +1 phước | 5 |
 | Thỉnh chuông dồn dập (5 lần trong 30 giây) | +2 nghiệp | 3 |
 
