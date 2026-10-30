@@ -26,6 +26,9 @@ function geos() {
   G.sleeve = new THREE.CylinderGeometry(0.075, 0.11, 0.34, 12).translate(0, -0.17, 0);
   G.hand = new THREE.SphereGeometry(0.07, 12, 10);
   G.foot = new THREE.SphereGeometry(0.09, 12, 8);
+  G.incStick = new THREE.CylinderGeometry(0.012, 0.012, 1, 6).translate(0, 0.5, 0);
+  G.ember = new THREE.SphereGeometry(0.018, 8, 6);
+  G.emberMat = new THREE.MeshBasicMaterial({ color: '#ff6a1a' });
   G.ready = true;
   return G;
 }
@@ -115,6 +118,32 @@ export class Avatar {
       pivot.userData.side = s;
       return pivot;
     });
+
+    // Bó nhang cầm giữa hai bàn tay chắp
+    this.incense = new THREE.Group();
+    this.incense.position.set(0, 0.2, 0.31);
+    this.incense.visible = false;
+    this.upper.add(this.incense);
+    this.incenseSticks = [-1, 0, 1].map((k) => {
+      const st = new THREE.Group();
+      st.rotation.z = k * 0.12;
+      const stem = new THREE.Mesh(g.incStick, mat('#b8322a', 0.6));
+      stem.scale.y = 0.13;
+      const body = new THREE.Mesh(g.incStick, mat('#7a4a2c', 0.9));
+      body.position.y = 0.13;
+      body.scale.y = 0.3;
+      const ember = new THREE.Mesh(g.ember, g.emberMat);
+      ember.position.y = 0.43;
+      st.add(stem, body, ember);
+      this.incense.add(st);
+      return st;
+    });
+  }
+
+  // Cầm n nén nhang (0 = bỏ xuống)
+  holdIncense(n) {
+    this.incense.visible = n > 0;
+    this.incenseSticks.forEach((s, k) => (s.visible = n >= 3 || k === 1));
   }
 
   get moving() {

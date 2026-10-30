@@ -83,6 +83,10 @@
       <svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.4"/><path d="M5 20c0-4 2.2-8.5 7-8.5s7 4.5 7 8.5"/><path d="M9.5 15.5h5"/></svg>
       <span>Lạy Phật</span>
     </button>
+    <button data-act="incense">
+      <svg viewBox="0 0 24 24"><path d="M9 21V11M12 21V9.5M15 21V11"/><path d="M12 7c-1.2-1.1-1.2-2.4 0-3.5M9 9c-1-1-1-2 0-3M15 9c1-1 1-2 0-3"/><path d="M6.5 21h11"/></svg>
+      <span>Thắp nhang</span>
+    </button>
     <button data-act="beads">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="1.6"/><circle cx="17.2" cy="6.8" r="1.6"/><circle cx="19.4" cy="12" r="1.6"/><circle cx="17.2" cy="17.2" r="1.6"/><circle cx="6.8" cy="6.8" r="1.6"/><circle cx="4.6" cy="12" r="1.6"/><circle cx="6.8" cy="17.2" r="1.6"/><circle cx="12" cy="19.6" r="2.1"/></svg>
       <span>Tràng hạt</span>
@@ -135,6 +139,24 @@
     </div>
   </div>
 
+  <!-- Thắp nhang -->
+  <div class="modal" id="modal-incense" hidden role="dialog" aria-modal="true" aria-labelledby="inc-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="inc-title">Thắp nhang</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p class="muted">Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.</p>
+      <div class="card row">
+        <div><b>Số nén</b><small>Thường thắp 1 hoặc 3 nén</small></div>
+        <div class="seg" id="inc-count"><button data-n="1">1 nén</button><button data-n="3" class="on">3 nén</button></div>
+      </div>
+      <label class="field">
+        <span>Lời nguyện <em>(chỉ mình bạn thấy, không gửi đi đâu)</em></span>
+        <textarea id="inc-wish" rows="3" maxlength="200" placeholder="Nguyện cho gia đình bình an…"></textarea>
+      </label>
+      <button class="btn-primary" id="inc-go">Thắp nhang</button>
+      <p class="muted center" id="inc-stats"></p>
+    </div>
+  </div>
+
   <!-- Giới thiệu -->
   <div class="modal" id="modal-info" hidden role="dialog" aria-modal="true" aria-labelledby="info-title">
     <div class="sheet">
@@ -145,6 +167,7 @@
         <li><b>Ngồi</b> Chạm vào một bồ đoàn còn trống.</li>
         <li><b>Nhìn quanh</b> Kéo màn hình. Cuộn chuột hoặc chụm hai ngón để phóng to.</li>
         <li><b>Chào nhau</b> Chạm vào một người để chắp tay chào.</li>
+        <li><b>Thắp nhang</b> Bấm “Thắp nhang”, chọn số nén và (nếu muốn) viết lời nguyện riêng. Nhang cháy trong lư khoảng ba phút.</li>
         <li><b>Thỉnh chuông, đánh trống</b> Chạm vào quả chuông hoặc chiếc trống hai bên bàn thờ.</li>
       </ul>
       <p class="muted" id="info-mode"></p>

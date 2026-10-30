@@ -172,7 +172,19 @@ function botsThink(t) {
       updateCount();
       continue;
     }
-    if (t < a.brain.next || a.moving || a.leaving) continue;
+    if (a.pendingIncense && !a.moving) {
+      const n = a.pendingIncense;
+      a.pendingIncense = 0;
+      offerIncense(a, n, () => {
+        const free = freeSeats(a);
+        if (free.length && avatars.has(a.id)) {
+          const s = pick(free);
+          setTimeout(() => avatars.has(a.id) && !a.leaving && a.walkTo(s.x, s.z, s), rnd(1500, 4000));
+        }
+      });
+      continue;
+    }
+    if (t < a.brain.next || a.moving || a.leaving || a.busy) continue;
     a.brain.next = t + rnd(10, 45);
     const r = Math.random();
     if (r < 0.32) a.act('bow', faceBuddhaRy(a));
@@ -192,6 +204,10 @@ function botsThink(t) {
     } else if (r < 0.7) {
       a.leaving = true;
       a.walkTo(rnd(-1.5, 1.5), HALL.maxZ + 1);
+    } else if (r < 0.78) {
+      const spot = altarSpot(a);
+      a.pendingIncense = Math.random() < 0.6 ? 3 : 1;
+      a.walkTo(spot.x, spot.z);
     }
   }
   if (bots.size < botTarget && Math.random() < 0.004) makeBot({ seated: false });
@@ -260,6 +276,8 @@ function wireNet(n) {
       bubble(a, `${a.name} · lạy Phật`);
     } else if (m.a === 'bell' || m.a === 'drum') {
       ringInstrument(m.a, a);
+    } else if (m.a === 'incense') {
+      offerIncense(a, m.n === 3 ? 3 : 1);
     }
   });
   n.on('name', (m) => {
@@ -365,6 +383,94 @@ function doBow() {
   net?.send({ t: 'act', a: 'bow' });
 }
 
+// ---------- Thắp nhang ----------
+// Chọn chỗ đứng trước bàn thờ ít người nhất
+function altarSpot(except) {
+  const crowd = (s) => {
+    let n = 0;
+    for (const o of avatars.values()) {
+      const p = o.goal ?? o.pos;
+      if (o !== except && Math.hypot(p.x - s.x, p.z - s.z) < 0.5) n++;
+    }
+    return n;
+  };
+  const spots = [...world.incense.spots].sort(() => Math.random() - 0.5);
+  return spots.reduce((b, s) => (crowd(s) < crowd(b) ? s : b));
+}
+
+// Cầm nhang, vái lạy, rồi cắm vào lư hương
+function offerIncense(a, n, onDone) {
+  a.busy = true;
+  a.holdIncense(n);
+  a.act('bow', faceBuddhaRy(a));
+  if (a !== player) bubble(a, `${a.name} · thắp nhang`, 3600);
+  setTimeout(() => {
+    a.busy = false;
+    if (!avatars.has(a.id)) return;
+    a.holdIncense(0);
+    world.incense.add(n, { mine: a === player });
+    onDone?.();
+  }, 3300);
+}
+
+const incBtn = $('[data-act=incense]');
+let ritual = null;
+let incN = 3;
+function incenseStats() {
+  const today = new Date().toISOString().slice(0, 10);
+  const st = store.get('incense', {});
+  return st.date === today ? st : { date: today, today: 0, total: st.total || 0 };
+}
+function openIncenseDialog() {
+  if (ritual) return;
+  const st = incenseStats();
+  $('#inc-stats').textContent = st.today ? `Hôm nay bạn đã thắp ${st.today} nén nhang.` : '';
+  openModal('#modal-incense');
+}
+$('#inc-count').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  incN = +b.dataset.n;
+  $('#inc-count').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+});
+$('#inc-go').addEventListener('click', () => {
+  closeModal($('#modal-incense'));
+  const wishEl = $('#inc-wish');
+  const wish = wishEl.value.trim(); // lời nguyện chỉ ở máy người dùng, không gửi đi
+  wishEl.value = '';
+  const spot = altarSpot(player);
+  ritual = { n: incN, wish, spot, started: false };
+  incBtn.disabled = true;
+  movePlayerTo(spot.x, spot.z);
+  hideHint();
+});
+
+// Chạy mỗi khung hình: tới nơi thì bắt đầu nghi thức; đi chỗ khác thì hủy
+function incenseRitual() {
+  if (!ritual || ritual.started) return;
+  const g = player.goal;
+  if (g && Math.hypot(g.x - ritual.spot.x, g.z - ritual.spot.z) > 0.01) {
+    ritual = null;
+    incBtn.disabled = false;
+    toast('Đã hủy thắp nhang');
+    return;
+  }
+  if (player.moving) return;
+  ritual.started = true;
+  const { n, wish } = ritual;
+  sound.incense();
+  net?.send({ t: 'act', a: 'incense', n });
+  offerIncense(player, n, () => {
+    ritual = null;
+    incBtn.disabled = false;
+    const st = incenseStats();
+    st.today += n;
+    st.total += n;
+    store.set('incense', st);
+    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang`, 4200);
+  });
+}
+
 function ringInstrument(kind, by = null) {
   const obj = world.pickables.find((o) => o.userData.kind === kind);
   if (kind === 'bell') {
@@ -382,7 +488,10 @@ document.querySelectorAll('.actions button').forEach((b) => {
     const act = b.dataset.act;
     if (act === 'gassho') doGassho();
     else if (act === 'bow') doBow();
-    else if (act === 'beads') {
+    else if (act === 'incense') {
+      sound.init();
+      openIncenseDialog();
+    } else if (act === 'beads') {
       sound.init();
       beads.open();
     }
@@ -516,7 +625,7 @@ function hover(x, y) {
 // Bàn phím (máy tính)
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest('input') || beads.isOpen || $('.modal.show')) return;
+  if (e.target.closest('input, textarea') || beads.isOpen || $('.modal.show')) return;
   const k = e.key.toLowerCase();
   if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
     keys.add(k);
@@ -789,6 +898,7 @@ function frame() {
     if (arrived && a === player) sendMove();
   }
   botsThink(elapsed);
+  incenseRitual();
   world.update(elapsed, dt);
   updateCamera(dt);
   if (!beads.isOpen) {

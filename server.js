@@ -125,8 +125,12 @@ wss.on('connection', (ws) => {
       me.z = clamp(m.z, -14, 18);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat }, me.id);
-    } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum'].includes(m.a)) {
-      broadcast(roomId, { t: 'act', id: me.id, a: m.a, to: typeof m.to === 'string' ? m.to.slice(0, 12) : undefined }, me.id);
+    } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense'].includes(m.a)) {
+      broadcast(roomId, {
+        t: 'act', id: me.id, a: m.a,
+        to: typeof m.to === 'string' ? m.to.slice(0, 12) : undefined,
+        n: m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined,
+      }, me.id);
     } else if (m.t === 'name') {
       me.name = clean(m.name);
       broadcast(roomId, { t: 'name', id: me.id, name: me.name }, me.id);

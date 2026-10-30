@@ -45,6 +45,7 @@ public/
 | Nhìn quanh, phóng to | Kéo; lăn chuột hoặc chụm hai ngón |
 | Chắp tay | Nút “Chắp tay” hoặc chạm vào người khác để chào |
 | Lạy Phật | Nút “Lạy Phật” (có tiếng chuông) |
+| Thắp nhang | Nút “Thắp nhang”: chọn 1 hoặc 3 nén, viết lời nguyện riêng (không gửi đi). Nhân vật bước lên bàn thờ, vái lạy, cắm nhang; nhang cháy ngắn dần khoảng 3 phút, mọi người cùng thấy |
 | Tràng hạt | Vuốt xuống / chạm / phím cách; đếm 108 hạt, lưu số hạt mỗi ngày |
 | Tụng kinh | “Nam mô A Di Đà Phật” với mõ, chuông, chữ chạy theo nhịp |
 | Thỉnh chuông, đánh trống | Chạm vào chuông (trái) hoặc trống (phải) bàn thờ |

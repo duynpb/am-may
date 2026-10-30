@@ -435,6 +435,14 @@ export class Sound {
     if (!this.fxReady()) return;
     this.templeBell(this.ctx.currentTime + 0.6, 233, 0.16, this.bus.fx);
   }
+  // quẹt diêm châm nhang, rồi một tiếng chuông nhỏ
+  incense() {
+    if (!this.fxReady()) return;
+    const t = this.ctx.currentTime + 0.02, out = this.bus.fx;
+    this.noiseHit(t, { freq: 2500, q: 0.6, gain: 0.3, dur: 0.22, out, type: 'highpass' });
+    for (let i = 0; i < 6; i++) this.noiseHit(t + 0.08 + Math.random() * 0.5, { freq: 4000, q: 2, gain: 0.06, dur: 0.02, out });
+    this.tone(1760, t + 0.9, { dur: 3, gain: 0.06, partials: [[1, 1], [2.76, 0.3]], out });
+  }
   bigBell() {
     if (!this.fxReady()) return;
     this.templeBell(this.ctx.currentTime + 0.02, 98, 0.42, this.bus.fx);

@@ -237,36 +237,91 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const a = (i / 3) * Math.PI * 2;
     cyl(0.03, 0.02, 0.1, M.bronze, Math.cos(a) * 0.22, TY + 0.03, -14.7 + Math.sin(a) * 0.22);
   }
-  const tips = [];
-  const tipMat = new THREE.MeshBasicMaterial({ color: '#ff7a2a' });
-  for (let i = -1; i <= 1; i++) {
-    const stick = cyl(0.008, 0.008, 0.6, std('#8a3a22'), i * 0.06, TY + 0.66, -14.7, { cast: false }, 6);
-    stick.rotation.z = i * 0.08;
-    const tip = new THREE.Vector3(i * 0.06 - Math.sin(i * 0.08) * 0.3, TY + 0.96, -14.7);
-    mesh(new THREE.SphereGeometry(0.015, 6, 4), tipMat, tip.x, tip.y, tip.z, { cast: false });
-    tips.push(tip);
+  // Nhang cắm trong lư: cháy ngắn dần, hết thì tàn. Luôn giữ ít nhất 3 nén.
+  const BURNER = new THREE.Vector3(0, TY + 0.39, -14.7);
+  const STEM = 0.14, BODY = 0.42, MAX_STICKS = 30;
+  const stemGeo = new THREE.CylinderGeometry(0.009, 0.009, 1, 6).translate(0, 0.5, 0);
+  const stemMat = std('#b8322a', { roughness: 0.6 });
+  const bodyMat = std('#7a4a2c', { roughness: 0.9 });
+  const emberGeo = new THREE.SphereGeometry(0.014, 8, 6);
+  const emberMat = new THREE.MeshBasicMaterial({ color: '#ff6a1a' });
+  const sticks = [];
+  const v = new THREE.Vector3();
+
+  function addStick({ age = 0, life = rnd(170, 200), mine = false, spread = 1 } = {}) {
+    if (sticks.length >= MAX_STICKS) sticks[0].age = Math.max(sticks[0].age, sticks[0].life - 2);
+    const g = new THREE.Group();
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.21 * spread;
+    g.position.set(BURNER.x + Math.cos(a) * r, BURNER.y, BURNER.z + Math.sin(a) * r);
+    g.rotation.set(rnd(-0.12, 0.12), rnd(0, 6), rnd(-0.12, 0.12));
+    const stem = new THREE.Mesh(stemGeo, stemMat);
+    stem.scale.y = STEM;
+    const body = new THREE.Mesh(stemGeo, bodyMat);
+    body.position.y = STEM;
+    const ember = new THREE.Mesh(emberGeo, emberMat);
+    const glowS = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ff7a30', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glowS.scale.setScalar(0.09);
+    g.add(stem, body, ember, glowS);
+    scene.add(g);
+    const s = { g, body, ember, glowS, age, life, seed: Math.random() * 9, mine };
+    sticks.push(s);
+    return s;
   }
-  {
-    const parts = [];
-    for (let i = 0; i < 36; i++) {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 }));
-      s.userData = { age: Math.random() * 6, life: rnd(5, 7), seed: Math.random() * 10, tip: tips[i % 3] };
-      scene.add(s);
-      parts.push(s);
-    }
-    updaters.push((t, dt) => {
-      for (const s of parts) {
-        const u = s.userData;
-        u.age += dt;
-        if (u.age > u.life) { u.age = 0; u.seed = Math.random() * 10; }
-        const k = u.age / u.life;
-        s.position.set(u.tip.x + Math.sin(t * 0.9 + u.seed) * 0.25 * k + Math.sin(u.seed) * 0.4 * k * k,
-          u.tip.y + u.age * 0.42, u.tip.z + Math.cos(t * 0.7 + u.seed) * 0.15 * k);
-        s.scale.setScalar(0.12 + k * 1.1);
-        s.material.opacity = 0.32 * Math.sin(Math.PI * k);
+  for (let i = 0; i < 3; i++) addStick({ age: rnd(20, 140) });
+
+  const smokeParts = [];
+  for (let i = 0; i < 48; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 }));
+    s.userData = { age: Math.random() * 6, life: rnd(5, 7), seed: Math.random() * 10, tip: new THREE.Vector3(), live: false };
+    scene.add(s);
+    smokeParts.push(s);
+  }
+  updaters.push((t, dt) => {
+    for (let i = sticks.length - 1; i >= 0; i--) {
+      const s = sticks[i];
+      s.age += dt;
+      const k = s.age / s.life;
+      if (k >= 1) {
+        s.g.removeFromParent();
+        s.glowS.material.dispose();
+        sticks.splice(i, 1);
+        continue;
       }
-    });
-  }
+      const len = Math.max(0.001, BODY * (1 - k));
+      s.body.scale.y = len;
+      s.ember.position.y = s.glowS.position.y = STEM + len;
+      const pulse = 0.8 + Math.sin(t * 3 + s.seed) * 0.2;
+      s.glowS.scale.setScalar(0.08 * pulse);
+    }
+    if (sticks.length < 3) addStick();
+    for (const p of smokeParts) {
+      const u = p.userData;
+      u.age += dt;
+      if (u.age > u.life) {
+        u.age = 0;
+        u.seed = Math.random() * 10;
+        const s = sticks[Math.floor(Math.random() * sticks.length)];
+        u.live = !!s;
+        if (s) s.g.localToWorld(u.tip.copy(s.ember.position));
+      }
+      const k = u.age / u.life;
+      p.position.set(u.tip.x + Math.sin(t * 0.9 + u.seed) * 0.25 * k + Math.sin(u.seed) * 0.4 * k * k,
+        u.tip.y + u.age * 0.42, u.tip.z + Math.cos(t * 0.7 + u.seed) * 0.15 * k);
+      p.scale.setScalar(0.12 + k * 1.1);
+      p.material.opacity = u.live ? 0.3 * Math.sin(Math.PI * k) : 0;
+    }
+  });
+  const incense = {
+    // cắm n nén vào lư hương (gom gần nhau như một bó)
+    add(n = 1, { mine = false } = {}) {
+      for (let i = 0; i < n; i++) addStick({ mine, spread: 1 });
+    },
+    get count() {
+      return sticks.length;
+    },
+    // điểm đứng trước bàn thờ để thắp nhang
+    spots: [-1.6, -0.8, 0, 0.8, 1.6].map((x) => ({ x, z: -12.75 })),
+  };
 
   const flames = [];
   function flame(x, y, z, size = 1) {
@@ -512,6 +567,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     scene,
     seats,
     pickables,
+    incense,
     setQuality,
     showMarker(x, z, y = 0.04) {
       marker.position.set(x, y, z);
