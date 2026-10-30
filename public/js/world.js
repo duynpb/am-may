@@ -614,12 +614,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
   scene.add(sun, sun.target);
-  const spot = new THREE.SpotLight(0xffd9a0, 140, 30, 0.42, 0.6, 2);
+  const spot = new THREE.SpotLight(0xffd9a0, 230, 30, 0.42, 0.6, 2);
   spot.position.set(0, 9.2, -9);
   spot.target.position.copy(BUDDHA);
   scene.add(spot, spot.target);
   // đèn chiếu mặt từ bên trái, tạo khối cho gương mặt
-  const faceLight = new THREE.SpotLight(0xffe4bd, 70, 22, 0.22, 0.5, 2);
+  const faceLight = new THREE.SpotLight(0xffe4bd, 120, 22, 0.22, 0.5, 2);
   faceLight.position.set(-3.5, 7.5, -10.5);
   faceLight.target.position.set(0, 6.4, -18.6);
   // đèn hắt viền từ phía sau, làm sáng đường viền vàng

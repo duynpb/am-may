@@ -3,6 +3,7 @@
 // rồi dựng bề mặt bằng marching cubes; pháp tuyến lấy từ gradient, bóng kẽ lõm (AO) tô vào màu đỉnh.
 import * as THREE from 'three';
 import { edgeTable, triTable } from 'three/addons/objects/MarchingCubes.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from './textures.js';
 
 // ---------- Hàm khoảng cách cơ bản ----------
@@ -43,88 +44,120 @@ function seg2(px, py, ax, ay, bx, by) {
   return Math.sqrt(ex * ex + ey * ey);
 }
 
-// ---------- Hình khối ----------
-const NECK = (x, y, z) => cone(x, y, z, [0, 1.9, -0.01], [0, 2.34, 0.02], 0.155, 0.145);
-const SPLIT_Y = 2.2; // thân dựng thưa, đầu dựng dày để rõ nét mặt
+// ---------- Hình khối (dáng tượng đồng ngồi thiền: đầu nhỏ, thân cao, vai rộng) ----------
+const NECK = (x, y, z) => cone(x, y, z, [0, 2.0, -0.02], [0, 2.46, 0.0], 0.15, 0.13);
+const SPLIT_Y = 2.22; // thân dựng thưa, đầu dựng dày để rõ nét mặt
+// Đầu được tạc ở hệ tọa độ riêng (HEAD_SRC) rồi thu nhỏ HEAD_S lần, đặt lên cổ tại HEAD_DST
+const HEAD_SRC = [0, 2.3, 0], HEAD_DST = [0, 2.38, 0.02], HEAD_S = 0.92;
+const toHead = (x, y, z) => [
+  (x - HEAD_DST[0]) / HEAD_S + HEAD_SRC[0], (y - HEAD_DST[1]) / HEAD_S + HEAD_SRC[1], (z - HEAD_DST[2]) / HEAD_S + HEAD_SRC[2],
+];
+const fromHead = (x, y, z) => [
+  (x - HEAD_SRC[0]) * HEAD_S + HEAD_DST[0], (y - HEAD_SRC[1]) * HEAD_S + HEAD_DST[1], (z - HEAD_SRC[2]) * HEAD_S + HEAD_DST[2],
+];
 
-// Nếp áo cà sa: phủ hai vai, cổ áo hình chữ V để lộ ngực
-// (mọi vùng chuyển tiếp đều mềm để không tạo đường gãy trên bề mặt)
-function robe(x, y, z) {
-  if (y > 2.1) return 0;
+// Cổ áo hình chữ U: hai cạnh xuôi từ vai xuống, đáy cong ở giữa bụng
+const U_BOTTOM = 1.55, U_R = 0.2;
+function uNeck(x, y) {
   const ax = Math.abs(x);
-  // vùng da trong cổ chữ V: không có nếp áo
-  const skin = smooth(0.0, 0.05, (y - 1.48) * 0.72 - ax) * smooth(0.05, 0.15, z) * smooth(2.04, 1.96, y);
-  const cloth = 1 - skin;
-  // vạt áo phủ lên chân: nếp tỏa ra từ giữa lòng
-  const a = Math.atan2(z - 0.15, x);
-  const legs = 0.02 * Math.sin(a * 17 + Math.sin(x * 4) * 0.8) * smooth(0.7, 0.95, y) * smooth(1.3, 1.12, y);
-  // nếp chéo trên thân
-  const torso = 0.011 * Math.sin((x * 0.9 - y * 1.1) * 26 + ax * 6) * smooth(1.12, 1.3, y) * smooth(2.08, 1.86, y);
-  // nếp ngang trên tay áo
-  const sleeve = 0.013 * Math.sin(y * 30 + z * 8) * smooth(0.5, 0.66, ax) * smooth(1.0, 1.15, y);
-  let f = (legs + torso + sleeve) * cloth;
-  // mép cổ áo nổi lên
-  if (z > 0.0 && y > 1.38 && y < 2.1) {
-    const e = Math.min(seg2(x, y, -0.43, 2.0, -0.02, 1.47), seg2(x, y, 0.43, 2.0, 0.02, 1.47));
-    f += 0.024 * Math.exp(-(e * e) / 0.0009) * smooth(0.0, 0.1, z);
-  }
-  // viền vạt áo vắt ngang lòng
-  f += 0.02 * Math.exp(-((y - 1.18) ** 2) / 0.0012) * smooth(0.15, 0.3, z) * smooth(0.62, 0.5, ax);
-  return -f;
+  const dist = Math.min(
+    seg2(ax, y, 0.3, 2.07, U_R, U_BOTTOM),
+    y < U_BOTTOM ? Math.abs(Math.hypot(x, y - U_BOTTOM) - U_R) : 9,
+  );
+  const inside = y >= U_BOTTOM ? ax < U_R + ((y - U_BOTTOM) / 0.52) * 0.1 : Math.hypot(x, y - U_BOTTOM) < U_R;
+  return inside ? -dist : dist; // âm = bên trong chữ U
+}
+
+// Áo cà sa phủ hai vai, áo lót buộc ngang bụng; mọi chuyển tiếp đều mềm để không gãy bề mặt
+function robe(x, y, z) {
+  if (y > 2.15) return 0;
+  const ax = Math.abs(x);
+  const front = smooth(0.0, 0.14, z);
+  const u = y > 1.25 && y < 2.12 ? uNeck(x, y) : 9;
+  const inU = smooth(0.0, -0.03, u) * front;
+  // da ngực trong chữ U (trên mép áo lót)
+  const skin = inU * smooth(1.44, 1.5, y);
+  // nếp dọc dài trên thân áo
+  const torso = 0.01 * Math.sin(x * 15 + Math.sin(y * 3) * 1.5) * smooth(1.15, 1.35, y) * smooth(2.12, 1.9, y);
+  // tay áo rộng: nếp dọc chạy từ vai xuống
+  const sleeve = 0.016 * Math.sin(z * 22 + ax * 9 + y * 1.2) * smooth(0.52, 0.7, ax) * smooth(1.0, 1.2, y) * smooth(1.95, 1.75, y);
+  // nếp cong đồng tâm trên chân, tránh vùng bàn tay
+  const hands = Math.exp(-((x / 0.38) ** 2 + ((z - 0.54) / 0.24) ** 2 + ((y - 1.26) / 0.12) ** 2));
+  const r = Math.hypot(x * 0.8, z - 0.55);
+  const legs = 0.017 * Math.sin(r * 24) * smooth(0.72, 0.95, y) * smooth(1.26, 1.1, y) * (1 - hands);
+  // vạt áo rủ xuống tòa sen: mép gợn sóng
+  const hem = 0.03 * Math.sin(x * 10) * smooth(0.92, 0.74, y) * smooth(0.2, 0.42, z);
+  // áo lót trong chữ U: nếp ngang nhỏ
+  const under = 0.006 * Math.sin(y * 70) * inU * smooth(1.48, 1.42, y);
+  let f = (torso + sleeve + legs + hem) * (1 - inU) + under;
+  // mép áo dày cuộn dọc theo chữ U (gờ tròn ngay bên ngoài chữ U)
+  if (u < 0.18) f += 0.042 * Math.exp(-(((u - 0.055) / 0.045) ** 2)) * front;
+  // mép áo lót ngang bụng
+  f += 0.022 * Math.exp(-(((y - 1.46) / 0.022) ** 2)) * inU;
+  return skin > 0.99 ? 0 : -f * (1 - skin);
 }
 
 function body(x, y, z) {
-  // hai chân xếp kiết già
-  let d = ell(x, y, z, 0, 0.9, 0.15, 1.04, 0.24, 0.64);
-  d = smin(d, cone(x, y, z, [-0.84, 0.98, 0.3], [0.42, 1.03, 0.6], 0.16, 0.12), 0.12);
-  d = smin(d, cone(x, y, z, [0.84, 0.94, 0.28], [-0.42, 0.95, 0.55], 0.16, 0.12), 0.12);
-  for (const s of [-1, 1]) d = smin(d, sph(x, y, z, s * 0.92, 0.95, 0.32, 0.2), 0.12); // đầu gối
-  // bàn chân ngửa trên đùi
-  d = smin(d, ell(x, y, z, 0.43, 1.12, 0.4, 0.21, 0.065, 0.11), 0.05);
-  d = smin(d, ell(x, y, z, -0.4, 1.06, 0.37, 0.19, 0.06, 0.1), 0.05);
-  // hông, bụng, ngực
-  d = smin(d, ell(x, y, z, 0, 1.15, 0.0, 0.56, 0.3, 0.42), 0.15);
-  d = smin(d, ell(x, y, z, 0, 1.36, 0.06, 0.47, 0.3, 0.36), 0.12);
-  d = smin(d, ell(x, y, z, 0, 1.65, 0.02, 0.55, 0.42, 0.36), 0.14);
-  // vai xuôi tròn: cơ thang từ cổ xuống, bờ vai thấp dần ra ngoài
-  d = smin(d, ell(x, y, z, 0, 1.9, -0.03, 0.5, 0.17, 0.27), 0.14);
+  // hai chân xếp kiết già, phủ áo
+  let d = ell(x, y, z, 0, 0.9, 0.15, 1.05, 0.22, 0.64);
+  d = smin(d, cone(x, y, z, [-0.86, 0.96, 0.3], [0.38, 0.99, 0.62], 0.17, 0.12), 0.14);
+  d = smin(d, cone(x, y, z, [0.86, 0.93, 0.28], [-0.38, 0.94, 0.57], 0.17, 0.12), 0.14);
+  for (const s of [-1, 1]) d = smin(d, sph(x, y, z, s * 0.95, 0.95, 0.32, 0.21), 0.14); // đầu gối
+  // vạt áo phủ xuống mép tòa sen phía trước
+  d = smin(d, ell(x, y, z, 0, 0.8, 0.45, 0.98, 0.13, 0.42), 0.14);
+  // hông, bụng, ngực — thân cao
+  d = smin(d, ell(x, y, z, 0, 1.18, 0.0, 0.58, 0.3, 0.42), 0.15);
+  d = smin(d, ell(x, y, z, 0, 1.42, 0.05, 0.5, 0.32, 0.37), 0.12);
+  d = smin(d, ell(x, y, z, 0, 1.76, 0.02, 0.6, 0.42, 0.37), 0.14);
+  // vai rộng, xuôi tròn
+  d = smin(d, ell(x, y, z, 0, 2.02, -0.03, 0.55, 0.17, 0.28), 0.14);
   for (const s of [-1, 1]) {
-    d = smin(d, sph(x, y, z, s * 0.56, 1.84, -0.03, 0.18), 0.14);
+    d = smin(d, sph(x, y, z, s * 0.64, 1.95, -0.03, 0.2), 0.14);
     // cánh tay, cẳng tay
-    d = smin(d, cone(x, y, z, [s * 0.6, 1.84, -0.03], [s * 0.73, 1.34, 0.06], 0.17, 0.15), 0.08);
-    d = smin(d, cone(x, y, z, [s * 0.73, 1.34, 0.06], [s * 0.27, 1.1, 0.42], 0.15, 0.1), 0.07);
-    // tay áo rủ xuống hai bên
-    d = smin(d, ell(x, y, z, s * 0.78, 1.17, 0.14, 0.18, 0.32, 0.32), 0.18);
+    d = smin(d, cone(x, y, z, [s * 0.68, 1.95, -0.03], [s * 0.8, 1.4, 0.08], 0.18, 0.16), 0.08);
+    d = smin(d, cone(x, y, z, [s * 0.8, 1.4, 0.08], [s * 0.33, 1.2, 0.47], 0.16, 0.1), 0.07);
+    // tay áo rộng rủ xuống theo cánh tay
+    d = smin(d, ell(x, y, z, s * 0.82, 1.3, 0.12, 0.2, 0.44, 0.32), 0.2);
   }
-  // hai bàn tay kết ấn thiền định, hai ngón cái chạm nhau
-  d = smin(d, ell(x, y, z, 0, 1.08, 0.45, 0.3, 0.07, 0.17), 0.06);
-  d = smin(d, cone(x, y, z, [-0.1, 1.14, 0.5], [0.1, 1.14, 0.5], 0.036), 0.03);
+  // hai bàn tay kết ấn thiền định đặt nổi trên lòng: tay phải trên tay trái, hai ngón cái chạm thành vòng
+  d = smin(d, ell(x, y, z, 0, 1.23, 0.55, 0.37, 0.08, 0.2), 0.05);
+  d = smin(d, ell(x, y, z, 0, 1.3, 0.57, 0.32, 0.07, 0.18), 0.04);
+  for (const s of [-1, 1]) {
+    d = smin(d, cone(x, y, z, [s * 0.17, 1.32, 0.67], [s * 0.06, 1.41, 0.67], 0.036), 0.025);
+    d = smin(d, cone(x, y, z, [s * 0.06, 1.41, 0.67], [0, 1.41, 0.67], 0.036), 0.02);
+  }
   d = smin(d, NECK(x, y, z), 0.1);
   // nếp áo chỉ ảnh hưởng sát bề mặt — xa thì khỏi tính
-  return Math.abs(d) < 0.06 ? d + robe(x, y, z) : d;
+  return Math.abs(d) < 0.07 ? d + robe(x, y, z) : d;
 }
 
-function head(x, y, z) {
+// Đầu tạc ở hệ tọa độ riêng: mặt trái xoan, má đầy, tai dài
+function headRaw(x, y, z) {
   let d = ell(x, y, z, 0, 2.6, 0.02, 0.34, 0.43, 0.37);
-  d = smin(d, ell(x, y, z, 0, 2.47, 0.07, 0.26, 0.25, 0.3), 0.12); // má, hàm thon
+  d = smin(d, ell(x, y, z, 0, 2.47, 0.07, 0.28, 0.25, 0.3), 0.12); // má đầy, hàm thon
   d = smin(d, ell(x, y, z, 0, 2.33, 0.24, 0.1, 0.07, 0.09), 0.09); // cằm tròn
-  d = smin(d, sph(x, y, z, 0, 2.99, -0.01, 0.2), 0.1); // nhục kế
+  d = smin(d, sph(x, y, z, 0, 2.97, -0.01, 0.17), 0.05); // nhục kế tròn, tách khỏi đỉnh đầu
   for (const s of [-1, 1]) {
-    d = smin(d, ell(x, y, z, s * 0.35, 2.48, -0.01, 0.055, 0.26, 0.11), 0.04); // tai dài
-    d = smax(d, -ell(x, y, z, s * 0.4, 2.52, 0.0, 0.025, 0.17, 0.06), 0.02); // lòng tai
-    // mí mắt khép hờ nhìn xuống + nếp mí
-    d = smin(d, ell(x, y, z, s * 0.13, 2.612, 0.338, 0.09, 0.04, 0.038), 0.035);
+    d = smin(d, ell(x, y, z, s * 0.35, 2.45, -0.01, 0.055, 0.3, 0.11), 0.04); // tai dài
+    d = smax(d, -ell(x, y, z, s * 0.4, 2.5, 0.0, 0.025, 0.2, 0.06), 0.02); // lòng tai
+    d = smin(d, ell(x, y, z, s * 0.13, 2.612, 0.338, 0.09, 0.04, 0.038), 0.035); // mí mắt khép hờ
   }
   // sống mũi, chóp mũi
   d = smin(d, ell(x, y, z, 0, 2.56, 0.37, 0.045, 0.12, 0.06), 0.04);
   d = smin(d, ell(x, y, z, 0, 2.475, 0.385, 0.062, 0.036, 0.042), 0.03);
   // cung mày
   d = smin(d, cone(x, y, z, [-0.2, 2.7, 0.3], [0.2, 2.7, 0.3], 0.028), 0.06);
-  // môi và khóe miệng
-  d = smin(d, ell(x, y, z, 0, 2.408, 0.352, 0.082, 0.026, 0.042), 0.025); // môi trên
-  d = smin(d, ell(x, y, z, 0, 2.368, 0.345, 0.066, 0.028, 0.042), 0.025); // môi dưới
-  d = smin(d, NECK(x, y, z), 0.1);
-  return Math.abs(d) < 0.03 ? d + faceLines(x, y, z) : d;
+  // môi
+  d = smin(d, ell(x, y, z, 0, 2.408, 0.352, 0.082, 0.026, 0.042), 0.025);
+  d = smin(d, ell(x, y, z, 0, 2.368, 0.345, 0.066, 0.028, 0.042), 0.025);
+  return d;
+}
+
+function head(x, y, z) {
+  const [hx, hy, hz] = toHead(x, y, z);
+  let d = headRaw(hx, hy, hz) * HEAD_S;
+  if (Math.abs(d) < 0.025) d += faceLines(hx, hy, hz) * HEAD_S;
+  return smin(d, NECK(x, y, z), 0.08);
 }
 
 // Nếp mí mắt và đường môi: rãnh lõm mềm (rộng hơn ô lưới để không bị thủng)
@@ -226,8 +259,9 @@ function sculpt(parts) {
   const pos = new Float32Array(out.pos);
   const nor = new Float32Array(n * 3);
   const col = new Float32Array(n * 3);
-  const gold = new THREE.Color('#f2cf73').convertSRGBToLinear();
-  const deep = new THREE.Color('#7a5220').convertSRGBToLinear();
+  // đồng đánh bóng: chỗ nổi sáng nâu vàng, kẽ lõm sẫm gần đen
+  const gold = new THREE.Color('#a08a5c').convertSRGBToLinear();
+  const deep = new THREE.Color('#231a0e').convertSRGBToLinear();
   const e = 0.004;
   for (let v = 0; v < n; v++) {
     const f = owner[v];
@@ -279,40 +313,45 @@ function sculpt(parts) {
 function petalGeometry() {
   const s = new THREE.Shape();
   s.moveTo(0, 0);
-  s.bezierCurveTo(0.24, 0.04, 0.3, 0.36, 0, 0.64);
-  s.bezierCurveTo(-0.3, 0.36, -0.24, 0.04, 0, 0);
-  const g = new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 3, curveSegments: 18 });
+  // cánh tròn mập
+  s.bezierCurveTo(0.36, 0.0, 0.38, 0.44, 0, 0.56);
+  s.bezierCurveTo(-0.38, 0.44, -0.36, 0.0, 0, 0);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.045, bevelSegments: 5, curveSegments: 20 });
   const p = g.attributes.position;
   const col = new Float32Array(p.count * 3);
-  const base = new THREE.Color('#b8823a').convertSRGBToLinear();
-  const tip = new THREE.Color('#f6dc9a').convertSRGBToLinear();
+  const base = new THREE.Color('#2b2015').convertSRGBToLinear();
+  const tip = new THREE.Color('#9c8758').convertSRGBToLinear();
   for (let i = 0; i < p.count; i++) {
     const y = p.getY(i), x = p.getX(i);
-    p.setZ(i, p.getZ(i) + 0.32 * (y / 0.64) ** 2 - 0.08 * (x / 0.3) ** 2); // uốn cong
-    const k = clamp01(y / 0.64);
+    p.setZ(i, p.getZ(i) + 0.16 * (y / 0.56) ** 2 - 0.1 * (x / 0.36) ** 2); // uốn cong nhẹ
+    const k = clamp01(y / 0.5);
     col[i * 3] = base.r + (tip.r - base.r) * k;
     col[i * 3 + 1] = base.g + (tip.g - base.g) * k;
     col[i * 3 + 2] = base.b + (tip.b - base.b) * k;
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  g.computeVertexNormals();
-  return g;
+  // gộp đỉnh trùng để đổ bóng mượt (khối đùn mặc định có pháp tuyến phẳng từng mặt)
+  g.deleteAttribute('normal');
+  g.deleteAttribute('uv');
+  const merged = mergeVertices(g, 1e-4);
+  merged.computeVertexNormals();
+  return merged;
 }
 
 export function makeBuddha({ quality = 'high' } = {}) {
   const g = new THREE.Group();
   const q = quality === 'high' ? 1 : 1.45; // máy yếu: lưới thưa hơn
 
-  const gilt = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.9, roughness: 0.34 });
-  const goldDeep = new THREE.MeshStandardMaterial({ color: '#c0913f', metalness: 0.9, roughness: 0.38 });
-  const petalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.7, roughness: 0.36 });
+  const gilt = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.85, roughness: 0.32, envMapIntensity: 2.2 });
+  const goldDeep = new THREE.MeshStandardMaterial({ color: '#6e5232', metalness: 0.85, roughness: 0.36, envMapIntensity: 2.2 });
+  const petalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.8, roughness: 0.36, envMapIntensity: 2.2 });
 
   // Tòa sen ba tầng cánh
   const base = new THREE.Mesh(new THREE.CylinderGeometry(1.12, 1.28, 0.26, 48), goldDeep);
   base.position.y = 0.13;
   g.add(base);
   const petal = petalGeometry();
-  for (const [n, r, y, tilt, s, off] of [[18, 1.0, 0.12, 0.55, 1, 0], [16, 0.86, 0.28, 0.38, 0.9, 0.2], [14, 0.7, 0.42, 0.22, 0.78, 0.1]]) {
+  for (const [n, r, y, tilt, s, off] of [[14, 1.0, 0.1, 0.42, 1, 0], [12, 0.84, 0.28, 0.26, 0.92, 0.26], [10, 0.68, 0.42, 0.12, 0.82, 0.1]]) {
     for (let i = 0; i < n; i++) {
       const pv = new THREE.Group();
       pv.rotation.y = (i / n) * Math.PI * 2 + off;
@@ -331,15 +370,15 @@ export function makeBuddha({ quality = 'high' } = {}) {
 
   // Thân và đầu tượng
   const geo = sculpt([
-    { sdf: body, min: [-1.25, 0.62, -0.72], max: [1.25, SPLIT_Y, 0.92], step: 0.02 * q },
-    { sdf: head, min: [-0.47, SPLIT_Y, -0.44], max: [0.47, 3.24, 0.5], step: 0.0105 * q },
+    { sdf: body, min: [-1.3, 0.6, -0.72], max: [1.3, SPLIT_Y, 0.95], step: 0.02 * q },
+    { sdf: head, min: [-0.42, SPLIT_Y, -0.4], max: [0.42, 3.27, 0.5], step: 0.0095 * q },
   ]);
   const statue = new THREE.Mesh(geo, gilt);
   statue.castShadow = statue.receiveShadow = true;
   g.add(statue);
 
   // Tam đạo (ba ngấn cổ) — cũng che đường nối thân/đầu
-  for (const [y, r] of [[2.13, 0.158], [2.2, 0.153], [2.27, 0.15]]) {
+  for (const [y, r] of [[2.22, 0.145], [2.27, 0.142], [2.32, 0.14]]) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.009, 8, 40), goldDeep);
     ring.rotation.x = Math.PI / 2;
     ring.position.set(0, y, 0.005);
@@ -355,17 +394,18 @@ export function makeBuddha({ quality = 'high' } = {}) {
       const yy = 1 - (i / (N - 1)) * 2, rr = Math.sqrt(1 - yy * yy), th = i * 2.399963;
       const dx = Math.cos(th) * rr, dy = yy, dz = Math.sin(th) * rr;
       if (dy < -0.35) continue;
+      // dò trong hệ tọa độ tạc đầu, rồi đổi sang vị trí thật trên tượng
       let t = 0;
-      while (t < 0.7 && head(c[0] + dx * t, c[1] + dy * t, c[2] + dz * t) < 0) t += 0.004;
+      while (t < 0.7 && headRaw(c[0] + dx * t, c[1] + dy * t, c[2] + dz * t) < 0) t += 0.004;
       const x = c[0] + dx * t, y = c[1] + dy * t, z = c[2] + dz * t;
       const hairline = 2.76 - 0.2 * Math.max(0, -dz) - 0.04 * Math.abs(dx);
       if (y < hairline || (Math.abs(x) > 0.3 && y < 2.82)) continue;
-      pts.push([x, y, z, dx, dy, dz]);
+      pts.push([...fromHead(x, y, z), dx, dy, dz]);
     }
-    const curls = new THREE.InstancedMesh(new THREE.SphereGeometry(0.026, 10, 8), goldDeep, pts.length);
+    const curls = new THREE.InstancedMesh(new THREE.SphereGeometry(0.026 * HEAD_S, 10, 8), goldDeep, pts.length);
     const o = new THREE.Object3D();
     pts.forEach(([x, y, z, dx, dy, dz], i) => {
-      o.position.set(x - dx * 0.008, y - dy * 0.008, z - dz * 0.008);
+      o.position.set(x - dx * 0.007, y - dy * 0.007, z - dz * 0.007);
       o.scale.set(1, 0.8, 1);
       o.lookAt(x + dx, y + dy, z + dz);
       o.updateMatrix();
@@ -376,13 +416,13 @@ export function makeBuddha({ quality = 'high' } = {}) {
   }
   // bạch hào giữa hai chân mày
   const urna = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), goldDeep);
-  urna.position.set(0, 2.72, 0.395);
+  urna.position.set(...fromHead(0, 2.72, 0.395));
   g.add(urna);
 
   // Hào quang
   const aur = T.aureole();
   const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: aur, transparent: true, depthWrite: false }));
-  halo.position.set(0, 2.68, -0.5);
+  halo.position.set(0, 2.7, -0.42);
   g.add(halo);
   const big = new THREE.Mesh(new THREE.PlaneGeometry(3.9, 3.9), new THREE.MeshBasicMaterial({ map: aur, transparent: true, depthWrite: false, opacity: 0.85 }));
   big.position.set(0, 1.85, -0.72);
