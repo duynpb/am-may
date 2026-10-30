@@ -7,6 +7,14 @@ import * as T from './textures.js';
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
 export const BUDDHA = new THREE.Vector3(0, 4.6, -18.8);
 export const ENTRANCE = new THREE.Vector3(0, 0, 17);
+// Thềm đá trước chánh điện (z 19 → 21.6), bậc xuống sân (thấp hơn 0.36)
+export const PORCH = { z0: 19, z1: 21.6, courtY: -0.36 };
+export const COURTYARD = new THREE.Vector3(0, PORCH.courtY, 31);
+export function groundY(x, z) {
+  if (z <= PORCH.z1 - 0.05) return 0;
+  if (z >= PORCH.z1 + 0.6) return PORCH.courtY;
+  return (PORCH.courtY * (z - PORCH.z1 + 0.05)) / 0.65;
+}
 
 const SEAT_X = [-10, -7.5, -5, -2.5, 2.5, 5, 7.5, 10];
 const SEAT_Z = [-10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5];
@@ -75,10 +83,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   );
   scene.add(sky);
 
-  const ground = mesh(new THREE.PlaneGeometry(500, 500), std('#8b9670', { roughness: 1 }), 0, -0.03, 0, { cast: false });
+  const ground = mesh(new THREE.PlaneGeometry(500, 500), std('#8b9670', { roughness: 1 }), 0, PORCH.courtY - 0.03, 0, { cast: false });
   ground.rotation.x = -Math.PI / 2;
-  const court = mesh(new THREE.PlaneGeometry(34, 16), std('#bdb4a3', { roughness: 1 }), 0, -0.01, 27, { cast: false });
+  const court = mesh(new THREE.PlaneGeometry(34, 18), std('#978e7e', { roughness: 1 }), 0, PORCH.courtY + 0.005, 30.5, { cast: false });
   court.rotation.x = -Math.PI / 2;
+  // lối đi lát gạch giữa sân
+  const path = mesh(new THREE.PlaneGeometry(3, 17), std('#a0533a', { roughness: 0.95 }), 0, PORCH.courtY + 0.01, 30.6, { cast: false });
+  path.rotation.x = -Math.PI / 2;
 
   const ridgeColors = ['#8fa3a6', '#a8b8b6', '#c2cbc4'];
   ridgeColors.forEach((c, i) => {
@@ -100,7 +111,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const side = i % 2 ? 1 : -1;
       spots.push([side * rnd(16.6, 30), rnd(-26, 28)]);
     }
-    for (let i = 0; i < 24; i++) spots.push([rnd(-24, 24) + (Math.random() < 0.5 ? -20 : 20) * 0.6, rnd(32, 40)]);
+    for (let i = 0; i < 24; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(8, 28), rnd(34, 44)]);
     const stalkGeo = new THREE.CylinderGeometry(0.07, 0.1, 11, 6);
     stalkGeo.translate(0, 5.5, 0);
     const stalks = new THREE.InstancedMesh(stalkGeo, std('#7d9a4c', { roughness: 0.6 }), spots.length);
@@ -113,7 +124,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     let li = 0;
     spots.forEach(([x, z], i) => {
       const s = rnd(0.75, 1.15);
-      o.position.set(x, 0, z);
+      o.position.set(x, PORCH.courtY - 0.05, z);
       o.rotation.set(rnd(-0.06, 0.06), 0, rnd(-0.06, 0.06));
       o.scale.set(1, s, 1);
       o.updateMatrix();
@@ -168,6 +179,19 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     bars.castShadow = true;
     scene.add(bars);
   }
+  // Thềm đá + bậc tam cấp
+  {
+    const porchMat = std('#9d9587', { roughness: 0.92 });
+    const edgeMat = std('#7d766a', { roughness: 0.95 });
+    const depth = PORCH.z1 - PORCH.z0;
+    box(30.6, 0.42, depth, porchMat, 0, -0.21, PORCH.z0 + depth / 2, { cast: false });
+    box(30.6, 0.06, 0.18, edgeMat, 0, -0.03, PORCH.z1 - 0.09, { cast: false });
+    box(9, 0.24, 0.34, edgeMat, 0, -0.24, PORCH.z1 + 0.17);
+    box(9, 0.12, 0.34, porchMat, 0, -0.30, PORCH.z1 + 0.5);
+    // ranh giới gỗ giữa thềm và sàn chánh điện
+    box(30.6, 0.05, 0.14, M.darkWood, 0, 0.02, PORCH.z0 + 0.04, { cast: false });
+  }
+
   // Mặt tiền
   box(30, 3.0, 0.4, M.plaster, 0, 8.5, 19);
   box(30, 0.5, 0.5, M.darkWood, 0, 6.95, 19);

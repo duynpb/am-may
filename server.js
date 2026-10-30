@@ -111,7 +111,10 @@ wss.on('connection', (ws) => {
         ws.close();
         return;
       }
-      me = { id: String(nextId++), name: clean(m.name), robe: clamp(m.robe, 0, 50) | 0, x: 0, z: 16, seat: null };
+      me = {
+        id: String(nextId++), name: clean(m.name), robe: clamp(m.robe, 0, 50) | 0,
+        sandals: clamp(m.sandals, 0, 50) | 0, x: 0, z: 16, seat: null,
+      };
       ws.send(JSON.stringify({ t: 'welcome', id: me.id, room: roomId, peers: [...members.values()].map((p) => p.p) }));
       broadcast(roomId, { t: 'join', p: me });
       members.set(me.id, { ws, p: me });

@@ -37,7 +37,7 @@ class Net {
 }
 
 // Trả về Net khi đã nhận 'welcome', hoặc null nếu không kết nối được
-export function connect({ room, name, robe }, timeout = 3000) {
+export function connect({ room, name, robe, sandals }, timeout = 3000) {
   return new Promise((resolve) => {
     if (!/^https?:$/.test(location.protocol)) return resolve(null);
     let ws;
@@ -48,7 +48,7 @@ export function connect({ room, name, robe }, timeout = 3000) {
     }
     const net = new Net(ws);
     const timer = setTimeout(() => { ws.close(); resolve(null); }, timeout);
-    ws.onopen = () => net.send({ t: 'hello', room, name, robe });
+    ws.onopen = () => net.send({ t: 'hello', room, name, robe, sandals });
     ws.onerror = () => { clearTimeout(timer); resolve(null); };
     net.on('welcome', () => { clearTimeout(timer); resolve(net); });
     net.on('full', () => { clearTimeout(timer); resolve(null); });

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
+import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, ROOMS } from './net.js';
@@ -36,6 +37,8 @@ let myName = store.get('name', null) || randomName();
 store.set('name', myName);
 const myRobe = store.get('robe', Math.floor(Math.random() * ROBES.length));
 store.set('robe', myRobe);
+const mySandals = store.get('sandals', Math.floor(Math.random() * SANDAL_COLORS.length)) % SANDAL_COLORS.length;
+store.set('sandals', mySandals);
 
 const params = new URLSearchParams(location.search);
 let roomId = ROOMS.some((r) => r.id === params.get('room')) ? params.get('room') : ROOMS[0].id;
@@ -64,6 +67,8 @@ resize();
 try { await document.fonts.load('700 40px "Noto Serif"'); } catch { /* dùng font dự phòng */ }
 const world = buildWorld(renderer, { quality: settings.quality });
 const { scene, seats } = world;
+Avatar.ground = groundY;
+const rack = new SandalRack(scene);
 
 const sound = new Sound(settings);
 
@@ -79,12 +84,15 @@ function addAvatar(a) {
 function removeAvatar(id) {
   const a = avatars.get(id);
   if (!a) return;
+  a.script = null;
   a.dispose();
   a.bubbleEl?.remove();
   avatars.delete(id);
+  rack.release(id);
 }
 
 const player = new Avatar({ id: 'me', name: myName, robe: myRobe, isPlayer: true });
+player.setSandals(SANDAL_COLORS[mySandals]);
 addAvatar(player);
 player.placeAt(ENTRANCE.x, ENTRANCE.z - 4, Math.PI);
 player.labelEl = document.createElement('div');
@@ -136,6 +144,73 @@ function socialToast(text) {
   toast(text);
 }
 
+// ---------- Vào / ra chánh điện: dép để trên thềm ----------
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const alive = (a, token) => a.script === token && avatars.has(a.id);
+const STEP_Z = 22.4; // chân bậc tam cấp
+
+// Từ sân đi lên thềm, cởi dép, quay lại sắp dép ngay ngắn (mũi dép hướng ra sân) rồi mới vào.
+// Trả về false nếu bị ngắt giữa chừng.
+async function enterTemple(a) {
+  const token = (a.script = {});
+  a.wearSandals(true);
+  const slot = rack.reserve(a.id);
+  if (slot) {
+    await a.walk(clamp(slot.x, -3, 3), STEP_Z);
+    if (!alive(a, token)) return false;
+    await a.walk(slot.x, slot.z);
+    if (!alive(a, token)) return false;
+    a.faceRy = Math.PI;
+    await wait(400);
+    if (!alive(a, token)) return false;
+    // bước ra khỏi dép — dép còn nằm đó, mũi quay vào trong
+    a.wearSandals(false);
+    rack.place(a.id, a.sandalColors, { messy: true });
+    await a.walk(slot.x, slot.z - 0.75);
+    if (!alive(a, token)) return false;
+    // quay lại, cúi xuống xoay dép cho ngay ngắn
+    a.act('stoop', 0);
+    await wait(550);
+    rack.straighten(a.id, 0.9);
+    await wait(1500);
+    if (!alive(a, token)) return false;
+  } else {
+    a.wearSandals(false);
+  }
+  a.script = null;
+  return true;
+}
+
+// Đến chỗ để dép, mang dép vào rồi đi ra sân
+async function exitTemple(a) {
+  const token = (a.script = {});
+  const slot = rack.slotOf(a.id);
+  if (slot && rack.has(a.id)) {
+    await a.walk(slot.x, slot.z - 0.75);
+    if (!alive(a, token)) return false;
+    await a.walk(slot.x, slot.z);
+    if (!alive(a, token)) return false;
+    rack.release(a.id);
+    a.wearSandals(true);
+    await wait(300);
+    await a.walk(clamp(slot.x, -3, 3), STEP_Z);
+  } else {
+    await a.walk(rnd(-1.5, 1.5), STEP_Z);
+  }
+  if (!alive(a, token)) return false;
+  await a.walk(rnd(-1.5, 1.5), COURTYARD.z + 2);
+  return alive(a, token);
+}
+
+// Ngắt kịch bản đang chạy: dép coi như đã để ngay ngắn trên thềm
+function cancelScript(a) {
+  if (!a.script) return;
+  a.script = null;
+  a.wearSandals(false);
+  if (!rack.has(a.id)) rack.place(a.id, a.sandalColors);
+  else rack.straighten(a.id, 0.01);
+}
+
 // ---------- Mạng / khách mô phỏng ----------
 let net = null;
 let online = false;
@@ -150,13 +225,20 @@ function updateCount() {
 
 function makeBot({ seated }) {
   const a = addAvatar(new Avatar({ id: 'bot' + botSeq++, name: randomName(), robe: Math.floor(Math.random() * ROBES.length) }));
+  a.setSandals(pick(SANDAL_COLORS));
   const free = freeSeats();
   const seat = free.length ? pick(free) : null;
-  if (seated && seat) a.sitAt(seat);
-  else {
-    a.placeAt(rnd(-1.5, 1.5), HALL.maxZ, Math.PI);
-    if (seat) a.walkTo(seat.x, seat.z, seat);
-    else a.walkTo(rnd(-8, 8), rnd(-4, 12));
+  if (seated && seat) {
+    a.sitAt(seat);
+    rack.place(a.id, a.sandalColors);
+  } else {
+    a.placeAt(rnd(-1.5, 1.5), COURTYARD.z + rnd(0, 3), Math.PI);
+    enterTemple(a).then((ok) => {
+      if (!ok) return;
+      const s = pick(freeSeats(a));
+      if (s) a.walkTo(s.x, s.z, s);
+      else a.walkTo(rnd(-8, 8), rnd(-4, 12));
+    });
   }
   a.brain = { next: elapsed + rnd(4, 30) };
   bots.add(a);
@@ -166,12 +248,7 @@ function makeBot({ seated }) {
 
 function botsThink(t) {
   for (const a of bots) {
-    if (a.leaving && !a.moving) {
-      bots.delete(a);
-      removeAvatar(a.id);
-      updateCount();
-      continue;
-    }
+    if (a.leaving || a.script) continue;
     if (a.pendingIncense && !a.moving) {
       const n = a.pendingIncense;
       a.pendingIncense = 0;
@@ -202,8 +279,7 @@ function botsThink(t) {
         a.walkTo(s.x, s.z, s);
       }
     } else if (r < 0.7) {
-      a.leaving = true;
-      a.walkTo(rnd(-1.5, 1.5), HALL.maxZ + 1);
+      botLeave(a);
     } else if (r < 0.78) {
       const spot = altarSpot(a);
       a.pendingIncense = Math.random() < 0.6 ? 3 : 1;
@@ -212,12 +288,19 @@ function botsThink(t) {
   }
   if (bots.size < botTarget && Math.random() < 0.004) makeBot({ seated: false });
   if (bots.size > botTarget && Math.random() < 0.01) {
-    const a = pick([...bots].filter((b) => !b.leaving));
-    if (a) {
-      a.leaving = true;
-      a.walkTo(rnd(-1.5, 1.5), HALL.maxZ + 1);
-    }
+    const a = pick([...bots].filter((b) => !b.leaving && !b.script && !b.busy));
+    if (a) botLeave(a);
   }
+}
+
+function botLeave(a) {
+  a.leaving = true;
+  exitTemple(a).then(() => {
+    if (!bots.has(a)) return;
+    bots.delete(a);
+    removeAvatar(a.id);
+    updateCount();
+  });
 }
 
 // Khi có người thật, khách mô phỏng nhường chỗ dần
@@ -237,28 +320,43 @@ function yieldSeat(index) {
   }
 }
 
-function clearOthers() {
+function clearOthers(keepMySandals) {
   for (const id of [...avatars.keys()]) if (id !== 'me') removeAvatar(id);
   bots.clear();
+  rack.clear(keepMySandals ? 'me' : undefined);
 }
 
-function addRemote(p) {
+// entering: người vừa vào phòng — đi từ sân lên, cởi dép ở thềm
+function addRemote(p, { entering = false } = {}) {
   if (avatars.has('n' + p.id)) return;
   const a = addAvatar(new Avatar({ id: 'n' + p.id, name: p.name, robe: p.robe }));
+  a.setSandals(SANDAL_COLORS[(p.sandals ?? +p.id) % SANDAL_COLORS.length]);
+  if (entering) {
+    a.placeAt(rnd(-1.5, 1.5), COURTYARD.z, Math.PI);
+    enterTemple(a).then((ok) => ok && a.walkTo(rnd(-1.5, 1.5), ENTRANCE.z - 4));
+    return;
+  }
   const seat = p.seat != null ? seats[p.seat] : null;
   if (seat) a.sitAt(seat);
   else a.placeAt(p.x, p.z, Math.PI);
+  rack.place(a.id, a.sandalColors);
 }
 
 function wireNet(n) {
   n.on('join', (m) => {
-    addRemote(m.p);
-    bubble(avatars.get('n' + m.p.id), m.p.name);
+    addRemote(m.p, { entering: true });
+    bubble(avatars.get('n' + m.p.id), m.p.name, 4000);
   });
-  n.on('leave', (m) => removeAvatar('n' + m.id));
+  n.on('leave', (m) => {
+    const a = avatars.get('n' + m.id);
+    if (!a || a.leaving) return;
+    a.leaving = true;
+    exitTemple(a).then(() => removeAvatar(a.id));
+  });
   n.on('move', (m) => {
     const a = avatars.get('n' + m.id);
-    if (!a) return;
+    if (!a || a.leaving) return;
+    cancelScript(a);
     const seat = m.seat != null ? seats[m.seat] : null;
     if (seat) yieldSeat(seat.index);
     a.walkTo(m.x, m.z, seat);
@@ -306,12 +404,9 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
   history.replaceState(null, '', url);
 
   if (net) { const old = net; net = null; old.close(); }
-  clearOthers();
-  if (!keepPlayer) {
-    player.placeAt(rnd(-1, 1), ENTRANCE.z - 4, Math.PI);
-    cam.yaw = 0;
-  }
-  const n = await connect({ room: id, name: myName, robe: myRobe });
+  clearOthers(keepPlayer);
+  if (!keepPlayer) startIntro();
+  const n = await connect({ room: id, name: myName, robe: myRobe, sandals: mySandals });
   if (roomId !== id) { n?.close(); return; }
   online = !!n;
   if (n) {
@@ -320,7 +415,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     n.welcome.peers.forEach(addRemote);
     onlineCount = n.welcome.peers.length + 1;
     botTarget = fillTarget();
-    sendMove();
+    if (!intro) sendMove();
   } else {
     botTarget = Math.floor(rnd(16, 30));
   }
@@ -331,8 +426,38 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
   updateCount();
 }
 
+// ---------- Mở đầu: từ sân đi vào ----------
+let intro = false;
+function startIntro() {
+  intro = true;
+  if (ritual) {
+    ritual = null;
+    incBtn.disabled = false;
+  }
+  player.seat = null;
+  player.holdIncense(0);
+  rack.release('me');
+  player.placeAt(rnd(-1, 1), COURTYARD.z, Math.PI);
+  cam.yaw = 0;
+  showHint('Để dép ngay ngắn ở thềm trước khi vào chánh điện · chạm màn hình để bỏ qua', 0);
+  enterTemple(player).then((ok) => {
+    if (!ok || !intro) return;
+    intro = false;
+    movePlayerTo(rnd(-1, 1), ENTRANCE.z - 4);
+    showHint(baseHint, 8000);
+  });
+}
+function skipIntro() {
+  if (!intro) return;
+  intro = false;
+  cancelScript(player);
+  player.placeAt(rnd(-1, 1), ENTRANCE.z - 4, Math.PI);
+  sendMove();
+  showHint(baseHint, 8000);
+}
+
 function sendMove() {
-  if (!net) return;
+  if (!net || intro) return;
   const g = player.goal ?? player.pos;
   net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: player.goalSeat?.index ?? player.seat ?? null });
 }
@@ -486,6 +611,7 @@ function ringInstrument(kind, by = null) {
 document.querySelectorAll('.actions button').forEach((b) => {
   b.addEventListener('click', () => {
     const act = b.dataset.act;
+    skipIntro();
     if (act === 'gassho') doGassho();
     else if (act === 'bow') doBow();
     else if (act === 'incense') {
@@ -501,7 +627,7 @@ document.querySelectorAll('.actions button').forEach((b) => {
 const beads = new Beads($('#beads'), { sound, store, onClose: () => {} });
 
 // ---------- Camera & điều khiển ----------
-const cam = { yaw: 0, pitch: 0.36, dist: 7.5, curDist: 15, curPitch: 0.7, target: new THREE.Vector3(0, 1.1, 14) };
+const cam = { yaw: 0, pitch: 0.36, dist: 7.5, curDist: 15, curPitch: 0.7, maxZ: 45, target: new THREE.Vector3(0, 1.1, 31) };
 const ray = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 const pointers = new Map();
@@ -528,6 +654,10 @@ function pickAvatar() {
 
 function handleTap(x, y) {
   sound.init();
+  if (intro) {
+    skipIntro();
+    return;
+  }
   setRay(x, y);
   const hits = ray.intersectObjects(world.pickables, true);
   const avatarHit = pickAvatar();
@@ -633,6 +763,7 @@ window.addEventListener('keydown', (e) => {
     sound.init();
     hideHint();
   }
+  if ((k === 'g' || k === 'b') && intro) skipIntro();
   if (k === 'g') doGassho();
   if (k === 'b') doBow();
 });
@@ -642,6 +773,7 @@ window.addEventListener('blur', () => keys.clear());
 let keySendT = 0;
 function keyMove(t) {
   if (!keys.size) return;
+  if (intro) skipIntro();
   let f = 0, s = 0;
   if (keys.has('w') || keys.has('arrowup')) f += 1;
   if (keys.has('s') || keys.has('arrowdown')) f -= 1;
@@ -662,15 +794,18 @@ function keyMove(t) {
 
 function updateCamera(dt) {
   const k = 1 - Math.exp(-6 * dt);
-  const want = new THREE.Vector3(player.root.position.x, 1.1 - 0.15 * player.p.sit, player.root.position.z);
+  const want = new THREE.Vector3(player.root.position.x, player.root.position.y + 1.1 - 0.15 * player.p.sit, player.root.position.z);
   cam.target.lerp(want, k);
   cam.curDist += (cam.dist - cam.curDist) * (1 - Math.exp(-4 * dt));
   cam.curPitch += (cam.pitch - cam.curPitch) * (1 - Math.exp(-4 * dt));
+  // ở ngoài sân / trên thềm thì camera được lùi ra ngoài chánh điện
+  const outside = player.pos.z > HALL.maxZ;
+  cam.maxZ += ((outside ? 45 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
     clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, -14.5, 14.5),
-    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, 9.4),
-    clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, -15.2, 18.6),
+    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, outside ? 14 : 9.4),
+    clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);
 }
@@ -698,16 +833,22 @@ function updateLabels(now) {
 
 // ---------- Giao diện ----------
 const hintEl = $('#hint');
-hintEl.textContent = isCoarse
+const baseHint = isCoarse
   ? 'Chạm sàn để đi · Kéo để nhìn quanh · Chụm hai ngón để phóng to'
   : 'Nhấp sàn để đi · Kéo để nhìn quanh · Lăn chuột để phóng to · W A S D để đi';
-let hintHidden = false;
-function hideHint() {
-  if (hintHidden) return;
-  hintHidden = true;
-  setTimeout(() => hintEl.classList.add('hide'), 1500);
+let hintT;
+// ms = 0: hiện đến khi được thay
+function showHint(text, ms) {
+  hintEl.textContent = text;
+  hintEl.classList.remove('hide');
+  clearTimeout(hintT);
+  if (ms) hintT = setTimeout(() => hintEl.classList.add('hide'), ms);
 }
-setTimeout(hideHint, 9000);
+function hideHint() {
+  if (intro) return;
+  clearTimeout(hintT);
+  hintT = setTimeout(() => hintEl.classList.add('hide'), 1500);
+}
 
 function openModal(id) {
   const m = $(id);
@@ -899,6 +1040,7 @@ function frame() {
   }
   botsThink(elapsed);
   incenseRitual();
+  rack.update(dt);
   world.update(elapsed, dt);
   updateCamera(dt);
   if (!beads.isOpen) {

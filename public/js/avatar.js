@@ -1,5 +1,6 @@
 // Nhân vật chibi mặc áo tràng: đi, ngồi bồ đoàn, chắp tay, lạy.
 import * as THREE from 'three';
+import { makeSandal } from './sandals.js';
 
 export const ROBES = [
   { robe: '#9a9e98', sash: '#d9b44a' },
@@ -61,10 +62,29 @@ export class Avatar {
     this.seat = null;
     this.action = null;
     this.seed = Math.random() * 100;
-    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0 };
+    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0, stoop: 0 };
     this.phase = 0;
     this.time = 0;
+    this.onArrive = null;
+    this.wearing = false;
     this.build(ROBES[robe % ROBES.length], skin ?? SKINS[Math.floor(Math.random() * SKINS.length)]);
+  }
+
+  // Đôi dép của nhân vật (màu [đế, quai]); wearSandals(true) = đang mang
+  setSandals(colors) {
+    this.sandalColors = colors;
+    this.soles?.forEach((s) => s.removeFromParent());
+    this.soles = this.feet.map(() => {
+      const s = makeSandal(colors);
+      s.visible = false;
+      this.lower.add(s);
+      return s;
+    });
+    this.wearSandals(this.wearing);
+  }
+  wearSandals(on) {
+    this.wearing = on;
+    this.soles?.forEach((s) => (s.visible = on));
   }
 
   build(colors, skin) {
@@ -166,7 +186,14 @@ export class Avatar {
     this.goalSeat = seat;
     this.seat = null;
     this.faceRy = null;
-    if (this.action?.kind === 'bow') this.action = null;
+    this.onArrive = null;
+    if (this.action?.kind === 'bow' || this.action?.kind === 'stoop') this.action = null;
+  }
+
+  // walkTo dạng Promise — xong khi tới nơi (không xong nếu bị lệnh đi khác chen vào)
+  walk(x, z) {
+    this.walkTo(x, z);
+    return new Promise((res) => (this.onArrive = res));
   }
 
   sitAt(seat) {
@@ -180,7 +207,7 @@ export class Avatar {
     this.goal = null;
   }
 
-  // kind: 'gassho' (chắp tay) | 'bow' (lạy)
+  // kind: 'gassho' (chắp tay) | 'bow' (lạy) | 'stoop' (cúi xuống sắp dép)
   act(kind, faceRy = null) {
     this.action = { kind, start: this.time };
     if (faceRy != null && !this.sitting) {
@@ -204,6 +231,9 @@ export class Avatar {
           this.seat = this.goalSeat.index;
           this.goalSeat = null;
         }
+        const cb = this.onArrive;
+        this.onArrive = null;
+        cb?.();
       } else {
         const step = Math.min(dist, this.speed * dt * Math.min(1, 0.4 + this.p.walk));
         this.pos.x += (dx / dist) * step;
@@ -213,12 +243,15 @@ export class Avatar {
     }
     this.ry = dampAngle(this.ry, wantRy, 9, dt);
 
-    let gT = 0, bT = 0;
+    let gT = 0, bT = 0, sT = 0;
     if (this.action) {
       const e = this.time - this.action.start;
       if (this.action.kind === 'gassho') {
         gT = e < 2.2 ? 1 : 0;
         if (e > 2.8) this.action = null;
+      } else if (this.action.kind === 'stoop') {
+        sT = e < 1.5 ? 1 : 0;
+        if (e > 2.0) this.action = null;
       } else {
         gT = e < 3.6 ? 1 : 0;
         bT = e > 0.6 && e < 2.5 ? 1 : 0;
@@ -230,6 +263,7 @@ export class Avatar {
     p.sit = damp(p.sit, this.sitting ? 1 : 0, 6, dt);
     p.gassho = damp(p.gassho, gT, 7, dt);
     p.bow = damp(p.bow, bT, 3.5, dt);
+    p.stoop = damp(p.stoop, sT, 5, dt);
     this.phase += dt * 9.5 * p.walk;
     this.sync();
     return arrived;
@@ -238,7 +272,7 @@ export class Avatar {
   sync() {
     const p = this.p, t = this.time + this.seed;
     const bob = Math.abs(Math.sin(this.phase)) * 0.06 * p.walk;
-    this.root.position.set(this.pos.x, bob - 0.04 * p.sit, this.pos.z);
+    this.root.position.set(this.pos.x, Avatar.ground(this.pos.x, this.pos.z) + bob - 0.04 * p.sit, this.pos.z);
     this.root.rotation.y = this.ry;
     this.root.rotation.z = Math.sin(this.phase) * 0.04 * p.walk;
 
@@ -248,10 +282,15 @@ export class Avatar {
       f.position.z = 0.1 + Math.sin(this.phase + (i ? Math.PI : 0)) * 0.14 * p.walk + 0.22 * p.sit;
       f.position.x = s * (0.13 + 0.12 * p.sit);
       f.visible = p.sit < 0.6;
+      const sole = this.soles?.[i];
+      if (sole) {
+        sole.position.set(f.position.x, 0, f.position.z - 0.02);
+        sole.visible = this.wearing && f.visible;
+      }
     });
 
     this.upper.position.y = 0.4 - 0.18 * p.sit;
-    this.upper.rotation.x = p.bow * mix(0.62, 0.95, p.sit);
+    this.upper.rotation.x = p.bow * mix(0.62, 0.95, p.sit) + p.stoop * 0.95;
     this.upper.scale.y = 1 + Math.sin(t * 1.7) * 0.012;
     this.head.rotation.x = 0.16 * p.sit * (1 - p.bow) + Math.sin(this.phase * 2) * 0.03 * p.walk;
     this.head.rotation.z = Math.sin(t * 0.4) * 0.04 * (1 - p.walk);
@@ -263,6 +302,8 @@ export class Avatar {
       let rz = mix(s * 0.12, -s * 0.38, p.sit);
       rx = mix(rx, -1.15, p.gassho);
       rz = mix(rz, -s * 0.64, p.gassho);
+      rx = mix(rx, -0.6, p.stoop); // với tay xuống sắp dép
+      rz = mix(rz, -s * 0.2, p.stoop);
       arm.rotation.set(rx, 0, rz);
     }
   }
@@ -276,3 +317,6 @@ export class Avatar {
     this.root.removeFromParent();
   }
 }
+
+// Độ cao mặt đất tại (x, z) — main.js gán theo thềm và sân
+Avatar.ground = () => 0;

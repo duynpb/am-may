@@ -40,6 +40,7 @@ public/
 
 | Tính năng | Cách dùng |
 |---|---|
+| Vào chánh điện | Nhân vật đi từ sân lên thềm, cởi dép, quay lại sắp dép ngay ngắn (mũi hướng ra sân) rồi bước vào; chạm để bỏ qua. Mỗi người trong chánh điện có một đôi dép trên thềm, khi về thì mang dép đi ra |
 | Đi lại | Chạm / nhấp sàn, hoặc W A S D |
 | Ngồi | Chạm vào bồ đoàn trống |
 | Nhìn quanh, phóng to | Kéo; lăn chuột hoặc chụm hai ngón |
