@@ -160,6 +160,18 @@ export class Avatar {
     });
   }
 
+  // Cầm phong bì công đức giữa hai tay chắp
+  holdEnvelope(on) {
+    if (!this.envelope) {
+      this.envelope = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 0.012), mat('#c8261b', 0.5));
+      const seal = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.014), mat('#e8b84a', 0.4));
+      this.envelope.add(seal);
+      this.envelope.position.set(0, 0.3, 0.33);
+      this.upper.add(this.envelope);
+    }
+    this.envelope.visible = on;
+  }
+
   // Cầm n nén nhang (0 = bỏ xuống)
   holdIncense(n) {
     this.incense.visible = n > 0;

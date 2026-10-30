@@ -31,6 +31,11 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(ROOMS.map((r) => ({ ...r, count: rooms.get(r.id).size }))));
     return;
   }
+  if (url.pathname === '/api/merit') {
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    res.end(JSON.stringify(meritPublic()));
+    return;
+  }
   let rel = decodeURIComponent(url.pathname);
   if (rel.endsWith('/')) rel += 'index.html';
   const file = path.join(PUBLIC, path.normalize(rel));
@@ -84,15 +89,29 @@ let nextId = 1;
 const clean = (s) => String(s ?? '').replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, 20) || 'Khách';
 const clamp = (v, a, b) => (Number.isFinite(+v) ? Math.min(b, Math.max(a, +v)) : 0);
 
+// ---------- Công đức: đếm chung cả chùa theo ngày giờ Việt Nam ----------
+const MERIT_PER_DAY = 3; // mỗi người
+const MERIT_PER_IP = 30; // chặn lạm dụng (nhiều người dùng chung mạng vẫn đủ)
+const vnDate = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+const merit = { date: vnDate(), total: 0, recent: [], byUser: new Map(), byIp: new Map() };
+function meritToday() {
+  const d = vnDate();
+  if (merit.date !== d) Object.assign(merit, { date: d, total: 0, recent: [], byUser: new Map(), byIp: new Map() });
+  return merit;
+}
+const meritPublic = () => ({ date: meritToday().date, total: merit.total, recent: merit.recent });
+
 function broadcast(roomId, msg, exceptId) {
   const data = JSON.stringify(msg);
   for (const [id, m] of rooms.get(roomId)) if (id !== exceptId && m.ws.readyState === 1) m.ws.send(data);
 }
 const sendCount = (roomId) => broadcast(roomId, { t: 'count', n: rooms.get(roomId).size });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   let me = null;
   let roomId = null;
+  let uid = null;
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
   let tokens = 20;
   ws.isAlive = true;
   ws.on('pong', () => (ws.isAlive = true));
@@ -115,7 +134,12 @@ wss.on('connection', (ws) => {
         id: String(nextId++), name: clean(m.name), robe: clamp(m.robe, 0, 50) | 0,
         sandals: clamp(m.sandals, 0, 50) | 0, x: 0, z: 16, seat: null,
       };
-      ws.send(JSON.stringify({ t: 'welcome', id: me.id, room: roomId, peers: [...members.values()].map((p) => p.p) }));
+      uid = typeof m.uid === 'string' && /^[a-z0-9]{8,32}$/i.test(m.uid) ? m.uid : 'ip:' + ip;
+      const used = meritToday().byUser.get(uid) || 0;
+      ws.send(JSON.stringify({
+        t: 'welcome', id: me.id, room: roomId, peers: [...members.values()].map((p) => p.p),
+        merit: { ...meritPublic(), used },
+      }));
       broadcast(roomId, { t: 'join', p: me });
       members.set(me.id, { ws, p: me });
       sendCount(roomId);
@@ -134,6 +158,22 @@ wss.on('connection', (ws) => {
         to: typeof m.to === 'string' ? m.to.slice(0, 12) : undefined,
         n: m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined,
       }, me.id);
+    } else if (m.t === 'merit') {
+      const st = meritToday();
+      const used = st.byUser.get(uid) || 0;
+      const ipUsed = st.byIp.get(ip) || 0;
+      if (used >= MERIT_PER_DAY || ipUsed >= MERIT_PER_IP) {
+        ws.send(JSON.stringify({ t: 'merit-denied', used: Math.max(used, MERIT_PER_DAY) }));
+        return;
+      }
+      st.byUser.set(uid, used + 1);
+      st.byIp.set(ip, ipUsed + 1);
+      st.total++;
+      const name = m.anon ? null : me.name;
+      st.recent.unshift({ name, at: Date.now() });
+      st.recent.length = Math.min(st.recent.length, 12);
+      ws.send(JSON.stringify({ t: 'merit-ok', used: used + 1, total: st.total, recent: st.recent }));
+      broadcast(roomId, { t: 'merit', id: me.id, total: st.total, recent: st.recent }, me.id);
     } else if (m.t === 'name') {
       me.name = clean(m.name);
       broadcast(roomId, { t: 'name', id: me.id, name: me.name }, me.id);

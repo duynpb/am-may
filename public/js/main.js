@@ -4,7 +4,7 @@ import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
 import { Beads } from './beads.js';
-import { connect, fetchRooms, ROOMS } from './net.js';
+import { connect, fetchRooms, fetchMerit, ROOMS } from './net.js';
 
 const $ = (s) => document.querySelector(s);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -39,6 +39,9 @@ const myRobe = store.get('robe', Math.floor(Math.random() * ROBES.length));
 store.set('robe', myRobe);
 const mySandals = store.get('sandals', Math.floor(Math.random() * SANDAL_COLORS.length)) % SANDAL_COLORS.length;
 store.set('sandals', mySandals);
+// mã ẩn danh của trình duyệt này — máy chủ dùng để đếm lượt công đức mỗi ngày
+const myUid = store.get('uid', null) || Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => (b % 36).toString(36)).join('');
+store.set('uid', myUid);
 
 const params = new URLSearchParams(location.search);
 let roomId = ROOMS.some((r) => r.id === params.get('room')) ? params.get('room') : ROOMS[0].id;
@@ -271,6 +274,20 @@ function botsThink(t) {
       });
       continue;
     }
+    if (a.pendingMerit && !a.moving) {
+      a.pendingMerit = false;
+      offerMerit(a, () => {
+        if (!online) {
+          meritBoard.total++;
+          meritBoard.recent.unshift({ name: Math.random() < 0.25 ? null : a.name, at: Date.now() });
+          meritBoard.recent.length = Math.min(meritBoard.recent.length, 12);
+          renderMerit();
+        }
+        const s = pick(freeSeats(a));
+        if (s) setTimeout(() => avatars.has(a.id) && !a.leaving && a.walkTo(s.x, s.z, s), rnd(1200, 3500));
+      });
+      continue;
+    }
     if (t < a.brain.next || a.moving || a.leaving || a.busy) continue;
     a.brain.next = t + rnd(10, 45);
     const r = Math.random();
@@ -293,6 +310,10 @@ function botsThink(t) {
     } else if (r < 0.78) {
       const spot = altarSpot(a);
       a.pendingIncense = Math.random() < 0.6 ? 3 : 1;
+      a.walkTo(spot.x, spot.z);
+    } else if (r < 0.83) {
+      const spot = meritSpot(a);
+      a.pendingMerit = true;
       a.walkTo(spot.x, spot.z);
     }
   }
@@ -388,6 +409,22 @@ function wireNet(n) {
       offerIncense(a, m.n === 3 ? 3 : 1);
     }
   });
+  n.on('merit', (m) => {
+    Object.assign(meritBoard, { total: m.total, recent: m.recent });
+    renderMerit();
+    const a = avatars.get('n' + m.id);
+    if (a && !a.leaving) offerMerit(a);
+  });
+  n.on('merit-ok', (m) => {
+    Object.assign(meritBoard, { total: m.total, recent: m.recent });
+    setMeritUsed(m.used);
+    renderMerit();
+  });
+  n.on('merit-denied', (m) => {
+    setMeritUsed(m.used);
+    renderMerit();
+    toast('Hôm nay bạn đã góp đủ 3 lần công đức. Hẹn bạn ngày mai.');
+  });
   n.on('name', (m) => {
     const a = avatars.get('n' + m.id);
     if (!a) return;
@@ -418,7 +455,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
   if (net) { const old = net; net = null; old.close(); }
   clearOthers(keepPlayer);
   if (!keepPlayer) startIntro();
-  const n = await connect({ room: id, name: myName, robe: myRobe, sandals: mySandals });
+  const n = await connect({ room: id, name: myName, robe: myRobe, sandals: mySandals, uid: myUid });
   if (roomId !== id) { n?.close(); return; }
   online = !!n;
   if (n) {
@@ -426,6 +463,12 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     wireNet(n);
     n.welcome.peers.forEach(addRemote);
     onlineCount = n.welcome.peers.length + 1;
+    if (n.welcome.merit) {
+      const { total, recent, used } = n.welcome.merit;
+      Object.assign(meritBoard, { total, recent });
+      setMeritUsed(Math.max(used, meritStats().used));
+      renderMerit();
+    }
     botTarget = fillTarget();
     if (!intro) sendMove();
   } else {
@@ -446,8 +489,10 @@ function startIntro() {
     ritual = null;
     incBtn.disabled = false;
   }
+  meritRun = null;
   player.seat = null;
   player.holdIncense(0);
+  player.holdEnvelope(false);
   rack.release('me');
   player.placeAt(rnd(-1, 1), COURTYARD.z, Math.PI);
   cam.yaw = 0;
@@ -522,7 +567,7 @@ function doBow() {
 
 // ---------- Thắp nhang ----------
 // Chọn chỗ đứng trước bàn thờ ít người nhất
-function altarSpot(except) {
+function leastCrowded(list, except) {
   const crowd = (s) => {
     let n = 0;
     for (const o of avatars.values()) {
@@ -531,9 +576,11 @@ function altarSpot(except) {
     }
     return n;
   };
-  const spots = [...world.incense.spots].sort(() => Math.random() - 0.5);
+  const spots = [...list].sort(() => Math.random() - 0.5);
   return spots.reduce((b, s) => (crowd(s) < crowd(b) ? s : b));
 }
+const altarSpot = (except) => leastCrowded(world.incense.spots, except);
+const meritSpot = (except) => leastCrowded(world.merit.spots, except);
 
 // Cầm nhang, vái lạy, rồi cắm vào lư hương
 function offerIncense(a, n, onDone) {
@@ -608,6 +655,131 @@ function incenseRitual() {
   });
 }
 
+// ---------- Thùng công đức (tượng trưng, mỗi người 3 lần/ngày) ----------
+const MERIT_PER_DAY = 3;
+const vnDate = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+// sổ công đức chung; ngoại tuyến thì mô phỏng
+const meritBoard = { total: Math.floor(rnd(18, 60)), recent: [] };
+for (let i = 0; i < 5; i++) {
+  meritBoard.recent.push({ name: Math.random() < 0.25 ? null : randomName(), at: Date.now() - (i + 1) * rnd(4, 25) * 60e3 });
+}
+let meritRun = null;
+
+function meritStats() {
+  const st = store.get('merit', {});
+  return st.date === vnDate() ? st : { date: vnDate(), used: 0, total: st.total || 0 };
+}
+function setMeritUsed(used) {
+  const st = meritStats();
+  if (used > st.used) st.total = (st.total || 0) + (used - st.used);
+  st.used = Math.min(MERIT_PER_DAY, used);
+  store.set('merit', st);
+}
+
+function renderMerit() {
+  const used = meritStats().used, left = MERIT_PER_DAY - used;
+  $('#merit-total').textContent = meritBoard.total.toLocaleString('vi-VN');
+  $('#merit-left').textContent = left > 0 ? `Còn ${left} lần` : 'Đã góp đủ — hẹn bạn ngày mai';
+  $('#merit-dots').querySelectorAll('i').forEach((d, k) => d.classList.toggle('used', k < used));
+  const go = $('#merit-go');
+  go.disabled = left <= 0;
+  go.textContent = left > 0 ? 'Góp công đức' : 'Hôm nay bạn đã góp đủ 3 lần';
+  const ul = $('#merit-recent');
+  ul.innerHTML = '';
+  if (!meritBoard.recent.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Chưa có ai góp hôm nay';
+    ul.append(li);
+  }
+  for (const r of meritBoard.recent.slice(0, 8)) {
+    const li = document.createElement('li');
+    const name = document.createElement('span');
+    name.textContent = r.name || 'Một người ẩn danh';
+    const time = document.createElement('small');
+    time.textContent = new Date(r.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+    li.append(name, time);
+    ul.append(li);
+  }
+}
+
+async function openMeritDialog() {
+  if (meritRun) {
+    toast('Bạn đang đi tới thùng công đức…');
+    return;
+  }
+  renderMerit();
+  openModal('#modal-merit');
+  if (online) {
+    const m = await fetchMerit();
+    if (m) {
+      Object.assign(meritBoard, { total: m.total, recent: m.recent });
+      renderMerit();
+    }
+  }
+}
+
+$('#merit-go').addEventListener('click', () => {
+  if (meritStats().used >= MERIT_PER_DAY) return;
+  closeModal($('#modal-merit'));
+  const dedicEl = $('#merit-dedic');
+  const dedic = dedicEl.value.trim(); // lời hồi hướng chỉ ở máy người dùng
+  dedicEl.value = '';
+  const spot = meritSpot(player);
+  meritRun = { spot, anon: $('#merit-anon').checked, dedic, started: false };
+  movePlayerTo(spot.x, spot.z);
+});
+
+// Cầm phong bì, chắp tay, phong bì bay vào khe thùng
+function offerMerit(a, onDone) {
+  a.busy = true;
+  a.holdEnvelope(true);
+  const c = world.merit.center;
+  a.act('gassho', a.sitting ? null : Math.atan2(c.x - a.pos.x, c.z - a.pos.z));
+  if (a !== player) bubble(a, 'góp công đức', 3000);
+  setTimeout(() => {
+    if (!avatars.has(a.id)) return;
+    world.merit.drop(a.envelope.getWorldPosition(new THREE.Vector3()));
+    a.holdEnvelope(false);
+    setTimeout(() => {
+      a.busy = false;
+      if (a === player || a.pos.distanceTo(player.pos) < 9) sound.merit();
+      onDone?.();
+    }, 750);
+  }, 1300);
+}
+
+// Chạy mỗi khung hình: tới thùng thì góp; đi chỗ khác thì hủy
+function meritRitual() {
+  if (!meritRun || meritRun.started) return;
+  const g = player.goal;
+  if (g && Math.hypot(g.x - meritRun.spot.x, g.z - meritRun.spot.z) > 0.01) {
+    meritRun = null;
+    toast('Đã hủy góp công đức');
+    return;
+  }
+  if (player.moving) return;
+  meritRun.started = true;
+  const { anon, dedic } = meritRun;
+  offerMerit(player, () => {
+    meritRun = null;
+    const used = meritStats().used + 1;
+    setMeritUsed(used);
+    if (net) net.send({ t: 'merit', anon });
+    else {
+      meritBoard.total++;
+      meritBoard.recent.unshift({ name: anon ? null : myName, at: Date.now() });
+      meritBoard.recent.length = Math.min(meritBoard.recent.length, 12);
+    }
+    renderMerit();
+    const left = MERIT_PER_DAY - used;
+    toast(dedic ? `Nguyện hồi hướng: ${dedic}` : 'Công đức của bạn đã được ghi vào sổ', 4000);
+    setTimeout(() => {
+      toast(left > 0 ? `Hôm nay bạn còn ${left} lần góp công đức` : 'Bạn đã góp đủ 3 lần hôm nay. Hẹn bạn ngày mai.', 3600);
+    }, 4200);
+  });
+}
+
 function ringInstrument(kind, by = null) {
   const obj = world.pickables.find((o) => o.userData.kind === kind);
   if (kind === 'bell') {
@@ -629,6 +801,9 @@ document.querySelectorAll('.actions button').forEach((b) => {
     else if (act === 'incense') {
       sound.init();
       openIncenseDialog();
+    } else if (act === 'merit') {
+      sound.init();
+      openMeritDialog();
     } else if (act === 'beads') {
       sound.init();
       beads.open();
@@ -685,6 +860,10 @@ function handleTap(x, y) {
   if (kind === 'bell' || kind === 'drum') {
     ringInstrument(kind);
     net?.send({ t: 'act', a: kind });
+    return;
+  }
+  if (kind === 'merit') {
+    openMeritDialog();
     return;
   }
   let seat = null;
@@ -761,7 +940,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || !!pickAvatar());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || !!pickAvatar());
 }
 
 // Bàn phím (máy tính)
@@ -1063,6 +1242,7 @@ function frame() {
   }
   botsThink(elapsed);
   incenseRitual();
+  meritRitual();
   rack.update(dt);
   world.update(elapsed, dt);
   updateCamera(dt);

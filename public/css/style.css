@@ -104,7 +104,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 }
 .actions button {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
-  min-width: 84px; padding: 9px 12px 8px; border-radius: 22px; font-size: 12.5px; font-weight: 500;
+  min-width: 80px; padding: 9px 10px 8px; border-radius: 22px; font-size: 12.5px; font-weight: 500; white-space: nowrap;
   transition: background 0.2s, transform 0.12s;
 }
 .actions button svg { width: 24px; height: 24px; }
@@ -184,6 +184,20 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary:active { transform: scale(0.98); }
 .center { text-align: center; }
+.btn-primary:disabled { background: #c9bfae; box-shadow: none; cursor: default; filter: none; }
+
+.merit-stat { display: flex; align-items: baseline; gap: 10px; margin: 4px 0 12px; }
+.merit-stat b { font-family: 'Noto Serif', Georgia, serif; font-size: 34px; font-weight: 700; color: #8a2a1c; line-height: 1; }
+.merit-stat span { font-size: 13px; color: var(--ink-muted); }
+.merit-dots { display: flex; gap: 6px; flex: none; }
+.merit-dots i { width: 14px; height: 14px; border-radius: 50%; background: #c8261b; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2); }
+.merit-dots i.used { background: #d8d0c2; box-shadow: none; }
+.merit-book { margin-top: 16px; font-size: 13px; }
+.merit-book > b { font-weight: 600; }
+.merit-book ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.merit-book li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.7); }
+.merit-book li small { color: var(--ink-muted); }
+.merit-book li.empty { justify-content: center; color: var(--ink-muted); background: none; }
 .actions button:disabled { opacity: 0.45; cursor: default; }
 .card { background: rgba(255, 255, 255, 0.7); border-radius: 16px; padding: 14px; margin-bottom: 10px; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -261,7 +275,8 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   .icon-btn { width: 32px; height: 32px; }
   .chant-btn { height: 32px; font-size: 12px; padding: 0 12px; }
   .actions { left: 12px; right: 12px; transform: none; justify-content: space-between; bottom: calc(12px + var(--sab)); }
-  .actions button { flex: 1; min-width: 0; }
+  .actions button { flex: 1; min-width: 0; padding: 8px 2px 7px; font-size: 11px; white-space: nowrap; }
+  .actions button svg { width: 22px; height: 22px; }
   .hint { bottom: calc(96px + var(--sab)); font-size: 11.5px; white-space: normal; text-align: center; width: calc(100% - 40px); }
   .chant-caption { bottom: calc(100px + var(--sab)); font-size: 15px; gap: 7px; padding: 6px 14px; }
   .toast { top: calc(100px + var(--sat)); font-size: 13px; }

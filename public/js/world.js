@@ -493,6 +493,64 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     });
   }
 
+  // ---------- Thùng công đức ----------
+  const merit = (() => {
+    const g = new THREE.Group();
+    g.position.set(5.2, 0, -13.25);
+    scene.add(g);
+    box(1.0, 0.18, 0.7, M.darkWood, 0, 0.09, 0, { parent: g });
+    box(0.9, 0.8, 0.6, M.lacquer, 0, 0.58, 0, { parent: g });
+    box(0.96, 0.06, 0.66, M.gold, 0, 1.0, 0, { parent: g, cast: false });
+    box(0.96, 0.05, 0.66, M.gold, 0, 0.2, 0, { parent: g, cast: false });
+    box(0.36, 0.015, 0.06, new THREE.MeshStandardMaterial({ color: '#120806' }), 0, 1.035, 0.02, { parent: g, cast: false });
+    const front = mesh(new THREE.PlaneGeometry(0.78, 0.5),
+      std('#ffffff', { map: T.boardTexture(['CÔNG ĐỨC'], { w: 640, h: 400, size: 104 }), roughness: 0.45 }),
+      0, 0.6, 0.302, { parent: g, cast: false });
+    front.userData.kind = 'merit';
+    g.userData.kind = 'merit';
+    pickables.push(g);
+
+    const glowS = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffd27a', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glowS.position.set(0, 1.1, 0);
+    glowS.scale.setScalar(1.6);
+    g.add(glowS);
+    const slot = new THREE.Vector3(5.2, 1.05, -13.23);
+
+    // phong bì đỏ bay từ tay vào khe thùng
+    const envGeo = new THREE.BoxGeometry(0.16, 0.1, 0.012);
+    const envMat = std('#c8261b', { roughness: 0.5 });
+    const flying = [];
+    let glowT = 0;
+    updaters.push((t, dt) => {
+      for (let i = flying.length - 1; i >= 0; i--) {
+        const f = flying[i];
+        f.t += dt;
+        const k = Math.min(1, f.t / 0.75);
+        f.m.position.lerpVectors(f.from, slot, k);
+        f.m.position.y += Math.sin(Math.PI * k) * 0.45;
+        f.m.rotation.set(-Math.PI / 2 * k, f.spin * k, 0);
+        f.m.scale.setScalar(1 - 0.3 * k);
+        if (k >= 1) {
+          f.m.removeFromParent();
+          flying.splice(i, 1);
+          glowT = 1;
+        }
+      }
+      glowT = Math.max(0, glowT - dt * 0.8);
+      glowS.material.opacity = 0.7 * glowT;
+    });
+    return {
+      spots: [-0.45, 0, 0.45].map((dx) => ({ x: 5.2 + dx, z: -12.45 })),
+      center: new THREE.Vector3(5.2, 0, -13.25),
+      drop(from) {
+        const m = new THREE.Mesh(envGeo, envMat);
+        m.position.copy(from);
+        scene.add(m);
+        flying.push({ m, from: from.clone(), t: 0, spin: rnd(-1, 1) });
+      },
+    };
+  })();
+
   // ---------- Đèn lồng ----------
   {
     const red = std('#c4301e', { emissive: '#ff4a20', emissiveIntensity: 0.55, roughness: 0.6 });
@@ -592,6 +650,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     seats,
     pickables,
     incense,
+    merit,
     setQuality,
     showMarker(x, z, y = 0.04) {
       marker.position.set(x, y, z);

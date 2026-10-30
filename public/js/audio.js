@@ -435,6 +435,16 @@ export class Sound {
     if (!this.fxReady()) return;
     this.templeBell(this.ctx.currentTime + 0.6, 233, 0.16, this.bus.fx);
   }
+  // phong bì rơi vào thùng gỗ, rồi một tiếng chuông nhỏ
+  merit() {
+    if (!this.fxReady()) return;
+    const t = this.ctx.currentTime + 0.02, out = this.bus.fx;
+    this.noiseHit(t, { freq: 3500, q: 0.7, gain: 0.12, dur: 0.12, out, type: 'highpass' });
+    this.tone(180, t + 0.12, { dur: 0.25, gain: 0.35, out });
+    this.noiseHit(t + 0.12, { freq: 500, q: 1.2, gain: 0.25, dur: 0.08, out });
+    this.tone(1318.5, t + 0.45, { dur: 2.8, gain: 0.07, partials: [[1, 1], [2.76, 0.3], [5.4, 0.1]], out });
+  }
+
   // quẹt diêm châm nhang, rồi một tiếng chuông nhỏ
   incense() {
     if (!this.fxReady()) return;
