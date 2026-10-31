@@ -55,7 +55,7 @@ public/
 | Lấy dép (đùa vui) | Bấm vào dép của người khác trên thềm để lấy đi một chiếc. Người bị mất dép vẫn đi lại trong chánh điện bình thường; khi muốn ra sân sẽ bị chặn với thông báo "Phật tử đã bị mất dép" và phải chờ 10 giây (chỉ bắt đầu đếm khi định ra ngoài) để dép được trả lại |
 | Thắp nhang | Nút “Thắp nhang”: chọn 1 hoặc 3 nén, viết lời nguyện riêng (không gửi đi). Nhân vật bước lên bàn thờ, vái lạy, cắm nhang; nhang cháy ngắn dần khoảng 3 phút, mọi người cùng thấy |
 | Công đức | Nút “Công đức” hoặc chạm vào thùng công đức cạnh bàn thờ: nhân vật bước tới, chắp tay, bỏ phong bì đỏ vào thùng. Mỗi người 3 lần/ngày (theo giờ Việt Nam), có thể ẩn danh, lời hồi hướng chỉ mình mình thấy. Sổ công đức và tổng lượt trong ngày dùng chung cả chùa. Mang ý nghĩa tượng trưng, không dùng tiền thật |
-| Hồ sơ Phật tử | Chạm vào pháp danh trên đầu một người (hoặc tên mình, hoặc Cài đặt → Hồ sơ của tôi) để xem điểm phước, điểm nghiệp, thống kê và lịch sử. Người mới bắt đầu từ 0 điểm |
+| Hồ sơ Phật tử | Chạm vào pháp danh trên đầu một người (hoặc tên mình, hoặc Cài đặt → Hồ sơ của tôi) để xem điểm phước nghiệp (phước trừ nghiệp), thống kê và lịch sử. Người mới bắt đầu từ 0 điểm |
 | Ngày và đêm | Bầu trời, nắng, sương và ánh sáng đổi theo giờ Việt Nam thật (UTC+7): bình minh khoảng 5 giờ 30, hoàng hôn khoảng 18 giờ, ban đêm có trăng sao, đèn lồng và đèn trong chánh điện sáng lên. Xem thử một giờ bất kỳ bằng cách thêm `?gio=20` (hoặc `&gio=5.5`) vào địa chỉ trang |
 | Tràng hạt | Vuốt xuống / chạm / phím cách; đếm 108 hạt, lưu số hạt mỗi ngày |
 | Tụng kinh | “Nam mô A Di Đà Phật” với mõ, chuông, chữ chạy theo nhịp |

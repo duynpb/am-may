@@ -982,11 +982,11 @@ function renderProfile(name, p, note) {
     return;
   }
   const scores = el('div', 'pf-scores');
-  for (const [cls, val, label] of [['phuoc', p.phuoc, 'Điểm phước'], ['nghiep', p.nghiep, 'Điểm nghiệp'], ['total', p.phuoc - p.nghiep, 'Tổng (phước − nghiệp)']]) {
-    const box = el('div', 'pf-score ' + cls);
-    box.append(el('b', null, val.toLocaleString('vi-VN')), el('span', null, label));
-    scores.append(box);
-  }
+  // một ô duy nhất: phước trừ nghiệp
+  const score = p.phuoc - p.nghiep;
+  const box = el('div', 'pf-score ' + (score < 0 ? 'nghiep' : 'phuoc'));
+  box.append(el('b', null, score.toLocaleString('vi-VN')), el('span', null, 'Điểm phước nghiệp'));
+  scores.append(box);
   const s = p.stats;
   const stats = el('div', 'pf-stats');
   for (const [label, val] of [
