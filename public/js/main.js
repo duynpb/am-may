@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, GARDEN, BUDDHA, ENTRANCE, COURTYARD, groundY } from './world.js';
+import { buildWorld, HALL, GARDEN, BUDDHA, ENTRANCE, COURTYARD, PORCH, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
@@ -252,12 +252,14 @@ async function exitTemple(a, dest = null) {
   const token = (a.script = {});
   const slot = rack.slotOf(a.id);
   if (slot && rack.has(a.id)) {
+    // bị lấy dép (kể cả khi đang trên đường ra): không mang dép ra được, quay lại đứng chờ trước thềm
+    if (!(await awaitSandal(a, token, dest))) return false;
     await a.walk(slot.x, slot.z - 0.75);
     if (!alive(a, token)) return false;
+    if (!(await awaitSandal(a, token, dest))) return false;
     await a.walk(slot.x, slot.z);
     if (!alive(a, token)) return false;
-    // bị lấy dép (kể cả khi đang trên đường ra): đứng chờ dép được trả lại rồi mới mang
-    if (!(await awaitSandal(a, token))) return false;
+    if (!(await awaitSandal(a, token, dest))) return false;
     rack.release(a.id);
     a.wearSandals(true);
     await wait(300);
@@ -273,24 +275,43 @@ async function exitTemple(a, dest = null) {
   return true;
 }
 
-// Mất một chiếc dép: đứng ở chỗ để dép chờ 10 giây cho dép được trả lại.
-// Người chơi và khách mô phỏng tự đếm; người khác thì chờ tin trả dép từ máy của họ.
-async function awaitSandal(a, token) {
+// Chỗ đứng chờ trước bậc thềm, nhìn thẳng ra đôi dép của mình
+function sandalWaitSpot(a) {
+  const slot = rack.slotOf(a.id);
+  return clampZone('in', slot ? slot.x : 0, PORCH.z0 - 0.45);
+}
+function walkToSandalWait(a) {
+  const [x, z] = sandalWaitSpot(a);
+  a.walkTo(x, z);
+  a.onArrive = () => (a.faceRy = 0);
+  return [x, z];
+}
+
+// Mất một chiếc dép khi đang ra: trả về true nếu được đi tiếp.
+// Khách mô phỏng đứng chờ trước thềm 10 giây rồi ra tiếp. Người chơi (và người thật khác)
+// thôi không ra nữa: đứng trước thềm nhìn đôi dép, trong lúc chờ vẫn đi lại trong chánh điện được.
+async function awaitSandal(a, token, dest) {
   if (!a.missingSandal || (a.leaving && !bots.has(a))) return true;
-  a.waitSandal = true;
-  a.faceRy = 0;
-  if (a === player) sandalWait();
-  else if (bots.has(a)) {
+  if (bots.has(a)) {
+    const [x, z] = sandalWaitSpot(a);
+    await a.walk(x, z);
+    if (!alive(a, token)) return false;
+    a.faceRy = 0;
     bubble(a, 'mất một chiếc dép…', 10000);
     await wait(10000);
-    if (alive(a, token)) {
-      a.missingSandal = false;
-      rack.restore(a.id);
-    }
+    if (!alive(a, token)) return false;
+    a.missingSandal = false;
+    rack.restore(a.id);
+    return true;
   }
-  while (a.missingSandal && alive(a, token)) await wait(200);
-  a.waitSandal = false;
-  return alive(a, token);
+  a.script = null;
+  walkToSandalWait(a);
+  if (a === player) {
+    player.queued = null;
+    blockedExit(dest);
+    sendMove();
+  }
+  return false;
 }
 
 // Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn
@@ -662,6 +683,7 @@ function startIntro() {
   player.missingSandal = false;
   clearInterval(sandalTimer);
   sandalTimer = null;
+  pendingExit = null;
   player.zone = 'out';
   player.placeAt(rnd(-1, 1), COURTYARD.z, Math.PI);
   cam.yaw = 0;
@@ -700,9 +722,14 @@ function movePlayerTo(x, z, seat = null) {
   }
   const target = zoneOf(z);
   if (zoneOfA(player) !== target && target === 'out' && player.missingSandal) {
-    sandalWait();
+    // chưa ra được: đến đứng trước thềm nhìn đôi dép, có dép thì tự ra tiếp
+    const [wx, wz] = walkToSandalWait(player);
+    world.showMarker(wx, wz, groundY(wx, wz) + 0.04);
+    blockedExit({ x, z, seat });
+    sendMove();
     return;
   }
+  pendingExit = null; // đi chỗ khác trong lúc chờ: thôi tự ra khi có dép
   if (zoneOfA(player) !== target) {
     // đi qua thềm: báo đích đến trước để người khác thấy mình ra / vào
     [x, z] = clampZone(target, x, z);
@@ -745,8 +772,13 @@ function takeSandal(owner) {
 
 // Mất dép mà muốn ra ngoài: chặn lại, đếm ngược 10 giây rồi dép được trả lại.
 // Chỉ bắt đầu đếm khi người chơi định ra ngoài.
-let sandalTimer = null, sandalLeft = 0;
+let sandalTimer = null, sandalLeft = 0, pendingExit = null;
 const showSandalWait = () => toast(`Phật tử đã bị mất dép — chờ ${sandalLeft} giây để dép được trả lại`, 1300);
+// Bị chặn ở thềm: nhớ chỗ định ra để khi có dép thì tự đi tiếp (nếu chưa đi chỗ khác)
+function blockedExit(dest) {
+  pendingExit = dest ? { x: dest.x, z: dest.z, seat: dest.seat ?? null } : null;
+  sandalWait();
+}
 function sandalWait() {
   if (sandalTimer) return showSandalWait();
   sandalLeft = 10;
@@ -760,6 +792,9 @@ function sandalWait() {
     rack.restore('me');
     net?.send({ t: 'sandal-return' });
     toast('Dép đã được trả lại — bạn có thể ra ngoài', 3500);
+    const go = pendingExit;
+    pendingExit = null;
+    if (go && !player.sitting && !player.script) movePlayerTo(go.x, go.z, go.seat);
   }, 1000);
 }
 
@@ -773,7 +808,7 @@ function goQueued() {
 // Gỡ kẹt: nếu đoạn mang / cởi dép đứng yên quá lâu (bị ngắt giữa chừng), trả nhân vật về trạng thái bình thường
 let scriptStill = 0;
 function scriptWatchdog(dt) {
-  if (!player.script || intro || player.waitSandal || player.moving || player.busy || player.action) {
+  if (!player.script || intro || player.moving || player.busy || player.action) {
     scriptStill = 0;
     return;
   }
