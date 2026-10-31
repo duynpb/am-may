@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, GARDEN, BUDDHA, ENTRANCE, COURTYARD, PORCH, groundY } from './world.js';
+import { buildWorld, HALL, GARDEN, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
@@ -192,13 +192,34 @@ function clampZone(zone, x, z) {
   if (zone === 'in') return [clamp(x, HALL.minX, HALL.maxX), clamp(z, HALL.minZ, HALL.maxZ)];
   return world.pushOut(clamp(x, GARDEN.minX, GARDEN.maxX), clamp(z, GARDEN.minZ, GARDEN.maxZ));
 }
-// Hướng mặt về nơi thờ: tượng Phật trong chánh điện, tượng Quan Âm ngoài sân
-const shrineOf = (a) => (zoneOfA(a) === 'out' ? world.quanAm.head : BUDDHA);
+// Tháp 13 tầng: trong bán kính topR quanh tâm tháp là sàn tầng trên cùng (vẫn tính là ngoài sân)
+const onTowerXZ = (x, z) => Math.hypot(x - TOWER.x, z - TOWER.z) < TOWER.topR;
+const onTower = (a) => onTowerXZ(a.pos.x, a.pos.z);
+// Giữ điểm đến trên tầng 13: trong lan can, trước bàn thờ
+function clampTower(x, z) {
+  const R = TOWER.walkR;
+  let dx = Math.max(x - TOWER.x, TOWER.altarDx), dz = z - TOWER.z;
+  const d = Math.hypot(dx, dz);
+  if (d > R) {
+    dx *= R / d;
+    dz *= R / d;
+  }
+  if (dx < TOWER.altarDx) {
+    dx = TOWER.altarDx;
+    dz = Math.sign(dz) * Math.sqrt(R * R - dx * dx);
+  }
+  return [TOWER.x + dx, TOWER.z + dz];
+}
+// Nơi thắp nhang: trong chánh điện, ngoài sân (Quan Âm) hay trên tháp
+const placeOf = (a) => (onTower(a) ? 'tower' : zoneOfA(a));
+
+// Hướng mặt về nơi thờ: tượng Phật trong chánh điện, tượng Quan Âm ngoài sân, tượng Phật trên tháp
+const shrineOf = (a) => (onTower(a) ? world.tower.buddha : zoneOfA(a) === 'out' ? world.quanAm.head : BUDDHA);
 const faceShrineRy = (a) => {
   const t = shrineOf(a);
   return Math.atan2(t.x - a.pos.x, t.z - a.pos.z);
 };
-const burnerOf = (place) => (place === 'out' ? world.incenseOut : world.incense);
+const burnerOf = (place) => (place === 'tower' ? world.incenseTop : place === 'out' ? world.incenseOut : world.incense);
 const faceRy = (a, b) => Math.atan2(b.pos.x - a.pos.x, b.pos.z - a.pos.z);
 
 // ---------- Toast ----------
@@ -330,9 +351,71 @@ async function awaitSandal(a, token, dest) {
   return false;
 }
 
-// Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn
+// Màn hình tối dần khi người chơi lên / xuống tháp
+const fadeEl = $('#fade');
+function fadeTo(on, text = '') {
+  if (text) fadeEl.textContent = text;
+  fadeEl.classList.toggle('on', on);
+  return wait(450);
+}
+
+// Vào cửa tháp, leo lên tầng 13. Trả về false nếu bị ngắt giữa chừng.
+async function towerUp(a) {
+  const token = (a.script = {});
+  await a.walk(TOWER.door.x, TOWER.door.z);
+  if (!alive(a, token)) return false;
+  await a.walk(TOWER.inside.x, TOWER.inside.z);
+  if (!alive(a, token)) return false;
+  a.root.visible = false;
+  if (a === player) await fadeTo(true, 'Đang lên tầng 13…');
+  await wait(a === player ? 600 : 1500);
+  a.root.visible = true;
+  if (!alive(a, token)) return false;
+  a.placeAt(TOWER.arrive.x, TOWER.arrive.z, -Math.PI / 2);
+  if (a === player) fadeTo(false);
+  a.script = null;
+  return true;
+}
+
+// Từ tầng 13 xuống, ra tới trước cửa tháp
+async function towerDown(a) {
+  const token = (a.script = {});
+  await a.walk(TOWER.arrive.x, TOWER.arrive.z);
+  if (!alive(a, token)) return false;
+  a.root.visible = false;
+  if (a === player) await fadeTo(true, 'Đang xuống tháp…');
+  await wait(a === player ? 600 : 1500);
+  a.root.visible = true;
+  if (!alive(a, token)) return false;
+  a.placeAt(TOWER.inside.x, TOWER.inside.z, Math.PI / 2);
+  if (a === player) fadeTo(false);
+  await a.walk(TOWER.door.x, TOWER.door.z);
+  if (!alive(a, token)) return false;
+  a.script = null;
+  return true;
+}
+
+// Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn.
+// Lên / xuống tháp nếu điểm đến hoặc chỗ đang đứng là tầng 13.
 async function crossZone(a, x, z, seat = null) {
+  if (onTower(a) && !onTowerXZ(x, z)) {
+    if (!(await towerDown(a))) return false;
+  }
+  if (onTowerXZ(x, z)) {
+    if (!onTower(a)) {
+      if (zoneOfA(a) === 'in' && !(await crossZone(a, TOWER.door.x, TOWER.door.z))) return false;
+      if (!(await towerUp(a))) return false;
+    }
+    a.walkTo(...clampTower(x, z));
+    return true;
+  }
   const target = zoneOf(z);
+  if (target === zoneOfA(a)) {
+    // vừa xuống tháp, điểm đến vẫn ở ngoài sân
+    [x, z] = clampZone(target, x, z);
+    a.walkTo(x, z, seat);
+    return true;
+  }
   [x, z] = clampZone(target, x, z);
   if (target === 'out') {
     a.seat = null;
@@ -561,7 +644,7 @@ function wireNet(n) {
     const seat = m.seat != null ? seats[m.seat] : null;
     if (seat) yieldSeat(seat.index);
     // đổi vùng (hoặc đang mang/cởi dép dở) → đi qua thềm cho đúng
-    if (a.script || zoneOfA(a) !== zoneOf(m.z)) crossZone(a, m.x, m.z, seat);
+    if (a.script || zoneOfA(a) !== zoneOf(m.z) || onTower(a) !== onTowerXZ(m.x, m.z)) crossZone(a, m.x, m.z, seat);
     else a.walkTo(m.x, m.z, seat);
   });
   n.on('act', (m) => {
@@ -578,7 +661,7 @@ function wireNet(n) {
     } else if (m.a === 'bell' || m.a === 'drum') {
       ringInstrument(m.a, a);
     } else if (m.a === 'incense') {
-      offerIncense(a, m.n === 3 ? 3 : 1, null, m.place === 'out' ? 'out' : 'in');
+      offerIncense(a, m.n === 3 ? 3 : 1, null, ['out', 'tower'].includes(m.place) ? m.place : 'in');
     }
   });
   n.on('merit', (m) => {
@@ -763,6 +846,28 @@ function movePlayerTo(x, z, seat = null) {
     return;
   }
   pendingExit = null; // đi chỗ khác trong lúc chờ: thôi tự ra khi có dép
+  if (onTower(player) && onTowerXZ(x, z)) {
+    // đi lại trên tầng 13
+    [x, z] = clampTower(x, z);
+    player.walkTo(x, z);
+    world.showMarker(x, z, TOWER.topY + 0.04);
+    sendMove();
+    return;
+  }
+  if (onTower(player) || onTowerXZ(x, z)) {
+    // lên hoặc xuống tháp: báo đích đến trước để người khác thấy mình đi
+    const up = !onTower(player);
+    net?.send({ t: 'move', x: +x.toFixed(2), z: +z.toFixed(2), seat: seat?.index ?? null });
+    toast(up ? 'Vào tháp, lên tầng 13…' : 'Xuống tháp…', 2600);
+    player.queued = null;
+    crossZone(player, x, z, seat).then((ok) => {
+      if (!ok) return;
+      if (up) toast('Bạn đang ở tầng 13 — có thể lạy Phật, thắp nhang và ngắm toàn cảnh chùa', 4500);
+      sendMove();
+      goQueued();
+    });
+    return;
+  }
   if (zoneOfA(player) !== target) {
     // đi qua thềm: báo đích đến trước để người khác thấy mình ra / vào
     [x, z] = clampZone(target, x, z);
@@ -844,7 +949,7 @@ function broomRitual() {
 const tipV = new THREE.Vector3();
 function sweepLeaves(dt) {
   sweepWait -= dt;
-  if (player.hasBroom && player.p.walk > 0.3 && zoneOfA(player) === 'out') {
+  if (player.hasBroom && player.p.walk > 0.3 && zoneOfA(player) === 'out' && !onTower(player)) {
     player.broomTip(tipV);
     const ids = leaves.takeNear(tipV.x, tipV.z, 0.6);
     if (ids.length) {
@@ -1149,7 +1254,7 @@ const altarSpot = (except) => leastCrowded(world.incense.spots, except);
 const meritSpot = (except) => leastCrowded(world.merit.spots, except);
 
 // Cầm nhang, vái lạy, rồi cắm vào lư hương
-function offerIncense(a, n, onDone, place = zoneOfA(a)) {
+function offerIncense(a, n, onDone, place = placeOf(a)) {
   const burner = burnerOf(place);
   a.busy = true;
   a.holdIncense(n);
@@ -1180,11 +1285,13 @@ function openIncenseDialog() {
   }
   const st = incenseStats();
   $('#inc-stats').textContent = st.today ? `Hôm nay bạn đã thắp ${st.today} nén nhang.` : '';
-  const out = zoneOfA(player) === 'out';
-  $('#inc-title').textContent = out ? 'Thắp nhang dâng Quan Âm Bồ Tát' : 'Thắp nhang';
-  $('#modal-incense .muted').textContent = out
-    ? 'Bạn sẽ bước tới lư hương đá trước tượng Quan Âm, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.'
-    : 'Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.';
+  const place = placeOf(player);
+  $('#inc-title').textContent = place === 'tower' ? 'Thắp nhang dâng Phật trên tháp' : place === 'out' ? 'Thắp nhang dâng Quan Âm Bồ Tát' : 'Thắp nhang';
+  $('#modal-incense .muted').textContent = place === 'tower'
+    ? 'Bạn sẽ bước tới trước bàn thờ trên tầng 13, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.'
+    : place === 'out'
+      ? 'Bạn sẽ bước tới lư hương đá trước tượng Quan Âm, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.'
+      : 'Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.';
   openModal('#modal-incense');
 }
 $('#inc-count').addEventListener('click', (e) => {
@@ -1198,7 +1305,7 @@ $('#inc-go').addEventListener('click', () => {
   const wishEl = $('#inc-wish');
   const wish = wishEl.value.trim(); // lời nguyện chỉ ở máy người dùng, không gửi đi
   wishEl.value = '';
-  const place = zoneOfA(player);
+  const place = placeOf(player);
   const spot = leastCrowded(burnerOf(place).spots, player);
   ritual = { n: incN, wish, spot, place, started: false };
   incBtn.disabled = true;
@@ -1229,7 +1336,7 @@ function incenseRitual() {
     st.today += n;
     st.total += n;
     store.set('incense', st);
-    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${place === 'out' ? ' dâng Quan Âm Bồ Tát' : ''}`, 4200);
+    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${place === 'out' ? ' dâng Quan Âm Bồ Tát' : place === 'tower' ? ' dâng Phật trên tháp' : ''}`, 4200);
   });
 }
 
@@ -1476,6 +1583,14 @@ function handleTap(x, y) {
     clickBroom();
     return;
   }
+  if (kind === 'tower') {
+    // chạm vào tháp: vào tháp lên tầng 13 (đang ở trên thì đi tới chỗ vừa chạm)
+    const p = firstHit.point;
+    if (onTower(player) || onTowerXZ(p.x, p.z)) movePlayerTo(p.x, p.z);
+    else movePlayerTo(TOWER.arrive.x, TOWER.arrive.z);
+    hideHint();
+    return;
+  }
   if (kind === 'quanam') {
     // tới trước tượng Quan Âm
     const f = world.quanAm.front;
@@ -1557,7 +1672,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || k === 'broom' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || k === 'broom' || k === 'tower' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
 }
 
 // Bàn phím (máy tính)
@@ -1620,7 +1735,8 @@ function keyMove(t) {
   const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
   const len = Math.hypot(f, s);
   if (player.script) return;
-  const [x, z] = clampZone(zoneOfA(player), player.pos.x + ((fx * f + rx * s) / len) * 0.7, player.pos.z + ((fz * f + rz * s) / len) * 0.7);
+  const nx = player.pos.x + ((fx * f + rx * s) / len) * 0.7, nz = player.pos.z + ((fz * f + rz * s) / len) * 0.7;
+  const [x, z] = onTower(player) ? clampTower(nx, nz) : clampZone(zoneOfA(player), nx, nz);
   player.walkTo(x, z);
   if (t - keySendT > 0.25) {
     keySendT = t;
@@ -1632,15 +1748,16 @@ function updateCamera(dt) {
   const k = 1 - Math.exp(-6 * dt);
   const want = new THREE.Vector3(player.root.position.x, player.root.position.y + 1.1 - 0.15 * player.p.sit, player.root.position.z);
   cam.target.lerp(want, k);
-  cam.curDist += (cam.dist - cam.curDist) * (1 - Math.exp(-4 * dt));
+  const high = onTower(player);
+  cam.curDist += (Math.min(cam.dist, high ? 7 : Infinity) - cam.curDist) * (1 - Math.exp(-4 * dt));
   cam.curPitch += (cam.pitch - cam.curPitch) * (1 - Math.exp(-4 * dt));
   // ở ngoài sân / trên thềm thì camera được lùi ra ngoài chánh điện
   const outside = player.pos.z > HALL.maxZ;
   cam.maxZ += ((outside ? 45 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
-    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, -14.5, 14.5),
-    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, outside ? 14 : 9.4),
+    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : -14.5, 14.5),
+    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, high ? TOWER.topY + 3.2 : outside ? 14 : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);
@@ -1650,6 +1767,10 @@ function updateCamera(dt) {
 const v3 = new THREE.Vector3();
 // lift: đẩy nhãn lên thêm (px, trước khi co theo khoảng cách); fade: mờ dần khi ở xa
 function placeLabel(el, a, { lift = 0, fade = false } = {}) {
+  if (!a.root.visible) {
+    el.style.visibility = 'hidden';
+    return;
+  }
   a.labelAnchor(v3);
   v3.y += 0.15;
   const dist = camera.position.distanceTo(v3);

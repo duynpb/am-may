@@ -1,6 +1,7 @@
 // Dựng chánh điện: sàn, cột, mái, tượng Phật, bàn thờ, chuông trống, cảnh bên ngoài.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from './textures.js';
 import { makeBuddha } from './buddha.js';
 import { makeQuanAm } from './quanam.js';
@@ -15,7 +16,32 @@ export const PORCH = { z0: 19, z1: 21.6, courtY: -0.36 };
 export const COURTYARD = new THREE.Vector3(0, PORCH.courtY, 31);
 // Vùng đi lại ngoài sân (ngoài chánh điện)
 export const GARDEN = { minX: -16, maxX: 16, minZ: 22.4, maxZ: 39 };
+// Tháp 13 tầng phía bên kia sân, đối diện tượng Quan Âm. Mỗi tầng nhỏ và thấp dần lên trên.
+const TOWER_LEVELS = Array.from({ length: 13 }, (_, i) => ({ r: 3.3 - i * 0.08, h: 2.0 - i * 0.03 }));
+const TOWER_BASE = 0.22; // nền đá quanh chân tháp
+export const TOWER = (() => {
+  const x = -10.8, z = 30, plinthR = 4.0;
+  let y = PORCH.courtY + TOWER_BASE;
+  for (let i = 0; i < 12; i++) y += TOWER_LEVELS[i].h;
+  return {
+    x, z, plinthR,
+    floorY: y, // đáy tầng 13
+    topY: y + 0.12, // mặt sàn tầng 13
+    topR: 2.0, // trong bán kính này là sàn tầng 13
+    walkR: 1.5, // chỗ đi lại được trên tầng 13
+    altarDx: 0.15, // phía sau (x nhỏ hơn) là bàn thờ
+    door: { x: x + plinthR + 0.55, z }, // trước cửa tháp, dưới sân
+    inside: { x: x + 2.85, z }, // ngưỡng cửa
+    arrive: { x: x + 1.15, z }, // lên tới tầng 13 thì đứng ở đây
+  };
+})();
+
 export function groundY(x, z) {
+  if (z > 24 && z < 36) {
+    const d = Math.hypot(x - TOWER.x, z - TOWER.z);
+    if (d < TOWER.topR) return TOWER.topY;
+    if (d < TOWER.plinthR) return PORCH.courtY + TOWER_BASE;
+  }
   if (z <= PORCH.z1 - 0.05) return 0;
   if (z >= PORCH.z1 + 0.6) return PORCH.courtY;
   return (PORCH.courtY * (z - PORCH.z1 + 0.05)) / 0.65;
@@ -881,6 +907,180 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     obstacles.push({ x: tx, z: tz, r: 0.5 });
   }
 
+  // ---------- Tháp 13 tầng và tiểu cảnh, phía đối diện tượng Quan Âm ----------
+  const TW = TOWER;
+  const towerParts = { wall: [], tile: [], red: [], trim: [], gold: [], win: [], wood: [] };
+  const towerMats = {
+    wall: std('#ece3cf', { roughness: 0.9 }),
+    tile: std('#6a3426', { roughness: 0.75 }),
+    red: std('#9c2a1c', { roughness: 0.55 }),
+    trim: std('#bdb4a2', { roughness: 0.9 }),
+    gold: M.gold,
+    win: std('#2c2018', { emissive: '#ffb25e', emissiveIntensity: 0, roughness: 0.8 }),
+    wood: std('#6b3f26', { roughness: 0.6 }),
+  };
+  // thêm một khối hình vào tháp (gộp lại theo vật liệu): nghiêng rz, xoay quanh trục đứng ry, đặt lệch (x, z) so với tâm tháp
+  function tp(key, geo, x, y, z, ry = 0, rz = 0) {
+    if (rz) geo.rotateZ(rz);
+    if (ry) geo.rotateY(ry);
+    geo.translate(TW.x + x, y, TW.z + z);
+    towerParts[key].push(geo.index ? geo.toNonIndexed() : geo);
+  }
+  const oct = (rt, rb, h) => new THREE.CylinderGeometry(rt, rb, h, 8).rotateY(Math.PI / 8);
+  const COS8 = Math.cos(Math.PI / 8);
+  {
+    // nền đá bát giác
+    tp('trim', oct(TW.plinthR, TW.plinthR + 0.1, TOWER_BASE), 0, GY + TOWER_BASE / 2, 0);
+    let y = GY + TOWER_BASE;
+    TOWER_LEVELS.forEach(({ r, h }, i) => {
+      const rw = r * 0.86; // tường
+      if (i < 12) {
+        const wh = h - 0.3;
+        tp('wall', oct(rw * 0.97, rw, wh), 0, y + wh / 2, 0);
+        tp('trim', oct(rw + 0.1, rw + 0.12, 0.1), 0, y + 0.05, 0); // gờ chân tường
+        for (let k = 0; k < 8; k++) {
+          const a = Math.PI / 8 + (k * Math.PI) / 4;
+          tp('red', new THREE.BoxGeometry(0.13, wh, 0.13), Math.sin(a) * (rw + 0.02), y + wh / 2, Math.cos(a) * (rw + 0.02), a);
+          // cửa sổ vòm trên mỗi mặt; mặt trông ra sân ở tầng trệt là cửa vào
+          const f = (k * Math.PI) / 4, ap = rw * COS8 * 0.985;
+          const door = i === 0 && k === 2;
+          const ww = door ? 1.05 : Math.max(0.3, 0.46 - i * 0.012), wh2 = door ? 1.65 : Math.max(0.5, 0.78 - i * 0.02);
+          const wy = door ? y + wh2 / 2 + 0.05 : y + wh * 0.52;
+          tp('gold', new THREE.BoxGeometry(ww + 0.14, wh2 + 0.14, 0.04), Math.sin(f) * ap, wy, Math.cos(f) * ap, f);
+          tp('win', new THREE.BoxGeometry(ww, wh2, 0.06), Math.sin(f) * (ap + 0.01), wy, Math.cos(f) * (ap + 0.01), f);
+          if (door) tp('red', new THREE.BoxGeometry(1.4, 0.32, 0.05), Math.sin(f) * (ap + 0.03), wy + wh2 / 2 + 0.3, Math.cos(f) * (ap + 0.03), f);
+        }
+        // mái hiên bát giác, đầu đao vểnh lên ở tám góc (nghiêng ra ngoài theo hướng xuyên tâm)
+        const ey = y + wh + 0.17;
+        tp('tile', oct(rw * 0.88, r * 1.1, 0.34), 0, ey, 0);
+        tp('red', oct(r * 1.1, r * 1.11, 0.05), 0, ey - 0.17, 0);
+        for (let k = 0; k < 8; k++) {
+          const a = Math.PI / 8 + (k * Math.PI) / 4;
+          tp('tile', new THREE.ConeGeometry(0.06, 0.34, 6), Math.sin(a) * r * 1.11, ey - 0.06, Math.cos(a) * r * 1.11, a - Math.PI / 2, -0.55);
+        }
+      } else {
+        // tầng 13: điện thờ mở bốn phía, cột son, lan can thấp
+        tp('trim', oct(r * 0.98, r * 0.98, 0.12), 0, y + 0.06, 0);
+        tp('wood', oct(TW.topR + 0.15, TW.topR + 0.15, 0.02), 0, TW.topY + 0.005, 0);
+        const ch = 1.95, rc = r * 0.86;
+        const side = 2 * rc * Math.sin(Math.PI / 8);
+        for (let k = 0; k < 8; k++) {
+          const a = Math.PI / 8 + (k * Math.PI) / 4;
+          tp('red', new THREE.CylinderGeometry(0.075, 0.085, ch, 10), Math.sin(a) * rc, TW.topY + ch / 2, Math.cos(a) * rc);
+          const f = (k * Math.PI) / 4, ap = rc * COS8;
+          tp('red', new THREE.BoxGeometry(side - 0.1, 0.07, 0.07), Math.sin(f) * ap, TW.topY + 0.5, Math.cos(f) * ap, f);
+          for (let j = -2; j <= 2; j++) {
+            tp('red', new THREE.BoxGeometry(0.035, 0.45, 0.035), Math.sin(f) * ap + Math.cos(f) * j * side * 0.18, TW.topY + 0.25, Math.cos(f) * ap - Math.sin(f) * j * side * 0.18);
+          }
+          tp('gold', new THREE.BoxGeometry(side - 0.1, 0.12, 0.05), Math.sin(f) * ap, TW.topY + ch - 0.12, Math.cos(f) * ap, f);
+        }
+        // trần gỗ, mái lớn và chóp tháp
+        const ry = TW.topY + ch;
+        tp('wood', oct(r * 0.95, r * 0.95, 0.08), 0, ry + 0.04, 0);
+        tp('tile', oct(0.55, r * 1.28, 1.0), 0, ry + 0.58, 0);
+        tp('red', oct(r * 1.28, r * 1.29, 0.06), 0, ry + 0.08, 0);
+        for (let k = 0; k < 8; k++) {
+          const a = Math.PI / 8 + (k * Math.PI) / 4;
+          tp('gold', new THREE.ConeGeometry(0.06, 0.4, 6), Math.sin(a) * r * 1.29, ry + 0.16, Math.cos(a) * r * 1.29, a - Math.PI / 2, -0.55);
+        }
+        const sy = ry + 1.08;
+        tp('gold', new THREE.CylinderGeometry(0.3, 0.42, 0.3, 16), 0, sy + 0.15, 0);
+        tp('gold', new THREE.CylinderGeometry(0.035, 0.05, 1.9, 8), 0, sy + 1.25, 0);
+        for (let j = 0; j < 7; j++) tp('gold', new THREE.CylinderGeometry(0.3 - j * 0.03, 0.3 - j * 0.03, 0.05, 16), 0, sy + 0.45 + j * 0.2, 0);
+        tp('gold', new THREE.SphereGeometry(0.2, 16, 12), 0, sy + 2.0, 0);
+        tp('gold', new THREE.SphereGeometry(0.13, 14, 10), 0, sy + 2.3, 0);
+        tp('gold', new THREE.ConeGeometry(0.06, 0.4, 10), 0, sy + 2.6, 0);
+      }
+      y += h;
+    });
+    const tower = new THREE.Group();
+    tower.userData.kind = 'tower';
+    for (const [key, list] of Object.entries(towerParts)) {
+      const m = new THREE.Mesh(mergeGeometries(list), towerMats[key]);
+      m.castShadow = m.receiveShadow = true;
+      tower.add(m);
+    }
+    scene.add(tower);
+    pickables.push(tower);
+    obstacles.push({ x: TW.x, z: TW.z, r: TW.plinthR + 0.35 });
+  }
+  nightHooks.push((night) => (towerMats.win.emissiveIntensity = 0.85 * night));
+
+  // tầng 13: bàn thờ, tượng Phật (như trong chánh điện), lư hương, nến
+  const TOP_BUDDHA = new THREE.Vector3(TW.x - 1.15, TW.topY + 0.45 + 0.8, TW.z);
+  {
+    box(1.4, 0.45, 1.5, M.lacquer, TW.x - 1.12, TW.topY + 0.225, TW.z);
+    box(1.46, 0.06, 1.56, M.gold, TW.x - 1.12, TW.topY + 0.45, TW.z, { cast: false });
+    const b = buddha.clone();
+    b.position.set(TW.x - 1.15, TW.topY + 0.48, TW.z);
+    b.scale.setScalar(0.5);
+    b.rotation.y = Math.PI / 2; // nhìn ra sân, về phía tượng Quan Âm
+    scene.add(b);
+    for (const dz of [-0.62, 0.62]) {
+      cyl(0.05, 0.06, 0.04, M.bronze, TW.x - 0.55, TW.topY + 0.5, TW.z + dz);
+      cyl(0.03, 0.03, 0.16, M.candle, TW.x - 0.55, TW.topY + 0.6, TW.z + dz);
+      flame(TW.x - 0.55, TW.topY + 0.74, TW.z + dz, 0.8);
+    }
+    // đèn ấm trong điện thờ, sáng hơn về đêm
+    const topLight = new THREE.PointLight('#ffc27a', 4, 6, 2);
+    topLight.position.set(TW.x - 0.2, TW.topY + 1.7, TW.z);
+    scene.add(topLight);
+    nightHooks.push((night) => (topLight.intensity = 4 + 14 * night));
+    // kệ nhỏ đặt lư hương trước bàn thờ
+    box(0.34, 0.5, 0.5, M.lacquer, TW.x - 0.2, TW.topY + 0.25, TW.z);
+    cyl(0.15, 0.12, 0.14, M.bronze, TW.x - 0.2, TW.topY + 0.57, TW.z);
+  }
+  const incenseTop = makeBurner({
+    center: new THREE.Vector3(TW.x - 0.2, TW.topY + 0.62, TW.z),
+    radius: 0.09,
+    spots: [-0.45, 0, 0.45].map((dz) => ({ x: TW.x + 0.45, z: TW.z + dz })),
+    target: TOP_BUDDHA,
+    smoke: 24,
+    min: 2,
+  });
+
+  // tiểu cảnh quanh tháp: thảm cỏ, đường đá, đèn đá, cây cảnh, tùng, đá
+  {
+    const grassT = mesh(new THREE.CircleGeometry(6.2, 48), std('#6c8a4a', { roughness: 1 }), TW.x, GY + 0.008, TW.z, { cast: false });
+    grassT.rotation.x = -Math.PI / 2;
+    grassT.userData.kind = 'ground';
+    pickables.push(grassT);
+    for (let x = TW.x + TW.plinthR + 0.45; x < -1.7; x += 0.8) {
+      const st = mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.05, 12), stoneL, x, GY + 0.025, TW.z + rnd(-0.08, 0.08), { cast: false });
+      st.scale.z = rnd(0.75, 0.95);
+    }
+    stoneLantern(TW.x + 5.0, TW.z - 1.9);
+    stoneLantern(TW.x + 5.0, TW.z + 1.9);
+    // hai chậu cây cảnh hai bên cửa tháp
+    for (const dz of [-1.25, 1.25]) {
+      const px = TW.x + 4.35, pz = TW.z + dz;
+      cyl(0.26, 0.2, 0.3, std('#5b4a3c', { roughness: 0.8 }), px, GY + 0.15, pz);
+      mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.5, 6), std('#5a4030', { roughness: 0.9 }), px, GY + 0.5, pz);
+      for (const [dx, dy, dzz, s] of [[0, 0.82, 0, 0.32], [0.18, 0.66, 0.1, 0.22], [-0.16, 0.7, -0.08, 0.2]]) {
+        mesh(new THREE.SphereGeometry(s, 10, 8), leafD, px + dx, GY + dy, pz + dzz).scale.y = 0.6;
+      }
+      obstacles.push({ x: px, z: pz, r: 0.35 });
+    }
+    bush(TW.x - 4.7, TW.z - 2.6); bush(TW.x - 4.9, TW.z + 2.4, 1.1); bush(TW.x - 2.2, TW.z - 5.0, 0.9); bush(TW.x + 2.6, TW.z + 5.0, 0.8);
+    flowers(TW.x + 3.3, TW.z - 3.6); flowers(TW.x + 3.3, TW.z + 3.6); flowers(TW.x - 1.0, TW.z + 5.4, 10);
+    // cây tùng nhiều tầng tán
+    {
+      const px = TW.x - 3.2, pz = TW.z + 5.0;
+      mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.6, 8), std('#5a4030', { roughness: 0.9 }), px, GY + 0.8, pz);
+      for (const [y, r] of [[1.2, 1.0], [1.85, 0.8], [2.45, 0.58], [2.95, 0.36]]) {
+        mesh(new THREE.ConeGeometry(r, 0.75, 9), leafD, px, GY + y, pz);
+      }
+      obstacles.push({ x: px, z: pz, r: 0.6 });
+    }
+    // cụm đá
+    for (const [x, z, s] of [[TW.x + 2.4, TW.z - 5.2, 0.5], [TW.x + 2.9, TW.z - 4.8, 0.32], [TW.x - 5.4, TW.z - 0.2, 0.45], [TW.x - 5.6, TW.z + 0.5, 0.3]]) {
+      const r = mesh(new THREE.DodecahedronGeometry(s, 0), rockM, x, GY + s * 0.45, z);
+      r.scale.set(1.2, 0.75, 1);
+      r.rotation.y = rnd(0, 6);
+      obstacles.push({ x, z, r: s + 0.25 });
+    }
+  }
+
   nightHooks.push((night) => {
     lampMat.emissiveIntensity = 2.2 * night;
     for (const g of lampGlows) g.material.opacity = 0.7 * night;
@@ -1134,7 +1334,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     pickables,
     incense,
     incenseOut,
+    incenseTop,
     merit,
+    tower: { ...TOWER, buddha: TOP_BUDDHA },
     // khu Quan Âm: tâm bệ tượng, điểm đứng chiêm bái phía trước
     quanAm: { center: QA, front: new THREE.Vector3(6.75, 0, QA.z), head: new THREE.Vector3(QA.x, GY + 4.6, QA.z) },
     pushOut,
