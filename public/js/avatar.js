@@ -1,6 +1,7 @@
 // Nhân vật chibi mặc áo tràng: đi, ngồi bồ đoàn, chắp tay, lạy.
 import * as THREE from 'three';
 import { makeSandal } from './sandals.js';
+import { makeBroom } from './leaves.js';
 
 export const ROBES = [
   { robe: '#9a9e98', sash: '#d9b44a' },
@@ -62,7 +63,9 @@ export class Avatar {
     this.seat = null;
     this.action = null;
     this.seed = Math.random() * 100;
-    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0, stoop: 0 };
+    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0, stoop: 0, broom: 0 };
+    this.hasBroom = false;
+    this.sweepPhase = 0;
     this.phase = 0;
     this.time = 0;
     this.onArrive = null;
@@ -172,6 +175,28 @@ export class Avatar {
     this.envelope.visible = on;
   }
 
+  // Cầm chổi tre hai tay, đầu chổi chạm sân phía trước
+  holdBroom(on) {
+    if (!this.broomRig && on) {
+      this.broomRig = new THREE.Group();
+      this.broomRig.position.set(0.02, 0.09, 0.26);
+      const b = makeBroom();
+      b.rotation.x = -0.77;
+      this.broomTipObj = new THREE.Object3D();
+      this.broomTipObj.position.y = -0.66;
+      b.add(this.broomTipObj);
+      this.broomRig.add(b);
+      this.upper.add(this.broomRig);
+    }
+    this.hasBroom = on;
+    if (this.broomRig) this.broomRig.visible = on;
+  }
+
+  // Vị trí đầu chổi trên sân (để quét lá)
+  broomTip(v) {
+    return this.broomTipObj.getWorldPosition(v);
+  }
+
   // Cầm n nén nhang (0 = bỏ xuống)
   holdIncense(n) {
     this.incense.visible = n > 0;
@@ -277,7 +302,9 @@ export class Avatar {
     p.gassho = damp(p.gassho, gT, 7, dt);
     p.bow = damp(p.bow, bT, 3.5, dt);
     p.stoop = damp(p.stoop, sT, 5, dt);
+    p.broom = damp(p.broom, this.hasBroom ? 1 : 0, 8, dt);
     this.phase += dt * 9.5 * p.walk;
+    this.sweepPhase += dt * 5.5 * p.walk;
     this.sync();
     return arrived;
   }
@@ -308,15 +335,21 @@ export class Avatar {
     this.head.rotation.x = 0.16 * p.sit * (1 - p.bow) + Math.sin(this.phase * 2) * 0.03 * p.walk;
     this.head.rotation.z = Math.sin(t * 0.4) * 0.04 * (1 - p.walk);
 
+    // quét chổi qua lại khi bước đi
+    const sweep = Math.sin(this.sweepPhase) * p.walk * p.broom;
+    if (this.broomRig) this.broomRig.rotation.y = sweep * 0.6;
+    this.upper.rotation.y = sweep * 0.18;
     for (const arm of this.arms) {
       const s = arm.userData.side;
-      const swing = Math.sin(this.phase + (s > 0 ? 0 : Math.PI)) * 0.6 * p.walk;
+      const swing = Math.sin(this.phase + (s > 0 ? 0 : Math.PI)) * 0.6 * p.walk * (1 - p.broom);
       let rx = mix(0, -0.55, p.sit) + swing;
       let rz = mix(s * 0.12, -s * 0.38, p.sit);
       rx = mix(rx, -1.15, p.gassho);
       rz = mix(rz, -s * 0.64, p.gassho);
       rx = mix(rx, -0.6, p.stoop); // với tay xuống sắp dép
       rz = mix(rz, -s * 0.2, p.stoop);
+      rx = mix(rx, -0.75 + s * sweep * 0.15, p.broom); // hai tay cầm cán chổi
+      rz = mix(rz, -s * 0.32, p.broom);
       arm.rotation.set(rx, 0, rz);
     }
   }

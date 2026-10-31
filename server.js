@@ -180,6 +180,31 @@ function broadcast(roomId, msg, exceptId) {
 }
 const sendCount = (roomId) => broadcast(roomId, { t: 'count', n: rooms.get(roomId).size });
 
+// ---------- Lá rơi trên sân: mỗi chánh điện một sân, mọi người cùng thấy ----------
+// Lá: [id, x, z, góc xoay, màu]. Trình duyệt tự đẩy lá ra khỏi bệ tượng, hồ, bụi cây.
+const LEAF_MAX = 90;
+const leafRooms = new Map(ROOMS.map((r) => [r.id, { list: new Map(), next: 1 }]));
+const r2 = (v) => Math.round(v * 100) / 100;
+function spawnLeaves(roomId, n) {
+  const L = leafRooms.get(roomId);
+  const add = [];
+  for (let i = 0; i < n && L.list.size < LEAF_MAX; i++) {
+    const leaf = [L.next++, r2(-15 + Math.random() * 30), r2(23 + Math.random() * 15.5), r2(Math.random() * 6.28), (Math.random() * 4) | 0];
+    L.list.set(leaf[0], leaf);
+    add.push(leaf);
+  }
+  return add;
+}
+for (const r of ROOMS) spawnLeaves(r.id, 45);
+// lá rụng thêm dần khi có người trong chùa
+setInterval(() => {
+  for (const r of ROOMS) {
+    if (!rooms.get(r.id).size) continue;
+    const add = spawnLeaves(r.id, 1 + ((Math.random() * 3) | 0));
+    if (add.length) broadcast(r.id, { t: 'leaves', add });
+  }
+}, 10000);
+
 wss.on('connection', (ws, req) => {
   let me = null;
   let roomId = null;
@@ -216,6 +241,7 @@ wss.on('connection', (ws, req) => {
       ws.send(JSON.stringify({
         t: 'welcome', id: me.id, room: roomId, peers: [...members.values()].map((p) => p.p),
         merit: { ...meritPublic(), used },
+        leaves: [...leafRooms.get(roomId).list.values()],
       }));
       broadcast(roomId, { t: 'join', p: me });
       members.set(me.id, { ws, p: me, uid });
@@ -285,6 +311,18 @@ wss.on('connection', (ws, req) => {
       if (!me.missing) return;
       me.missing = false;
       broadcast(roomId, { t: 'sandal-returned', id: me.id }, me.id);
+    } else if (m.t === 'broom') {
+      // cầm / trả chổi quét sân
+      me.broom = !!m.on;
+      broadcast(roomId, { t: 'broom', id: me.id, on: me.broom }, me.id);
+    } else if (m.t === 'sweep' && Array.isArray(m.ids)) {
+      if (!me.broom) return;
+      const L = leafRooms.get(roomId);
+      const gone = [];
+      for (const id of m.ids.slice(0, 12)) if (L.list.delete(id)) gone.push(id);
+      if (!gone.length) return;
+      broadcast(roomId, { t: 'leaves', gone, by: me.id }, me.id);
+      award(ws, uid, 'sweep', { n: gone.length });
     } else if (m.t === 'chat') {
       // lời chat hiện trên đầu người nói; tối đa 80 ký tự, cách nhau ít nhất 1 giây
       const text = String(m.text ?? '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);

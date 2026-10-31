@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as T from './textures.js';
 import { makeBuddha } from './buddha.js';
 import { makeQuanAm } from './quanam.js';
+import { makeBroom } from './leaves.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -817,6 +818,33 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   stoneLantern(7.5, 25.8);
   stoneLantern(7.3, 33.2);
 
+  // giá chổi tre ở góc sân, cạnh thềm: chạm vào để lấy chổi quét lá
+  const BROOM = new THREE.Vector3(6.1, GY, 23.35);
+  {
+    const woodM = std('#6b4a2e', { roughness: 0.85 });
+    const g = new THREE.Group();
+    g.position.copy(BROOM);
+    g.userData.kind = 'broom';
+    scene.add(g);
+    pickables.push(g);
+    for (const s of [-1, 1]) box(0.07, 1.0, 0.07, woodM, s * 0.42, 0.5, 0, { parent: g });
+    box(0.96, 0.06, 0.06, woodM, 0, 0.95, 0, { parent: g });
+    for (const [x, ry] of [[-0.2, 0.12], [0.16, -0.1]]) {
+      const b = makeBroom();
+      b.position.set(x, 0.68, 0.12);
+      b.rotation.set(-0.35, ry, 0, 'YXZ');
+      g.add(b);
+    }
+    // sọt tre đựng lá
+    mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.34, 16, 1, true), std('#a8834e', { roughness: 0.95, side: THREE.DoubleSide }), 0.78, 0.17, 0.12, { parent: g });
+    cyl(0.16, 0.16, 0.02, std('#8a6a3a', { roughness: 1 }), 0.78, 0.03, 0.12, { parent: g }, 16);
+    for (const [dx, dz, c] of [[-0.05, 0.02, '#c8702a'], [0.06, -0.04, '#d9a43a'], [0.0, 0.07, '#8a5a2a']]) {
+      const l = mesh(new THREE.SphereGeometry(0.07, 6, 4), std(c, { roughness: 0.9 }), 0.78 + dx, 0.3, 0.12 + dz, { parent: g, cast: false });
+      l.scale.set(1, 0.25, 0.6);
+    }
+    obstacles.push({ x: BROOM.x + 0.2, z: BROOM.z + 0.1, r: 0.75 });
+  }
+
   // bụi cây và bồn hoa quanh bệ tượng
   const flowerColors = ['#f3a3b6', '#f6d36b', '#ffffff', '#e2534a', '#c58ae0'].map((c) => std(c, { roughness: 0.7 }));
   function bush(x, z, s = 1) {
@@ -1110,6 +1138,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     // khu Quan Âm: tâm bệ tượng, điểm đứng chiêm bái phía trước
     quanAm: { center: QA, front: new THREE.Vector3(6.75, 0, QA.z), head: new THREE.Vector3(QA.x, GY + 4.6, QA.z) },
     pushOut,
+    // giá chổi: chỗ đứng để lấy / trả chổi
+    broom: { center: BROOM, spot: new THREE.Vector3(BROOM.x, 0, BROOM.z + 1.05) },
     setQuality,
     showMarker(x, z, y = 0.04) {
       marker.position.set(x, y, z);

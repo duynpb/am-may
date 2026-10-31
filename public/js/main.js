@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildWorld, HALL, GARDEN, BUDDHA, ENTRANCE, COURTYARD, PORCH, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
+import { LeafField } from './leaves.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, fetchMerit, ROOMS } from './net.js';
@@ -99,6 +100,7 @@ Avatar.ground = groundY;
 // ?gio=20.5 trên địa chỉ trang: xem thử chánh điện lúc 20 giờ 30 (mặc định theo giờ Việt Nam thật)
 if (params.has('gio')) world.setHour(parseFloat(params.get('gio')));
 const rack = new SandalRack(scene);
+const leaves = new LeafField(scene, { groundY, pushOut: world.pushOut });
 
 const sound = new Sound(settings);
 
@@ -518,6 +520,7 @@ function addRemote(p, { entering = false } = {}) {
     rack.takeOne(a.id);
   }
   a.setSandals(SANDAL_COLORS[(p.sandals ?? +p.id) % SANDAL_COLORS.length]);
+  if (p.broom) a.holdBroom(true);
   if (entering) {
     a.zone = 'out';
     a.placeAt(rnd(-1.5, 1.5), COURTYARD.z, Math.PI);
@@ -585,6 +588,14 @@ function wireNet(n) {
     if (a && !a.leaving) offerMerit(a);
   });
   n.on('karma', (m) => showGain(m.entry));
+  n.on('leaves', (m) => {
+    if (m.add) leaves.add(m.add);
+    if (m.gone) {
+      const a = avatars.get('n' + m.by);
+      leaves.remove(m.gone, a?.pos.x, a?.pos.z);
+    }
+  });
+  n.on('broom', (m) => avatars.get('n' + m.id)?.holdBroom(m.on));
   n.on('chat', (m) => {
     const a = avatars.get('n' + m.id);
     if (a) chatBubble(a, m.text);
@@ -665,6 +676,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     net = n;
     wireNet(n);
     n.welcome.peers.forEach(addRemote);
+    leaves.reset(n.welcome.leaves || []);
     onlineCount = n.welcome.peers.length + 1;
     if (n.welcome.merit) {
       const { total, recent, used } = n.welcome.merit;
@@ -677,6 +689,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
   } else {
     botTarget = Math.floor(rnd(16, 30));
     earn('visit');
+    leaves.reset(makeLeaves(45));
   }
   for (let i = 0; i < botTarget; i++) makeBot({ seated: Math.random() < 0.85 });
   $('#info-mode').textContent = online
@@ -697,6 +710,8 @@ function startIntro() {
   player.seat = null;
   player.holdIncense(0);
   player.holdEnvelope(false);
+  player.holdBroom(false);
+  broomRun = null;
   rack.release('me');
   player.missingSandal = false;
   clearInterval(sandalTimer);
@@ -754,6 +769,10 @@ function movePlayerTo(x, z, seat = null) {
     world.showMarker(x, z, groundY(x, z) + 0.04);
     net?.send({ t: 'move', x: +x.toFixed(2), z: +z.toFixed(2), seat: seat?.index ?? null });
     toast(target === 'out' ? 'Mang dép vào rồi ra sân…' : 'Để dép ngay ngắn trên thềm rồi vào chánh điện…', 2600);
+    if (target === 'in' && player.hasBroom) {
+      setBroom(false);
+      toast('Đã cất chổi về giá trước khi vào chánh điện', 2600);
+    }
     player.queued = null;
     crossZone(player, x, z, seat).then((ok) => {
       if (ok && target === 'out') toast('Bạn đang ở ngoài sân — có thể thắp nhang dâng Quan Âm Bồ Tát', 3600);
@@ -765,6 +784,79 @@ function movePlayerTo(x, z, seat = null) {
   player.walkTo(x, z, seat);
   world.showMarker(x, z, groundY(x, z) + (seat ? 0.21 : 0.04));
   sendMove();
+}
+
+// ---------- Quét sân: lấy chổi ở giá góc sân, đi đến đâu lá sạch đến đó ----------
+let broomRun = null; // đang đi tới giá chổi để lấy / cất
+let sweepBuf = [], sweepWait = 0, leafSeq = 1e6;
+
+// Lá rụng khi chạy ngoại tuyến (trực tuyến thì máy chủ gửi)
+function makeLeaves(n) {
+  return Array.from({ length: n }, () => [leafSeq++, rnd(-15, 15), rnd(23, 38.5), rnd(0, 6.28), Math.floor(rnd(0, 4))]);
+}
+setInterval(() => {
+  if (!net && leaves.resting < 90) leaves.add(makeLeaves(1 + Math.floor(rnd(0, 3))));
+}, 10000);
+
+function setBroom(on) {
+  player.holdBroom(on);
+  net?.send({ t: 'broom', on });
+}
+
+function clickBroom() {
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
+  const s = world.broom.spot;
+  broomRun = { spot: s, take: !player.hasBroom, started: false };
+  movePlayerTo(s.x, s.z); // đang ở trong chánh điện thì tự mang dép ra sân
+  hideHint();
+}
+
+// Chạy mỗi khung hình: tới giá chổi thì cúi xuống lấy / dựng chổi; đi chỗ khác thì thôi
+function broomRitual() {
+  if (!broomRun || broomRun.started || player.script) return;
+  const g = player.goal;
+  if (g && Math.hypot(g.x - broomRun.spot.x, g.z - broomRun.spot.z) > 0.3) {
+    broomRun = null;
+    return;
+  }
+  if (player.moving) return;
+  if (zoneOfA(player) !== 'out' || player.pos.distanceTo(broomRun.spot) > 0.6) {
+    broomRun = null;
+    return;
+  }
+  broomRun.started = true;
+  const c = world.broom.center;
+  player.act('stoop', Math.atan2(c.x - player.pos.x, c.z - player.pos.z));
+  setTimeout(() => {
+    const take = broomRun?.take;
+    broomRun = null;
+    if (take == null) return;
+    setBroom(take);
+    if (take) toast(leaves.resting ? 'Đã cầm chổi — đi quanh sân để quét lá. Chạm vào giá chổi để cất chổi' : 'Đã cầm chổi — sân đang sạch, chờ lá rụng thêm nhé', 4500);
+    else toast('Đã dựng chổi lại giá. Cảm ơn bạn đã quét sân chùa', 3500);
+  }, 700);
+}
+
+// Cầm chổi bước đi: đầu chổi lướt qua đâu, lá ở đó bay đi
+const tipV = new THREE.Vector3();
+function sweepLeaves(dt) {
+  sweepWait -= dt;
+  if (player.hasBroom && player.p.walk > 0.3 && zoneOfA(player) === 'out') {
+    player.broomTip(tipV);
+    const ids = leaves.takeNear(tipV.x, tipV.z, 0.6);
+    if (ids.length) {
+      sweepBuf.push(...ids);
+      if (!leaves.resting) setTimeout(() => !leaves.resting && toast('Sân chùa đã sạch lá — công đức của bạn', 3500), 600);
+    }
+  }
+  if (!sweepBuf.length || sweepWait > 0) return;
+  const ids = sweepBuf.splice(0, 12);
+  sweepWait = 0.35;
+  if (net) net.send({ t: 'sweep', ids });
+  else earn('sweep', { n: ids.length });
 }
 
 // ---------- Lấy dép (đùa vui) ----------
@@ -992,6 +1084,7 @@ function renderProfile(name, p, note) {
   for (const [label, val] of [
     ['Lạy Phật', s.bow], ['Chào bạn đạo', s.greet], ['Nén nhang', s.incense],
     ['Góp công đức', s.merit], ['Chuỗi 108 hạt', s.beads], ['Phút tụng kinh', s.chantMin ?? (s.chant || 0) * 10],
+    ['Lá đã quét', s.leaves], ['Thỉnh chuông, trống', s.bell], ['Lần vào chùa', p.visits],
   ]) {
     const d = el('div', null, label);
     d.prepend(el('b', null, (val || 0).toLocaleString('vi-VN')));
@@ -1379,6 +1472,10 @@ function handleTap(x, y) {
     openMeritDialog();
     return;
   }
+  if (kind === 'broom') {
+    clickBroom();
+    return;
+  }
   if (kind === 'quanam') {
     // tới trước tượng Quan Âm
     const f = world.quanAm.front;
@@ -1460,7 +1557,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || k === 'broom' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
 }
 
 // Bàn phím (máy tính)
@@ -1831,8 +1928,11 @@ function frame() {
   botsThink(elapsed);
   incenseRitual();
   meritRitual();
+  broomRitual();
+  sweepLeaves(dt);
   scriptWatchdog(dt);
   rack.update(dt);
+  leaves.update(dt);
   world.update(elapsed, dt);
   updateCamera(dt);
   if (!beads.isOpen) {

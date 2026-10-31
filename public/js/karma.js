@@ -13,7 +13,11 @@ export const RULES = {
   bell: { label: 'Thỉnh chuông, đánh trống', phuoc: 1, cap: 5 },
   noise: { label: 'Làm ồn chánh điện (thỉnh chuông dồn dập)', nghiep: 2, cap: 3 },
   steal: { label: 'Lấy dép của người khác', nghiep: 1, cap: 20 },
+  // 'sweep' được báo kèm số lá vừa quét; cứ đủ 15 lá trong ngày thì cộng phước
+  sweep: { label: 'Quét lá sân chùa (15 lá)', phuoc: 2, cap: 10 },
 };
+export const LEAVES_PER_POINT = 15;
+const LEAF_DAY_CAP = 600; // tối đa 600 lá được ghi mỗi ngày
 
 // Những việc trình duyệt được tự báo lên máy chủ (các việc khác máy chủ tự ghi nhận)
 export const CLIENT_KINDS = ['beads', 'chant', 'greet', 'steal'];
@@ -30,7 +34,7 @@ export function newProfile(name, now = Date.now()) {
     phuoc: 0,
     nghiep: 0,
     visits: 0,
-    stats: { bow: 0, greet: 0, incense: 0, merit: 0, beads: 0, chant: 0, bell: 0 },
+    stats: { bow: 0, greet: 0, incense: 0, merit: 0, beads: 0, chant: 0, bell: 0, leaves: 0 },
     history: [],
     day: { date: vnDate(now), counts: {} },
     last: {},
@@ -52,6 +56,22 @@ export function applyEvent(p, kind, { n = 1 } = {}, now = Date.now()) {
     p.stats.chantMin = (p.stats.chantMin ?? (p.stats.chant || 0) * 10) + 1;
     if ((mins + 1) % 10 !== 0 || (p.day.counts.chant || 0) >= rule.cap) return { silent: true };
     p.day.counts.chant = (p.day.counts.chant || 0) + 1;
+    const entry = { at: now, kind, label: rule.label, phuoc: rule.phuoc };
+    p.phuoc += rule.phuoc;
+    p.history.unshift(entry);
+    if (p.history.length > HISTORY_MAX) p.history.length = HISTORY_MAX;
+    return entry;
+  }
+  if (kind === 'sweep') {
+    // ghi thêm n lá đã quét; mỗi khi tròn 15 lá trong ngày thì tính điểm
+    const done = p.day.counts.leaves || 0;
+    const k = Math.max(0, Math.min(n | 0, 12, LEAF_DAY_CAP - done));
+    if (!k) return null;
+    p.day.counts.leaves = done + k;
+    p.stats.leaves = (p.stats.leaves || 0) + k;
+    const crossed = Math.floor((done + k) / LEAVES_PER_POINT) > Math.floor(done / LEAVES_PER_POINT);
+    if (!crossed || (p.day.counts.sweep || 0) >= rule.cap) return { silent: true };
+    p.day.counts.sweep = (p.day.counts.sweep || 0) + 1;
     const entry = { at: now, kind, label: rule.label, phuoc: rule.phuoc };
     p.phuoc += rule.phuoc;
     p.history.unshift(entry);
