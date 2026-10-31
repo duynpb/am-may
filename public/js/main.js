@@ -250,19 +250,14 @@ async function enterTemple(a) {
 // Đến chỗ để dép, mang dép vào rồi đi ra sân
 async function exitTemple(a, dest = null) {
   const token = (a.script = {});
-  if (a.missingSandal && bots.has(a)) {
-    bubble(a, 'mất một chiếc dép…', 10000);
-    await wait(10000);
-    if (!alive(a, token)) return false;
-    a.missingSandal = false;
-    rack.restore(a.id);
-  }
   const slot = rack.slotOf(a.id);
   if (slot && rack.has(a.id)) {
     await a.walk(slot.x, slot.z - 0.75);
     if (!alive(a, token)) return false;
     await a.walk(slot.x, slot.z);
     if (!alive(a, token)) return false;
+    // bị lấy dép (kể cả khi đang trên đường ra): đứng chờ dép được trả lại rồi mới mang
+    if (!(await awaitSandal(a, token))) return false;
     rack.release(a.id);
     a.wearSandals(true);
     await wait(300);
@@ -276,6 +271,26 @@ async function exitTemple(a, dest = null) {
   if (!alive(a, token)) return false;
   a.script = null;
   return true;
+}
+
+// Mất một chiếc dép: đứng ở chỗ để dép chờ 10 giây cho dép được trả lại.
+// Người chơi và khách mô phỏng tự đếm; người khác thì chờ tin trả dép từ máy của họ.
+async function awaitSandal(a, token) {
+  if (!a.missingSandal || (a.leaving && !bots.has(a))) return true;
+  a.waitSandal = true;
+  a.faceRy = 0;
+  if (a === player) sandalWait();
+  else if (bots.has(a)) {
+    bubble(a, 'mất một chiếc dép…', 10000);
+    await wait(10000);
+    if (alive(a, token)) {
+      a.missingSandal = false;
+      rack.restore(a.id);
+    }
+  }
+  while (a.missingSandal && alive(a, token)) await wait(200);
+  a.waitSandal = false;
+  return alive(a, token);
 }
 
 // Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn
@@ -538,6 +553,11 @@ function wireNet(n) {
   n.on('sandal-taken', (m) => {
     if (m.id === n.welcome.id) {
       if (player.missingSandal) return;
+      if (!rack.has('me')) {
+        // dép đã mang vào chân trước khi tin tới: coi như không lấy được, trả lại ngay
+        n.send({ t: 'sandal-return' });
+        return;
+      }
       player.missingSandal = true;
       rack.takeOne('me');
       const by = avatars.get('n' + m.by);
@@ -753,7 +773,7 @@ function goQueued() {
 // Gỡ kẹt: nếu đoạn mang / cởi dép đứng yên quá lâu (bị ngắt giữa chừng), trả nhân vật về trạng thái bình thường
 let scriptStill = 0;
 function scriptWatchdog(dt) {
-  if (!player.script || intro || player.moving || player.busy || player.action) {
+  if (!player.script || intro || player.waitSandal || player.moving || player.busy || player.action) {
     scriptStill = 0;
     return;
   }
