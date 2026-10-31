@@ -190,6 +190,7 @@ wss.on('connection', (ws, req) => {
   ws.on('pong', () => (ws.isAlive = true));
   const refill = setInterval(() => (tokens = Math.min(20, tokens + 5)), 1000);
   let bellTimes = []; // phát hiện thỉnh chuông dồn dập
+  let lastChat = 0;
 
   ws.on('message', (buf) => {
     if (--tokens < 0) return; // giới hạn tốc độ
@@ -284,6 +285,13 @@ wss.on('connection', (ws, req) => {
       if (!me.missing) return;
       me.missing = false;
       broadcast(roomId, { t: 'sandal-returned', id: me.id }, me.id);
+    } else if (m.t === 'chat') {
+      // lời chat hiện trên đầu người nói; tối đa 80 ký tự, cách nhau ít nhất 1 giây
+      const text = String(m.text ?? '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      const now = Date.now();
+      if (!text || now - lastChat < 1000) return;
+      lastChat = now;
+      broadcast(roomId, { t: 'chat', id: me.id, text }, me.id);
     } else if (m.t === 'name') {
       me.name = clean(m.name);
       const p = profiles.get(uid);

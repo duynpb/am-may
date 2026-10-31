@@ -127,6 +127,7 @@ function removeAvatar(id) {
   a.script = null;
   a.dispose();
   a.bubbleEl?.remove();
+  a.chatEl?.remove();
   a.nameEl?.remove();
   avatars.delete(id);
   rack.release(id);
@@ -158,6 +159,19 @@ function bubble(a, action, ms = 2600) {
   a.bubbleEl.textContent = settings.showNames ? action : `${a.name} · ${action}`;
   a.bubbleEl.classList.remove('hidden');
   a.bubbleUntil = performance.now() + ms;
+}
+
+// Lời chat hiện trên đầu người nói trong 5 giây
+const CHAT_MS = 5000;
+function chatBubble(a, text) {
+  if (!a.chatEl) {
+    a.chatEl = document.createElement('div');
+    a.chatEl.className = 'label chat hidden';
+    labelsEl.append(a.chatEl);
+  }
+  a.chatEl.textContent = a === player || settings.showNames ? text : `${a.name}: ${text}`;
+  a.chatEl.classList.remove('hidden');
+  a.chatUntil = performance.now() + CHAT_MS;
 }
 
 function seatTaken(index, except) {
@@ -571,6 +585,10 @@ function wireNet(n) {
     if (a && !a.leaving) offerMerit(a);
   });
   n.on('karma', (m) => showGain(m.entry));
+  n.on('chat', (m) => {
+    const a = avatars.get('n' + m.id);
+    if (a) chatBubble(a, m.text);
+  });
   n.on('sandal-taken', (m) => {
     if (m.id === n.welcome.id) {
       if (player.missingSandal) return;
@@ -1456,11 +1474,39 @@ window.addEventListener('keydown', (e) => {
     sound.init();
     hideHint();
   }
+  if (k === 'enter') {
+    e.preventDefault();
+    chatInput.focus();
+    return;
+  }
   if ((k === 'g' || k === 'b') && intro) skipIntro();
   if (k === 'g') doGassho();
   if (k === 'b') doBow();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+// Ô chat ở góc: Enter để gửi, lời chat hiện trên đầu mình 5 giây
+const chatForm = $('#chat');
+const chatInput = $('#chat-input');
+let lastChat = 0;
+if (isCoarse) chatInput.placeholder = 'Nhắn gì đó…';
+chatInput.addEventListener('focus', () => keys.clear());
+canvas.addEventListener('pointerdown', () => chatInput.blur());
+chatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') chatInput.blur();
+});
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = chatInput.value.replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!text) return chatInput.blur();
+  const now = performance.now();
+  if (now - lastChat < 1200) return toast('Bạn chat nhanh quá, chờ một chút nhé', 1500);
+  lastChat = now;
+  chatInput.value = '';
+  chatInput.blur();
+  chatBubble(player, text);
+  net?.send({ t: 'chat', text });
+});
 window.addEventListener('blur', () => keys.clear());
 
 let keySendT = 0;
@@ -1523,15 +1569,22 @@ function updateLabels(now) {
   placeLabel(player.labelEl, player);
   updateGains(now);
   for (const a of avatars.values()) {
-    if (a === player) continue;
-    if (a.nameEl) {
+    // nhãn tên của mình luôn hiện; của người khác tùy cài đặt
+    let lift = a === player || settings.showNames ? 26 : 0;
+    if (a !== player && a.nameEl) {
       a.nameEl.hidden = !settings.showNames;
       if (settings.showNames) placeLabel(a.nameEl, a, { fade: true });
     }
-    if (!a.bubbleEl) continue;
-    if (now > a.bubbleUntil) a.bubbleEl.classList.add('hidden');
-    // khi đang hiện pháp danh, bong bóng hành động nằm ngay trên nhãn tên
-    placeLabel(a.bubbleEl, a, { lift: settings.showNames ? 26 : 0, fade: true });
+    if (a !== player && a.bubbleEl) {
+      if (now > a.bubbleUntil) a.bubbleEl.classList.add('hidden');
+      // khi đang hiện pháp danh, bong bóng hành động nằm ngay trên nhãn tên
+      placeLabel(a.bubbleEl, a, { lift, fade: true });
+      if (now <= a.bubbleUntil) lift += 28;
+    }
+    if (a.chatEl) {
+      if (now > a.chatUntil) a.chatEl.classList.add('hidden');
+      else placeLabel(a.chatEl, a, { lift: lift + 4, fade: a !== player });
+    }
   }
 }
 

@@ -48,6 +48,7 @@ public/
 | Đi lại | Chạm / nhấp sàn, hoặc W A S D |
 | Ngồi | Chạm vào bồ đoàn trống |
 | Nhìn quanh, phóng to | Kéo; lăn chuột hoặc chụm hai ngón |
+| Chat | Gõ vào ô chat ở góc dưới bên trái (máy tính: nhấn Enter để mở ô chat, Enter để gửi, Esc để thoát). Lời chat hiện thành bong bóng trên đầu mình trong 5 giây, mọi người trong cùng chánh điện đều thấy. Tối đa 80 ký tự, mỗi lần cách nhau ít nhất 1 giây |
 | Chắp tay | Nút “Chắp tay” hoặc chạm vào người khác để chào |
 | Lạy Phật | Nút “Lạy Phật” (có tiếng chuông) |
 | Khu cầu nguyện ngoài sân | Chạm xuống sân để ra ngoài: nhân vật tự đến chỗ để dép trên thềm, mang dép rồi ra sân; chạm vào trong chánh điện để vào lại (tự cởi dép, xếp ngay ngắn). Ngoài sân có tượng Quan Âm Bồ Tát đứng trên tòa sen, lư hương đá, hồ sen có cá koi, đèn đá, bụi cây, bồn hoa, cây hoa sứ. Khi đang ở ngoài sân, nút Thắp nhang sẽ dâng nhang lên Quan Âm |

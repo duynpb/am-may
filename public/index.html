@@ -74,6 +74,14 @@
   <div id="chant-caption" class="chant-caption" hidden></div>
   <p id="hint" class="hint"></p>
 
+  <form id="chat" class="chat-box pill" autocomplete="off">
+    <svg viewBox="0 0 24 24"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-8l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5Z"/></svg>
+    <input id="chat-input" type="text" maxlength="80" enterkeyhint="send" placeholder="Nhắn gì đó… (Enter)" aria-label="Chat">
+    <button type="submit" class="icon-btn" aria-label="Gửi">
+      <svg viewBox="0 0 24 24"><path d="M4 12 20 4.5 15.5 20l-3.5-6.5Z"/><path d="m12 13.5 8-9"/></svg>
+    </button>
+  </form>
+
   <nav class="actions pill" aria-label="Hành động">
     <button data-act="gassho">
       <svg viewBox="0 0 24 24"><path d="M12 3.5c-1 1.6-1.5 4-1.5 7.2V20M12 3.5c1 1.6 1.5 4 1.5 7.2V20"/><path d="M10.5 12 7 15.5V20M13.5 12l3.5 3.5V20"/></svg>

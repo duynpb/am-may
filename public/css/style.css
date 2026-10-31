@@ -97,6 +97,19 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .chant-caption span.on { transform: translateY(-2px) scale(1.14); }
 .chant-caption span.on::after { text-shadow: 0 0 14px rgba(255, 210, 120, 0.9), 0 0 2px rgba(255, 240, 200, 0.9); }
 
+/* ---------- Ô chat ở góc ---------- */
+.chat-box {
+  position: absolute; z-index: 5; left: calc(14px + var(--sal)); bottom: calc(18px + var(--sab));
+  width: 280px; height: 44px; padding: 0 4px 0 14px; gap: 8px; color: var(--muted);
+}
+.chat-box:focus-within { background: var(--glass-hover); color: var(--text); }
+.chat-box input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: none;
+  font: inherit; font-size: 14px; color: var(--text); user-select: text; -webkit-user-select: text;
+}
+.chat-box input::placeholder { color: var(--muted); }
+.chat-box .icon-btn { width: 34px; height: 34px; color: var(--accent); }
+
 /* ---------- Thanh hành động ---------- */
 .actions {
   position: absolute; z-index: 5; left: 50%; bottom: calc(18px + var(--sab)); transform: translateX(-50%);
@@ -128,6 +141,17 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   background: rgba(30, 28, 23, 0.45); box-shadow: none;
 }
 #labels .label { transform-origin: 50% 100%; }
+/* lời chat trên đầu: bong bóng thoại có đuôi */
+.label.chat {
+  display: block; white-space: normal; max-width: 220px; width: max-content; overflow-wrap: anywhere;
+  padding: 6px 11px; border-radius: 14px; font-size: 12.5px; line-height: 1.35; text-align: center;
+  color: var(--ink); background: rgba(255, 253, 248, 0.96); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+.label.chat::after {
+  content: ''; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px;
+  background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 2px 0;
+}
+.label.chat.hidden { display: none; }
 /* bấm vào pháp danh để xem hồ sơ */
 #labels .label.name, #labels .label.me { pointer-events: auto; cursor: pointer; }
 #labels .label.name:hover { background: rgba(30, 28, 23, 0.7); }
@@ -305,8 +329,17 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 @keyframes dot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
 .loader.done { opacity: 0; pointer-events: none; }
 
+/* màn hình vừa: thanh hành động ở giữa chiếm chỗ, ô chat lên phía trên */
+@media (max-width: 1000px) {
+  .chat-box { bottom: calc(100px + var(--sab)); }
+  .hint { bottom: calc(156px + var(--sab)); }
+  .chant-caption { bottom: calc(158px + var(--sab)); }
+}
+
 /* ---------- Điện thoại ---------- */
 @media (max-width: 600px) {
+  .chat-box { left: calc(12px + var(--sal)); right: calc(12px + var(--sar)); width: auto; height: 40px; bottom: calc(88px + var(--sab)); }
+  .chat-box input { font-size: 16px; } /* 16px: iPhone không tự phóng to khi gõ */
   .hud-tl { top: calc(10px + var(--sat)); left: calc(10px + var(--sal)); gap: 6px; }
   .hud-tr { top: calc(10px + var(--sat)); right: calc(10px + var(--sar)); gap: 8px; }
   .round { width: 40px; height: 40px; }
@@ -319,8 +352,8 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   .actions { left: 12px; right: 12px; transform: none; justify-content: space-between; bottom: calc(12px + var(--sab)); }
   .actions button { flex: 1; min-width: 0; padding: 8px 2px 7px; font-size: 11px; white-space: nowrap; }
   .actions button svg { width: 22px; height: 22px; }
-  .hint { bottom: calc(96px + var(--sab)); font-size: 11.5px; white-space: normal; text-align: center; width: calc(100% - 40px); }
-  .chant-caption { bottom: calc(100px + var(--sab)); font-size: 15px; gap: 7px; padding: 6px 14px; }
+  .hint { bottom: calc(138px + var(--sab)); font-size: 11.5px; white-space: normal; text-align: center; width: calc(100% - 40px); }
+  .chant-caption { bottom: calc(140px + var(--sab)); font-size: 15px; gap: 7px; padding: 6px 14px; }
   .toast { top: calc(100px + var(--sat)); font-size: 13px; }
   .room-grid { grid-template-columns: 1fr; }
   .modal { place-items: end center; padding: 0; }
