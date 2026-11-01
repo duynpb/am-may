@@ -6,6 +6,7 @@ import * as T from './textures.js';
 import { makeBuddha } from './buddha.js';
 import { makeQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
+import { makeLaHanGeometries } from './lahan.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -18,12 +19,24 @@ export const COURTYARD = new THREE.Vector3(0, PORCH.courtY, 31);
 export const GARDEN = { minX: -16, maxX: 16, minZ: 22.4, maxZ: 39 };
 // Cổng Tam Quan ở cuối trục đường chính, nhìn thẳng vào chánh điện
 export const GATE = { z: 84, plazaZ: 92 };
-// Các vùng đi lại được ngoài chánh điện (hình chữ nhật, nối liền nhau)
+// Hai dãy hành lang La Hán dọc hai bên trục đường (x dương và âm), nền cao hơn sân
+export const CORRIDOR = { x0: 13.2, x1: 18, z0: 43.6, z1: 80.4, floor: 0.3 };
+// Giếng Ngọc giữa trục đường, có sân tròn đi vòng quanh
+export const WELL = { x: 0, z: 62, r: 2.7 };
+// Các vùng đi lại được ngoài chánh điện (hình chữ nhật). Hai vùng chồng lên nhau là đi qua lại được.
 export const WALK_AREAS = [
   GARDEN,
   { minX: -3.4, maxX: 3.4, minZ: 38, maxZ: GATE.z - 1.4 }, // trục đường chính
   { minX: -1.6, maxX: 1.6, minZ: GATE.z - 2, maxZ: GATE.z + 2 }, // lối qua cửa giữa cổng Tam Quan
   { minX: -12, maxX: 12, minZ: GATE.z + 1.6, maxZ: 99 }, // sân trước cổng
+  { minX: -5, maxX: 5, minZ: WELL.z - 5, maxZ: WELL.z + 5 }, // sân giếng Ngọc
+  ...[-1, 1].flatMap((s) => {
+    const xr = (a, b) => (s > 0 ? { minX: a, maxX: b } : { minX: -b, maxX: -a });
+    return [
+      { ...xr(13.6, 15.4), minZ: 38.5, maxZ: 80.6 }, // lối đi trong hành lang La Hán
+      { ...xr(3.2, 13.8), minZ: 79, maxZ: 81 }, // lối ngang nối trục đường với cuối hành lang
+    ];
+  }),
 ];
 // Tháp 13 tầng phía bên kia sân, đối diện tượng Quan Âm. Mỗi tầng nhỏ và thấp dần lên trên.
 const TOWER_LEVELS = Array.from({ length: 13 }, (_, i) => ({ r: 3.3 - i * 0.08, h: 2.0 - i * 0.03 }));
@@ -46,6 +59,7 @@ export const TOWER = (() => {
 })();
 
 export function groundY(x, z) {
+  if (z > CORRIDOR.z0 && z < CORRIDOR.z1 && Math.abs(x) > CORRIDOR.x0 && Math.abs(x) < CORRIDOR.x1) return PORCH.courtY + CORRIDOR.floor;
   if (z > 24 && z < 36) {
     const d = Math.hypot(x - TOWER.x, z - TOWER.z);
     if (d < TOWER.topR) return TOWER.topY;
@@ -160,7 +174,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const side = i % 2 ? 1 : -1;
       spots.push([side * rnd(16.6, 30), rnd(-26, 28)]);
     }
-    for (let i = 0; i < 24; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(8, 28), rnd(42, 52)]);
+    for (let i = 0; i < 44; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(19.5, 30), rnd(36, 82)]);
     const stalkGeo = new THREE.CylinderGeometry(0.07, 0.1, 11, 6);
     stalkGeo.translate(0, 5.5, 0);
     const stalks = new THREE.InstancedMesh(stalkGeo, std('#7d9a4c', { roughness: 0.6 }), spots.length);
@@ -925,22 +939,133 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     pickables.push(road);
     // viền đá hai bên đường
     for (const s of [-1, 1]) box(0.25, 0.12, roadLen, stoneL, s * 3.62, GY + 0.06, 39.4 + roadLen / 2);
-    // đèn đá và cây xanh xen nhau dọc đường
+    // đèn đá dọc đường (tránh sân giếng Ngọc và lối ngang sang hành lang)
+    for (const z of [45, 51, 72, 77]) for (const s of [-1, 1]) stoneLantern(s * 4.6, z);
+    // cây xanh hai góc sân trước cổng
     const trunkM = std('#5e4a38', { roughness: 0.9 });
-    for (let z = 44; z < GATE.z - 4; z += 9) {
-      for (const s of [-1, 1]) {
-        stoneLantern(s * 4.6, z);
-        const tx = s * 7.2, tz = z + 4.5;
-        mesh(new THREE.CylinderGeometry(0.16, 0.24, 2.4, 8), trunkM, tx, GY + 1.2, tz);
-        mesh(new THREE.SphereGeometry(1.5, 14, 10), leafM, tx, GY + 3.2, tz).scale.set(1, 0.8, 1);
-        mesh(new THREE.SphereGeometry(1.1, 12, 9), leafD, tx + s * 0.5, GY + 3.9, tz - 0.4);
-      }
+    for (const [tx, tz] of [[-10, 95.5], [10, 95.5], [-10, 88.5], [10, 88.5]]) {
+      mesh(new THREE.CylinderGeometry(0.16, 0.24, 2.4, 8), trunkM, tx, GY + 1.2, tz);
+      mesh(new THREE.SphereGeometry(1.5, 14, 10), leafM, tx, GY + 3.2, tz).scale.set(1, 0.8, 1);
+      mesh(new THREE.SphereGeometry(1.1, 12, 9), leafD, tx + Math.sign(tx) * 0.5, GY + 3.9, tz - 0.4);
+      obstacles.push({ x: tx, z: tz, r: 0.5 });
     }
     // sân trước cổng
     const plaza = mesh(new THREE.PlaneGeometry(26, 14), std('#a39a88', { roughness: 1 }), 0, GY + 0.006, GATE.plazaZ, { cast: false });
     plaza.rotation.x = -Math.PI / 2;
     plaza.userData.kind = 'ground';
     pickables.push(plaza);
+  }
+
+  // ---------- Hai hồ sen giữa trục đường và hành lang ----------
+  const waterM = std('#3d6a72', { roughness: 0.15, metalness: 0.1 });
+  const lotusLeafM = std('#4f8a3c', { roughness: 0.7, side: THREE.DoubleSide });
+  const lotusM = std('#f3a3b6', { roughness: 0.6 });
+  for (const s of [-1, 1]) {
+    const cx = s * 9.2, cz = 61, rx = 3.6, rz = 16;
+    const rim = mesh(new THREE.CircleGeometry(1, 48), stoneL, cx, GY + 0.012, cz, { cast: false });
+    rim.scale.set(rx + 0.45, rz + 0.45, 1);
+    rim.rotation.x = -Math.PI / 2;
+    const water = mesh(new THREE.CircleGeometry(1, 48), waterM, cx, GY + 0.03, cz, { cast: false });
+    water.scale.set(rx, rz, 1);
+    water.rotation.x = -Math.PI / 2;
+    // lá sen và hoa sen nổi trên mặt hồ
+    const n = 46;
+    const leaves = new THREE.InstancedMesh(new THREE.CircleGeometry(0.42, 14, 0.35, Math.PI * 2 - 0.35).rotateX(-Math.PI / 2), lotusLeafM, n);
+    const flowers = new THREE.InstancedMesh(new THREE.ConeGeometry(0.16, 0.26, 8).translate(0, 0.13, 0), lotusM, 12);
+    const o = new THREE.Object3D();
+    for (let i = 0; i < n; i++) {
+      const a = rnd(0, 6.28), r = Math.sqrt(Math.random()) * 0.85;
+      o.position.set(cx + Math.cos(a) * r * rx, GY + 0.045, cz + Math.sin(a) * r * rz);
+      o.rotation.set(0, rnd(0, 6.28), 0);
+      o.scale.setScalar(rnd(0.7, 1.3));
+      o.updateMatrix();
+      leaves.setMatrixAt(i, o.matrix);
+      if (i < 12) {
+        o.position.y = GY + 0.06;
+        o.scale.setScalar(rnd(0.8, 1.1));
+        o.updateMatrix();
+        flowers.setMatrixAt(i, o.matrix);
+      }
+    }
+    scene.add(leaves, flowers);
+  }
+
+  // ---------- Giếng Ngọc: giếng tròn lớn, thành đá có lan can, nước xanh ngọc ----------
+  {
+    const { x: wx, z: wz, r } = WELL;
+    const disc = mesh(new THREE.CircleGeometry(5.6, 40), std('#b3aa98', { roughness: 1 }), wx, GY + 0.009, wz, { cast: false });
+    disc.rotation.x = -Math.PI / 2;
+    disc.userData.kind = 'ground';
+    pickables.push(disc);
+    const jade = mesh(new THREE.CircleGeometry(r - 0.15, 40), std('#1f6a62', { roughness: 0.45, envMapIntensity: 0.4 }), wx, GY + 0.35, wz, { cast: false });
+    jade.rotation.x = -Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(r + 0.1, r + 0.18, 0.5, 40, 1, true), stoneL, wx, GY + 0.25, wz).material.side = THREE.DoubleSide;
+    mesh(new THREE.TorusGeometry(r + 0.12, 0.09, 8, 48).rotateX(Math.PI / 2), stoneM, wx, GY + 0.52, wz);
+    // lan can đá: trụ nhỏ quanh thành giếng, tay vịn tròn
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2;
+      box(0.1, 0.42, 0.1, stoneL, wx + Math.cos(a) * (r + 0.12), GY + 0.74, wz + Math.sin(a) * (r + 0.12));
+    }
+    mesh(new THREE.TorusGeometry(r + 0.12, 0.05, 6, 48).rotateX(Math.PI / 2), stoneL, wx, GY + 0.96, wz);
+    // đài sen đá giữa giếng
+    cyl(0.35, 0.45, 0.3, stoneL, wx, GY + 0.45, wz);
+    mesh(new THREE.SphereGeometry(0.32, 14, 10), stoneL, wx, GY + 0.72, wz).scale.y = 0.6;
+    obstacles.push({ x: wx, z: wz, r: r + 0.5 });
+  }
+
+  // ---------- Hai dãy hành lang La Hán: mái ngói, cột son, tượng La Hán đá hai hàng ----------
+  {
+    const C = CORRIDOR, len = C.z1 - C.z0, cz = (C.z0 + C.z1) / 2;
+    const colM = std('#9c2a1c', { roughness: 0.55 });
+    const tileM = std('#6a3426', { roughness: 0.75 });
+    const wallM = std('#e6dcc6', { roughness: 0.9 });
+    const ceilM = std('#5b3a24', { roughness: 0.7 });
+    // tượng: hai hàng (hàng sau cao hơn), ba tư thế xen kẽ; máy yếu chỉ dựng hàng trước
+    const geos = makeLaHanGeometries({ step: quality === 'high' ? 0.036 : 0.05 });
+    const statueM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+    const spots = [];
+    for (const s of [-1, 1]) {
+      const xFront = s * 15.9, xBack = s * 16.95;
+      // nền, tường hậu, trần, mái
+      box(C.x1 - C.x0, C.floor, len, stoneL, s * (C.x0 + C.x1) / 2, GY + C.floor / 2, cz);
+      box(0.3, 3.2, len, wallM, s * (C.x1 - 0.15), GY + C.floor + 1.6, cz);
+      box(C.x1 - C.x0 + 0.2, 0.08, len + 0.2, ceilM, s * (C.x0 + C.x1) / 2, GY + 3.42, cz, { cast: false });
+      const roof = new THREE.Mesh(new THREE.CylinderGeometry(Math.SQRT1_2 * 0.4, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4), tileM);
+      roof.scale.set(C.x1 - C.x0 + 1.6, 1.5, len + 1.6);
+      roof.position.set(s * (C.x0 + C.x1) / 2, GY + 3.46 + 0.75, cz);
+      roof.castShadow = roof.receiveShadow = true;
+      scene.add(roof);
+      box(0.18, 0.18, len * 0.4, colM, s * (C.x0 + C.x1) / 2, GY + 4.98, cz);
+      // cột son phía trông ra hồ
+      for (let z = C.z0 + 0.3; z <= C.z1 - 0.2; z += 3) cyl(0.17, 0.19, 3.1, colM, s * (C.x0 + 0.2), GY + C.floor + 1.55, z, {}, 12);
+      // bậc tượng: hàng trước thấp, hàng sau cao
+      box(0.9, 0.3, len - 1, stoneM, xFront, GY + C.floor + 0.15, cz);
+      box(0.9, 0.75, len - 1, stoneM, xBack, GY + C.floor + 0.375, cz);
+      for (let z = C.z0 + 1.2; z <= C.z1 - 1.2; z += 1.12) {
+        spots.push([xFront, GY + C.floor + 0.3, z, s]);
+        if (quality === 'high') spots.push([xBack, GY + C.floor + 0.75, z + 0.56, s]);
+      }
+      // biển hành lang ở đầu phía sân chùa
+      const bz = C.z0 - 0.05;
+      box(3.0, 0.8, 0.06, M.gold, s * (C.x0 + C.x1) / 2, GY + 3.0, bz, { cast: false });
+      mesh(new THREE.PlaneGeometry(2.8, 0.66), boardMat(['HÀNH LANG LA HÁN'], { w: 1024, h: 240, size: 96 }), s * (C.x0 + C.x1) / 2, GY + 3.0, bz - 0.04, { cast: false }).rotation.y = Math.PI;
+    }
+    const o = new THREE.Object3D();
+    const tint = new THREE.Color();
+    geos.forEach((g, v) => {
+      const mine = spots.filter((_, i) => i % 3 === v);
+      const inst = new THREE.InstancedMesh(g, statueM, mine.length);
+      mine.forEach(([x, y, z, s], i) => {
+        o.position.set(x, y, z);
+        o.rotation.set(0, -s * Math.PI / 2 + rnd(-0.12, 0.12), 0);
+        o.scale.setScalar(rnd(0.95, 1.08));
+        o.updateMatrix();
+        inst.setMatrixAt(i, o.matrix);
+        inst.setColorAt(i, tint.setHSL(0.1, rnd(0.02, 0.1), rnd(0.82, 1)));
+      });
+      inst.receiveShadow = true;
+      scene.add(inst);
+    });
   }
 
   // ---------- Cổng Tam Quan: cửa giữa hai tầng mái, hai cửa bên một tầng mái ----------

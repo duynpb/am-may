@@ -31,6 +31,7 @@ public/
   js/world.js        Dựng chánh điện, tượng Phật, bàn thờ, chuông trống, cảnh tre núi, ánh sáng
   js/buddha.js       Tượng Phật trong chánh điện (tạc bằng SDF), công cụ tạc dùng chung
   js/quanam.js       Tượng Quan Âm đứng trên tòa sen ở khu cầu nguyện ngoài sân
+  js/lahan.js        Tượng La Hán đá (ba tư thế, vẽ hàng loạt)
   js/sandals.js      Dép và hàng dép trên thềm
   js/leaves.js       Lá rơi trên sân và chổi tre quét lá
   js/karma.js        Quy tắc điểm phước / nghiệp
@@ -53,7 +54,8 @@ public/
 | Chắp tay | Nút “Chắp tay” hoặc chạm vào người khác để chào |
 | Lạy Phật | Nút “Lạy Phật” (có tiếng chuông) |
 | Khu cầu nguyện ngoài sân | Chạm xuống sân để ra ngoài: nhân vật tự đến chỗ để dép trên thềm, mang dép rồi ra sân; chạm vào trong chánh điện để vào lại (tự cởi dép, xếp ngay ngắn). Ngoài sân có tượng Quan Âm Bồ Tát đứng trên tòa sen, lư hương đá, hồ sen có cá koi, đèn đá, bụi cây, bồn hoa, cây hoa sứ. Khi đang ở ngoài sân, nút Thắp nhang sẽ dâng nhang lên Quan Âm |
-| Khuôn viên và bản đồ | Từ sân chùa có trục đường chính lát đá, hai bên đèn đá và cây xanh, dẫn ra cổng Tam Quan (cửa giữa hai tầng mái có biển AM MÂY TỰ, hai cửa bên, sư tử đá, tường bao) và sân trước cổng. Nút bản đồ ở góc phải mở sơ đồ chùa: thấy mình và mọi người đang ở đâu, chạm tên một nơi (Chánh điện, Sân Quan Âm, Tháp 13 tầng, Cổng Tam Quan) để đi nhanh tới đó; tự mang hoặc cởi dép khi cần |
+| Khuôn viên và bản đồ | Từ sân chùa có trục đường chính lát đá, hai bên đèn đá và cây xanh, dẫn ra cổng Tam Quan (cửa giữa hai tầng mái có biển AM MÂY TỰ, hai cửa bên, sư tử đá, tường bao) và sân trước cổng. Nút bản đồ ở góc phải mở sơ đồ chùa: thấy mình và mọi người đang ở đâu, chạm tên một nơi (Chánh điện, Sân Quan Âm, Tháp 13 tầng, Hành lang La Hán, Giếng Ngọc, Cổng Tam Quan) để đi nhanh tới đó; tự mang hoặc cởi dép khi cần |
+| Hành lang La Hán, hồ sen, giếng Ngọc | Hai dãy hành lang mái ngói cột son chạy dọc hai bên trục đường, mỗi dãy hai hàng tượng La Hán đá với ba tư thế (thiền định, giơ tay, chống gối cười); vào từ phía sân chùa hoặc lối ngang gần cổng. Giữa trục đường và hành lang là hai hồ sen; giữa trục đường là giếng Ngọc tròn có lan can đá, đi vòng quanh được. Nhân vật tự tìm đường giữa các khu và đi vòng qua giếng, bệ tượng Quan Âm, chân tháp. Đồ họa Nhẹ chỉ dựng hàng tượng trước |
 | Tháp 13 tầng | Phía bên kia sân, đối diện tượng Quan Âm, có tháp bát giác 13 tầng với thảm cỏ, đường đá, đèn đá, chậu cây cảnh, cây tùng. Chạm vào tháp để vào cửa và lên tầng 13: điện thờ mở bốn phía có tượng Phật như trong chánh điện, nến và lư hương; có thể lạy Phật, thắp nhang và ngắm toàn cảnh chùa. Chạm xuống sân hoặc vào chánh điện để xuống tháp. Ban đêm cửa sổ các tầng sáng đèn |
 | Quét sân chùa | Lá rụng dần trên sân, mọi người trong cùng chánh điện thấy chung. Chạm vào giá chổi tre ở góc sân (cạnh thềm, gần đèn đá) để đến lấy chổi; cầm chổi đi tới đâu lá bay đi tới đó. Chạm lại vào giá để cất chổi; đi vào chánh điện thì chổi tự được cất |
 | Lấy dép (đùa vui) | Bấm vào dép của người khác trên thềm để lấy đi một chiếc. Người bị mất dép vẫn đi lại trong chánh điện bình thường; khi muốn ra sân sẽ bị chặn với thông báo "Phật tử đã bị mất dép" và phải chờ 10 giây (chỉ bắt đầu đếm khi định ra ngoài) để dép được trả lại |

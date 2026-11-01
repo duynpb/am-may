@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
@@ -203,20 +203,79 @@ function clampZone(zone, x, z) {
   return world.pushOut(...best);
 }
 
-// Ngoài sân, các khu nối nhau thành một chuỗi: sân chùa → trục đường → cửa giữa cổng → sân trước cổng.
-// Đi từ khu này sang khu khác thì qua các điểm nối, không đi xuyên tường cổng.
-const LINKS = [{ z: 38.7, x: 3.0 }, { z: 82.4, x: 1.3 }, { z: 85.8, x: 1.3 }];
-const segOf = (z) => (z < LINKS[0].z ? 0 : z < LINKS[1].z ? 1 : z < LINKS[2].z ? 2 : 3);
-function routeOut(fx, fz, tx, tz) {
-  const pts = [];
-  let i = segOf(fz), cx = fx;
-  const j = segOf(tz);
-  while (i !== j) {
-    const L = LINKS[i < j ? i : i - 1];
-    cx = clamp(cx, -L.x, L.x);
-    pts.push([cx, L.z]);
-    i += i < j ? 1 : -1;
+// Ngoài sân, các khu (sân chùa, trục đường, cổng, sân trước cổng, sân giếng, hành lang…) là các hình chữ nhật;
+// hai khu chồng lên nhau ở đâu thì đó là chỗ đi qua lại. Đi xa thì tìm chuỗi khu ngắn nhất rồi đi qua các chỗ nối,
+// gặp giếng Ngọc, bệ tượng Quan Âm hay chân tháp thì đi vòng.
+const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
+const PORTALS = WALK_AREAS.map((a, i) => WALK_AREAS.map((b, j) => {
+  if (i === j) return null;
+  const r = { minX: Math.max(a.minX, b.minX), maxX: Math.min(a.maxX, b.maxX), minZ: Math.max(a.minZ, b.minZ), maxZ: Math.min(a.maxZ, b.maxZ) };
+  return r.minX <= r.maxX && r.minZ <= r.maxZ ? r : null;
+}));
+function areaOf(x, z) {
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < WALK_AREAS.length; i++) {
+    const r = WALK_AREAS[i];
+    if (inRect(r, x, z)) return i;
+    const d = Math.hypot(x - clamp(x, r.minX, r.maxX), z - clamp(z, r.minZ, r.maxZ));
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
   }
+  return best;
+}
+const ROUND_OBSTACLES = [
+  { x: WELL.x, z: WELL.z, r: WELL.r + 0.9 },
+  { x: 10.6, z: 29.4, r: 3.0 }, // bệ tượng Quan Âm
+  { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
+];
+// Đoạn thẳng a → b cắt qua chướng ngại tròn thì chèn điểm vòng qua bên cạnh
+function detour(ax, az, bx, bz, depth = 0) {
+  if (depth > 2) return [];
+  for (const o of ROUND_OBSTACLES) {
+    if (Math.hypot(ax - o.x, az - o.z) < o.r || Math.hypot(bx - o.x, bz - o.z) < o.r) continue;
+    const dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz || 1;
+    const t = clamp(((o.x - ax) * dx + (o.z - az) * dz) / L, 0, 1);
+    const cx = ax + dx * t, cz = az + dz * t;
+    let nx = cx - o.x, nz = cz - o.z;
+    const d = Math.hypot(nx, nz);
+    if (d >= o.r) continue;
+    if (d < 1e-3) [nx, nz] = [-dz, dx];
+    const n = Math.hypot(nx, nz);
+    const w = [o.x + (nx / n) * (o.r + 0.3), o.z + (nz / n) * (o.r + 0.3)];
+    return [...detour(ax, az, w[0], w[1], depth + 1), w, ...detour(w[0], w[1], bx, bz, depth + 1)];
+  }
+  return [];
+}
+function routeOut(fx, fz, tx, tz) {
+  const s = areaOf(fx, fz), t = areaOf(tx, tz);
+  // tìm chuỗi khu ngắn nhất (BFS)
+  const prev = new Array(WALK_AREAS.length).fill(-1);
+  prev[s] = s;
+  const queue = [s];
+  while (queue.length && prev[t] < 0) {
+    const i = queue.shift();
+    PORTALS[i].forEach((p, j) => {
+      if (p && prev[j] < 0) {
+        prev[j] = i;
+        queue.push(j);
+      }
+    });
+  }
+  const chain = [];
+  for (let i = t; prev[i] >= 0 && i !== s; i = prev[i]) chain.unshift(i);
+  // qua chỗ nối giữa hai khu liên tiếp, thu vào trong 0,3 m cho khỏi sát mép
+  const pts = [];
+  let cx = fx, cz = fz, from = s;
+  for (const to of chain) {
+    const p = PORTALS[from][to];
+    const px = clamp(cx, Math.min(p.minX + 0.3, (p.minX + p.maxX) / 2), Math.max(p.maxX - 0.3, (p.minX + p.maxX) / 2));
+    const pz = clamp(cz, Math.min(p.minZ + 0.3, (p.minZ + p.maxZ) / 2), Math.max(p.maxZ - 0.3, (p.minZ + p.maxZ) / 2));
+    pts.push(...detour(cx, cz, px, pz), [px, pz]);
+    [cx, cz, from] = [px, pz, to];
+  }
+  pts.push(...detour(cx, cz, tx, tz));
   return pts;
 }
 // Đi theo tuyến tới (x, z); xong khi tới nơi (true), bị lệnh đi khác chen ngang thì false
@@ -1012,11 +1071,13 @@ const PLACES = [
   { id: 'hall', name: 'Chánh điện', x: 0, z: 9 },
   { id: 'quanam', name: 'Sân Quan Âm', x: world.quanAm.front.x, z: world.quanAm.front.z },
   { id: 'tower', name: 'Tháp 13 tầng', x: TOWER.arrive.x, z: TOWER.arrive.z },
+  { id: 'lahan', name: 'Hành lang La Hán', x: 14.5, z: 46, ry: Math.PI / 2 },
+  { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
 ];
 
 // Hiện ngay ở chỗ mới: tự mang / cởi dép nếu đổi giữa trong và ngoài chánh điện
-function warpPlace(a, x, z) {
+function warpPlace(a, x, z, ry = null) {
   const to = zoneOf(z), from = zoneOfA(a);
   a.script = null;
   a.route = null;
@@ -1033,7 +1094,8 @@ function warpPlace(a, x, z) {
   }
   a.zone = to;
   a.placeAt(x, z, Math.PI);
-  if (z < GATE.z) a.ry = faceShrineRy(a);
+  if (ry != null) a.ry = ry;
+  else if (z < GATE.z && z < 40) a.ry = faceShrineRy(a);
 }
 
 let traveling = false;
@@ -1060,7 +1122,7 @@ async function quickTravel(p) {
   traveling = true;
   await fadeTo(true, `Đang đến ${p.name}…`);
   if (zoneOf(p.z) === 'in' && player.hasBroom) setBroom(false);
-  warpPlace(player, p.x, p.z);
+  warpPlace(player, p.x, p.z, p.ry);
   cam.target.set(player.root.position.x, player.root.position.y + 1.1, player.root.position.z);
   cam.yaw = player.ry + Math.PI; // camera sau lưng, nhìn theo hướng nhân vật
   net?.send({ t: 'move', x: +p.x.toFixed(2), z: +p.z.toFixed(2), seat: null, w: 1 });
@@ -1089,6 +1151,13 @@ function buildMap() {
   rect(-17, 17, 22.4, 39.5, 'm-stone'); // sân chùa
   rect(-3.5, 3.5, 39.4, GATE.z, 'm-stone'); // trục đường
   rect(-13, 13, GATE.z + 1, 99, 'm-stone'); // sân trước cổng
+  rect(-5, 5, WELL.z - 5, WELL.z + 5, 'm-stone'); // sân giếng
+  for (const s of [-1, 1]) {
+    el('ellipse', { cx: mapU(61), cy: mapV(s * 9.2), rx: 16, ry: 3.6, class: 'm-water' }); // hồ sen
+    rect(s > 0 ? CORRIDOR.x0 : -CORRIDOR.x1, s > 0 ? CORRIDOR.x1 : -CORRIDOR.x0, CORRIDOR.z0, CORRIDOR.z1, 'm-corridor');
+    rect(s > 0 ? 3.4 : -13.6, s > 0 ? 13.6 : -3.4, 79, 81, 'm-stone'); // lối ngang
+  }
+  el('circle', { cx: mapU(WELL.z), cy: mapV(WELL.x), r: WELL.r, class: 'm-water' });
   el('circle', { cx: mapU(31.8), cy: mapV(11.3), r: 6.6, class: 'm-grass' });
   el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 6.2, class: 'm-grass' });
   el('ellipse', { cx: mapU(35.6), cy: mapV(10.9), rx: 1.7, ry: 2.6, class: 'm-water' });
@@ -1101,7 +1170,10 @@ function buildMap() {
     ['hall', 0, 2, 'Chánh điện'],
     ['quanam', 15.4, 29.4, 'Quan Âm'],
     ['tower', -15.2, 30, 'Tháp 13 tầng'],
-    ['gate', 0, GATE.z - 5, 'Tam Quan'],
+    ['gate', 0, GATE.z + 7, 'Tam Quan'],
+    ['well', 0, WELL.z + 6.5, 'Giếng Ngọc'],
+    ['lahan', 15.6, 62, 'La Hán'],
+    ['lahan', -15.6, 62, 'La Hán'],
   ];
   for (const [id, x, z, text] of labels) {
     const g = el('g', { class: 'm-place', role: 'button', tabindex: 0 });
