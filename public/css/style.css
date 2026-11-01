@@ -236,6 +236,25 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .note { font-size: 13px !important; background: #f3e6c8; color: #6b5020; border-radius: 12px; padding: 10px 12px; }
 
 .room-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* ---------- Bản đồ chùa ---------- */
+.map-sheet { width: min(560px, 100%); }
+.map-svg { display: block; width: 100%; height: auto; margin: 4px 0 14px; border-radius: 14px; background: #8b9670; stroke: none; }
+.map-svg .m-bg { fill: #8b9670; }
+.map-svg .m-stone { fill: #b9b0a0; }
+.map-svg .m-grass { fill: #6c8a4a; }
+.map-svg .m-water { fill: #3d6a72; }
+.map-svg .m-hall { fill: #7d2217; }
+.map-svg .m-porch { fill: #cbc6ba; }
+.map-svg .m-wall { fill: #6a3426; }
+.map-svg .m-statue { fill: #f2efe8; }
+.map-svg .m-tower { fill: #ece3cf; stroke: #9c2a1c; stroke-width: 0.5; }
+.map-svg .m-place { cursor: pointer; }
+.map-svg .m-place text {
+  font: 600 3.1px var(--font); fill: #fffaf0; paint-order: stroke; stroke: rgba(30, 24, 18, 0.75); stroke-width: 0.8px;
+}
+.map-svg .m-place:hover text, .map-svg .m-place:focus text { fill: var(--accent); outline: none; }
+.map-svg .m-me { fill: #f2c04a; stroke: #fff; stroke-width: 0.5; }
+.map-svg .m-other { fill: #5a3d22; stroke: #f5f0e4; stroke-width: 0.25; }
 .room {
   text-align: left; padding: 12px 14px; border-radius: 14px; background: rgba(0, 0, 0, 0.04); border: 1px solid transparent;
   display: flex; flex-direction: column; gap: 2px; transition: background 0.2s, border-color 0.2s;

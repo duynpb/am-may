@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, GARDEN, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
@@ -190,7 +190,46 @@ const zoneOf = (z) => (z > 19.3 ? 'out' : 'in');
 const zoneOfA = (a) => a.zone || 'in';
 function clampZone(zone, x, z) {
   if (zone === 'in') return [clamp(x, HALL.minX, HALL.maxX), clamp(z, HALL.minZ, HALL.maxZ)];
-  return world.pushOut(clamp(x, GARDEN.minX, GARDEN.maxX), clamp(z, GARDEN.minZ, GARDEN.maxZ));
+  // ngoài chánh điện: kéo về vùng đi lại gần nhất (sân, trục đường, cổng, sân trước cổng)
+  let best = null, bestD = Infinity;
+  for (const r of WALK_AREAS) {
+    const cx = clamp(x, r.minX, r.maxX), cz = clamp(z, r.minZ, r.maxZ);
+    const d = Math.hypot(cx - x, cz - z);
+    if (d < bestD) {
+      bestD = d;
+      best = [cx, cz];
+    }
+  }
+  return world.pushOut(...best);
+}
+
+// Ngoài sân, các khu nối nhau thành một chuỗi: sân chùa → trục đường → cửa giữa cổng → sân trước cổng.
+// Đi từ khu này sang khu khác thì qua các điểm nối, không đi xuyên tường cổng.
+const LINKS = [{ z: 38.7, x: 3.0 }, { z: 82.4, x: 1.3 }, { z: 85.8, x: 1.3 }];
+const segOf = (z) => (z < LINKS[0].z ? 0 : z < LINKS[1].z ? 1 : z < LINKS[2].z ? 2 : 3);
+function routeOut(fx, fz, tx, tz) {
+  const pts = [];
+  let i = segOf(fz), cx = fx;
+  const j = segOf(tz);
+  while (i !== j) {
+    const L = LINKS[i < j ? i : i - 1];
+    cx = clamp(cx, -L.x, L.x);
+    pts.push([cx, L.z]);
+    i += i < j ? 1 : -1;
+  }
+  return pts;
+}
+// Đi theo tuyến tới (x, z); xong khi tới nơi (true), bị lệnh đi khác chen ngang thì false
+async function walkRoute(a, x, z, seat = null) {
+  const token = (a.route = {});
+  a.routeTo = { x, z, seat };
+  for (const [px, pz] of routeOut(a.pos.x, a.pos.z, x, z)) {
+    await a.walk(px, pz);
+    if (a.route !== token) return false;
+  }
+  a.routeTo = null;
+  a.walkTo(x, z, seat);
+  return new Promise((res) => (a.onArrive = () => res(a.route === token)));
 }
 // Tháp 13 tầng: trong bán kính topR quanh tâm tháp là sàn tầng trên cùng (vẫn tính là ngoài sân)
 const onTowerXZ = (x, z) => Math.hypot(x - TOWER.x, z - TOWER.z) < TOWER.topR;
@@ -306,7 +345,7 @@ async function exitTemple(a, dest = null) {
     await a.walk(rnd(-1.5, 1.5), STEP_Z);
   }
   if (!alive(a, token)) return false;
-  await a.walk(dest ? dest.x : rnd(-1.5, 1.5), dest ? dest.z : COURTYARD.z + 2);
+  await walkRoute(a, dest ? dest.x : rnd(-1.5, 1.5), dest ? dest.z : COURTYARD.z + 2);
   if (!alive(a, token)) return false;
   a.script = null;
   return true;
@@ -362,7 +401,7 @@ function fadeTo(on, text = '') {
 // Vào cửa tháp, leo lên tầng 13. Trả về false nếu bị ngắt giữa chừng.
 async function towerUp(a) {
   const token = (a.script = {});
-  await a.walk(TOWER.door.x, TOWER.door.z);
+  await walkRoute(a, TOWER.door.x, TOWER.door.z);
   if (!alive(a, token)) return false;
   await a.walk(TOWER.inside.x, TOWER.inside.z);
   if (!alive(a, token)) return false;
@@ -413,7 +452,7 @@ async function crossZone(a, x, z, seat = null) {
   if (target === zoneOfA(a)) {
     // vừa xuống tháp, điểm đến vẫn ở ngoài sân
     [x, z] = clampZone(target, x, z);
-    a.walkTo(x, z, seat);
+    walkRoute(a, x, z, seat);
     return true;
   }
   [x, z] = clampZone(target, x, z);
@@ -644,7 +683,9 @@ function wireNet(n) {
     const seat = m.seat != null ? seats[m.seat] : null;
     if (seat) yieldSeat(seat.index);
     // đổi vùng (hoặc đang mang/cởi dép dở) → đi qua thềm cho đúng
-    if (a.script || zoneOfA(a) !== zoneOf(m.z) || onTower(a) !== onTowerXZ(m.x, m.z)) crossZone(a, m.x, m.z, seat);
+    if (m.w) warpPlace(a, m.x, m.z);
+    else if (a.script || zoneOfA(a) !== zoneOf(m.z) || onTower(a) !== onTowerXZ(m.x, m.z)) crossZone(a, m.x, m.z, seat);
+    else if (zoneOfA(a) === 'out' && !onTower(a)) walkRoute(a, m.x, m.z, seat);
     else a.walkTo(m.x, m.z, seat);
   });
   n.on('act', (m) => {
@@ -824,12 +865,13 @@ function skipIntro() {
 
 function sendMove() {
   if (!net || intro || player.script) return;
-  const g = player.goal ?? player.pos;
+  const g = player.routeTo ?? player.goal ?? player.pos;
   net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: player.goalSeat?.index ?? player.seat ?? null });
 }
 
 // ---------- Hành động ----------
 function movePlayerTo(x, z, seat = null) {
+  player.routeTo = null;
   if (player.script) {
     // đang mang / cởi dép ở thềm: nhớ chỗ vừa chọn, làm xong sẽ đi tới
     player.queued = { x, z, seat };
@@ -886,7 +928,8 @@ function movePlayerTo(x, z, seat = null) {
     return;
   }
   [x, z] = clampZone(target, x, z);
-  player.walkTo(x, z, seat);
+  if (target === 'out') walkRoute(player, x, z);
+  else player.walkTo(x, z, seat);
   world.showMarker(x, z, groundY(x, z) + (seat ? 0.21 : 0.04));
   sendMove();
 }
@@ -963,6 +1006,153 @@ function sweepLeaves(dt) {
   if (net) net.send({ t: 'sweep', ids });
   else earn('sweep', { n: ids.length });
 }
+
+// ---------- Bản đồ chùa và đi nhanh ----------
+const PLACES = [
+  { id: 'hall', name: 'Chánh điện', x: 0, z: 9 },
+  { id: 'quanam', name: 'Sân Quan Âm', x: world.quanAm.front.x, z: world.quanAm.front.z },
+  { id: 'tower', name: 'Tháp 13 tầng', x: TOWER.arrive.x, z: TOWER.arrive.z },
+  { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
+];
+
+// Hiện ngay ở chỗ mới: tự mang / cởi dép nếu đổi giữa trong và ngoài chánh điện
+function warpPlace(a, x, z) {
+  const to = zoneOf(z), from = zoneOfA(a);
+  a.script = null;
+  a.route = null;
+  a.routeTo = null;
+  a.seat = null;
+  a.goalSeat = null;
+  a.root.visible = true;
+  if (to === 'out' && from === 'in') {
+    rack.release(a.id);
+    a.wearSandals(true);
+  } else if (to === 'in' && from === 'out') {
+    a.wearSandals(false);
+    rack.place(a.id, a.sandalColors);
+  }
+  a.zone = to;
+  a.placeAt(x, z, Math.PI);
+  if (z < GATE.z) a.ry = faceShrineRy(a);
+}
+
+let traveling = false;
+async function quickTravel(p) {
+  closeModal($('#modal-map'));
+  if (intro) skipIntro();
+  if (traveling || player.script || player.busy || ritual?.started || meritRun?.started || broomRun?.started) {
+    toast('Đợi một chút rồi đi nhé');
+    return;
+  }
+  if (player.missingSandal && zoneOfA(player) === 'in' && zoneOf(p.z) === 'out') {
+    movePlayerTo(p.x, p.z); // chưa có dép: đứng chờ trước thềm như khi đi bộ ra
+    return;
+  }
+  // hủy các việc đang đi tới làm dở
+  if (ritual) {
+    ritual = null;
+    incBtn.disabled = false;
+  }
+  meritRun = null;
+  broomRun = null;
+  pendingExit = null;
+  player.queued = null;
+  traveling = true;
+  await fadeTo(true, `Đang đến ${p.name}…`);
+  if (zoneOf(p.z) === 'in' && player.hasBroom) setBroom(false);
+  warpPlace(player, p.x, p.z);
+  cam.target.set(player.root.position.x, player.root.position.y + 1.1, player.root.position.z);
+  cam.yaw = player.ry + Math.PI; // camera sau lưng, nhìn theo hướng nhân vật
+  net?.send({ t: 'move', x: +p.x.toFixed(2), z: +p.z.toFixed(2), seat: null, w: 1 });
+  await wait(150);
+  fadeTo(false);
+  traveling = false;
+  toast(`Bạn đang ở ${p.name}`, 2600);
+}
+
+// Bản đồ vẽ nằm ngang: bên trái là cổng Tam Quan, bên phải là chánh điện
+const SVGNS = 'http://www.w3.org/2000/svg';
+const mapU = (z) => 100 - z, mapV = (x) => x;
+let mapOpen = false;
+let mapMe = null, mapOthers = null;
+function buildMap() {
+  const svg = $('#map-svg');
+  if (svg.childElementCount) return;
+  const el = (tag, attrs, parent = svg) => {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.append(e);
+    return e;
+  };
+  const rect = (x0, x1, z0, z1, cls) => el('rect', { x: mapU(z1), y: mapV(x0), width: z1 - z0, height: x1 - x0, class: cls });
+  el('rect', { x: 0, y: -21, width: 124, height: 42, class: 'm-bg' });
+  rect(-17, 17, 22.4, 39.5, 'm-stone'); // sân chùa
+  rect(-3.5, 3.5, 39.4, GATE.z, 'm-stone'); // trục đường
+  rect(-13, 13, GATE.z + 1, 99, 'm-stone'); // sân trước cổng
+  el('circle', { cx: mapU(31.8), cy: mapV(11.3), r: 6.6, class: 'm-grass' });
+  el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 6.2, class: 'm-grass' });
+  el('ellipse', { cx: mapU(35.6), cy: mapV(10.9), rx: 1.7, ry: 2.6, class: 'm-water' });
+  rect(-15, 15, -21, 19, 'm-hall'); // chánh điện
+  rect(-9, 9, 19, 21.6, 'm-porch'); // thềm
+  rect(-20, 20, GATE.z - 0.4, GATE.z + 0.4, 'm-wall'); // tường cổng
+  el('circle', { cx: mapU(29.4), cy: mapV(10.6), r: 2.4, class: 'm-statue' });
+  el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 3.4, class: 'm-tower' });
+  const labels = [
+    ['hall', 0, 2, 'Chánh điện'],
+    ['quanam', 15.4, 29.4, 'Quan Âm'],
+    ['tower', -15.2, 30, 'Tháp 13 tầng'],
+    ['gate', 0, GATE.z - 5, 'Tam Quan'],
+  ];
+  for (const [id, x, z, text] of labels) {
+    const g = el('g', { class: 'm-place', role: 'button', tabindex: 0 });
+    const t = el('text', { x: mapU(z), y: mapV(x) + 1.1, 'text-anchor': 'middle' }, g);
+    t.textContent = text;
+    const go = () => quickTravel(PLACES.find((p) => p.id === id));
+    g.addEventListener('click', go);
+    g.addEventListener('keydown', (e) => e.key === 'Enter' && go());
+  }
+  mapOthers = el('g', {});
+  mapMe = el('circle', { r: 1.4, class: 'm-me' });
+}
+function updateMap() {
+  mapMe.setAttribute('cx', mapU(player.pos.z));
+  mapMe.setAttribute('cy', mapV(player.pos.x));
+  const others = [...avatars.values()].filter((a) => a !== player && !a.leaving);
+  while (mapOthers.childElementCount < others.length) {
+    const c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('r', 0.8);
+    c.setAttribute('class', 'm-other');
+    mapOthers.append(c);
+  }
+  [...mapOthers.children].forEach((c, i) => {
+    const a = others[i];
+    c.style.display = a ? '' : 'none';
+    if (!a) return;
+    c.setAttribute('cx', mapU(a.pos.z));
+    c.setAttribute('cy', mapV(a.pos.x));
+  });
+}
+function openMap() {
+  buildMap();
+  const list = $('#map-go');
+  if (!list.childElementCount) {
+    for (const p of PLACES) {
+      const b = document.createElement('button');
+      b.className = 'room';
+      b.innerHTML = '<b></b><small>Đi nhanh tới đây</small>';
+      b.querySelector('b').textContent = p.name;
+      b.addEventListener('click', () => quickTravel(p));
+      list.append(b);
+    }
+  }
+  mapOpen = true;
+  updateMap();
+  openModal('#modal-map');
+}
+$('#btn-map').addEventListener('click', openMap);
+$('#modal-map').addEventListener('transitionend', () => {
+  mapOpen = $('#modal-map').classList.contains('show');
+});
 
 // ---------- Lấy dép (đùa vui) ----------
 // Bấm vào dép của người khác trên thềm để lấy đi một chiếc
@@ -1737,6 +1927,8 @@ function keyMove(t) {
   if (player.script) return;
   const nx = player.pos.x + ((fx * f + rx * s) / len) * 0.7, nz = player.pos.z + ((fz * f + rz * s) / len) * 0.7;
   const [x, z] = onTower(player) ? clampTower(nx, nz) : clampZone(zoneOfA(player), nx, nz);
+  player.routeTo = null;
+  player.route = null;
   player.walkTo(x, z);
   if (t - keySendT > 0.25) {
     keySendT = t;
@@ -1753,7 +1945,7 @@ function updateCamera(dt) {
   cam.curPitch += (cam.pitch - cam.curPitch) * (1 - Math.exp(-4 * dt));
   // ở ngoài sân / trên thềm thì camera được lùi ra ngoài chánh điện
   const outside = player.pos.z > HALL.maxZ;
-  cam.maxZ += ((outside ? 45 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
+  cam.maxZ += ((outside ? 106 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
     clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : -14.5, 14.5),
@@ -2054,6 +2246,8 @@ function frame() {
   scriptWatchdog(dt);
   rack.update(dt);
   leaves.update(dt);
+  world.setFocus(player.pos.x, player.pos.z);
+  if (mapOpen) updateMap();
   world.update(elapsed, dt);
   updateCamera(dt);
   if (!beads.isOpen) {

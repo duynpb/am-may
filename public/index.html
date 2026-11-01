@@ -59,6 +59,9 @@
         <svg viewBox="0 0 24 24" class="on"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
         <svg viewBox="0 0 24 24" class="off"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>
       </button>
+      <button class="icon-btn" id="btn-map" aria-label="Bản đồ chùa">
+        <svg viewBox="0 0 24 24"><path d="M3.5 6.5 9 4.5l6 2 5.5-2v13l-5.5 2-6-2-5.5 2Z"/><path d="M9 4.5v13M15 6.5v13"/></svg>
+      </button>
       <button class="icon-btn" id="btn-settings" aria-label="Cài đặt">
         <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
       </button>
@@ -123,6 +126,15 @@
   </div>
 
   <!-- Chọn chánh điện -->
+  <div class="modal" id="modal-map" hidden role="dialog" aria-modal="true" aria-labelledby="map-title">
+    <div class="sheet map-sheet">
+      <div class="sheet-head"><h2 id="map-title">Bản đồ chùa</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p class="muted">Chấm vàng là bạn, chấm nâu là mọi người. Chạm tên một nơi hoặc chọn bên dưới để đi nhanh tới đó.</p>
+      <svg id="map-svg" class="map-svg" viewBox="0 -21 124 42" aria-label="Sơ đồ khuôn viên chùa"></svg>
+      <div id="map-go" class="room-grid"></div>
+    </div>
+  </div>
+
   <div class="modal" id="modal-room" hidden role="dialog" aria-modal="true" aria-labelledby="room-title">
     <div class="sheet">
       <div class="sheet-head"><h2 id="room-title">Chọn chánh điện</h2><button class="x" data-close aria-label="Đóng">×</button></div>
