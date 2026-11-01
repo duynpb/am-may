@@ -254,14 +254,14 @@ wss.on('connection', (ws, req) => {
     if (m.t === 'move') {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       me.x = clamp(m.x, -45, 45);
-      me.z = clamp(m.z, -14, 100);
+      me.z = clamp(m.z, -70, 100);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat, w: m.w ? 1 : undefined }, me.id);
     } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense', 'greatbell'].includes(m.a)) {
       const to = typeof m.to === 'string' ? m.to.slice(0, 12) : undefined;
       const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
-      const place = m.a === 'incense' && ['out', 'tower', 'qahall'].includes(m.place) ? m.place : undefined;
+      const place = m.a === 'incense' && ['out', 'tower', 'qahall', 'tamthe'].includes(m.place) ? m.place : undefined;
       broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n, place }, me.id);
       if (m.a === 'bow') award(ws, uid, 'bow');
       else if (m.a === 'incense') award(ws, uid, 'incense', { n });

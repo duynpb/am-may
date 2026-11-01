@@ -247,11 +247,13 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .map-svg .m-porch { fill: #cbc6ba; }
 .map-svg .m-wall { fill: #6a3426; }
 .map-svg .m-corridor { fill: #9c2a1c; }
+.map-svg .m-terrace { fill: #8f897d; }
+.map-svg .m-stairs { fill: #cbc6ba; }
 .map-svg .m-statue { fill: #f2efe8; }
 .map-svg .m-tower { fill: #ece3cf; stroke: #9c2a1c; stroke-width: 0.5; }
 .map-svg .m-place { cursor: pointer; }
 .map-svg .m-place text {
-  font: 600 3.1px var(--font); fill: #fffaf0; paint-order: stroke; stroke: rgba(30, 24, 18, 0.75); stroke-width: 0.8px;
+  font: 600 4.3px var(--font); fill: #fffaf0; paint-order: stroke; stroke: rgba(30, 24, 18, 0.75); stroke-width: 1px;
 }
 .map-svg .m-place:hover text, .map-svg .m-place:focus text { fill: var(--accent); outline: none; }
 .map-svg .m-me { fill: #f2c04a; stroke: #fff; stroke-width: 0.5; }

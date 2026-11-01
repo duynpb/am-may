@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, QAHALL, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, QAHALL, TERRACE, STAIRS, TAMTHE, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
@@ -186,7 +186,7 @@ function seatTaken(index, except) {
 const freeSeats = (except) => seats.filter((s) => !seatTaken(s.index, except));
 
 // Trong / ngoài chánh điện: ranh giới là thềm
-const zoneOf = (z, x) => (z > 19.3 || Math.abs(x) > HALL.maxX + 1.5 ? 'out' : 'in');
+const zoneOf = (z, x) => (z > 19.3 || z < -21.4 || Math.abs(x) > HALL.maxX + 1.5 ? 'out' : 'in');
 const zoneOfA = (a) => a.zone || 'in';
 function clampZone(zone, x, z) {
   if (zone === 'in') return [clamp(x, HALL.minX, HALL.maxX), clamp(z, HALL.minZ, HALL.maxZ)];
@@ -232,6 +232,8 @@ const ROUND_OBSTACLES = [
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
   { x: 29.4, z: QAHALL.z1 - 0.2, r: 0.75 }, // cột mặt tiền điện Quan Âm
   { x: 34.6, z: QAHALL.z1 - 0.2, r: 0.75 },
+  { x: -4.4, z: TAMTHE.z1 - 0.2, r: 0.8 }, // cột hai bên cửa giữa điện Tam Thế
+  { x: 4.4, z: TAMTHE.z1 - 0.2, r: 0.8 },
 ];
 // Đoạn thẳng a → b cắt qua chướng ngại tròn thì chèn điểm vòng qua bên cạnh
 function detour(ax, az, bx, bz, depth = 0) {
@@ -313,18 +315,20 @@ function clampTower(x, z) {
 }
 // Trong điện Quan Âm (sân bên phía đông)
 const inQaHall = (a) => a.pos.x > QAHALL.x0 && a.pos.x < QAHALL.x1 && a.pos.z > QAHALL.z0 && a.pos.z < QAHALL.z1 + 0.4;
-// Nơi thắp nhang: trong chánh điện, ngoài sân (Quan Âm), trên tháp hay trong điện Quan Âm
-const placeOf = (a) => (onTower(a) ? 'tower' : inQaHall(a) ? 'qahall' : zoneOfA(a));
-const PLACE_KINDS = ['out', 'tower', 'qahall'];
+// Trên nền đồi sau chánh điện (trong hoặc trước điện Tam Thế)
+const inTamThe = (a) => Math.abs(a.pos.x) <= TERRACE.x && a.pos.z >= TERRACE.z0 && a.pos.z < TERRACE.z1 + 0.5;
+// Nơi thắp nhang: trong chánh điện, ngoài sân (Quan Âm), trên tháp, trong điện Quan Âm hay điện Tam Thế
+const placeOf = (a) => (onTower(a) ? 'tower' : inQaHall(a) ? 'qahall' : inTamThe(a) ? 'tamthe' : zoneOfA(a));
+const PLACE_KINDS = ['out', 'tower', 'qahall', 'tamthe'];
 
 // Hướng mặt về nơi thờ: tượng Phật trong chánh điện, tượng Quan Âm ngoài sân, tượng Phật trên tháp, tượng trong điện Quan Âm
-const SHRINES = { tower: () => world.tower.buddha, qahall: () => world.qaHall.head, out: () => world.quanAm.head, in: () => BUDDHA };
+const SHRINES = { tower: () => world.tower.buddha, qahall: () => world.qaHall.head, tamthe: () => world.tamThe.head, out: () => world.quanAm.head, in: () => BUDDHA };
 const shrineOf = (a) => SHRINES[placeOf(a)]();
 const faceShrineRy = (a) => {
   const t = shrineOf(a);
   return Math.atan2(t.x - a.pos.x, t.z - a.pos.z);
 };
-const burnerOf = (place) => ({ tower: world.incenseTop, qahall: world.incenseQH, out: world.incenseOut })[place] ?? world.incense;
+const burnerOf = (place) => ({ tower: world.incenseTop, qahall: world.incenseQH, tamthe: world.incenseTT, out: world.incenseOut })[place] ?? world.incense;
 const faceRy = (a, b) => Math.atan2(b.pos.x - a.pos.x, b.pos.z - a.pos.z);
 
 // ---------- Toast ----------
@@ -1084,6 +1088,8 @@ const PLACES = [
   { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
   { id: 'bell', name: 'Gác chuông', x: BELLTOWER.x, z: BELLTOWER.z + BELLTOWER.r + 0.6, ry: Math.PI },
   { id: 'qahall', name: 'Điện Quan Âm', x: QAHALL.cx, z: 12, ry: Math.PI },
+  { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
+  { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: -55.6, ry: Math.PI },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
 ];
 
@@ -1158,7 +1164,12 @@ function buildMap() {
     return e;
   };
   const rect = (x0, x1, z0, z1, cls) => el('rect', { x: mapU(z1), y: mapV(x0), width: z1 - z0, height: x1 - x0, class: cls });
-  el('rect', { x: 0, y: -45, width: 124, height: 90, class: 'm-bg' });
+  el('rect', { x: -2, y: -45, width: 182, height: 90, class: 'm-bg' });
+  for (const s of [-1, 1]) rect(s > 0 ? 16.2 : -20.8, s > 0 ? 20.8 : -16.2, -29, 23.2, 'm-stone'); // lối hai bên
+  rect(-20.8, 20.8, -33.2, -26, 'm-stone'); // sân sau
+  rect(-TERRACE.x, TERRACE.x, TERRACE.z0, TERRACE.z1, 'm-terrace'); // nền đồi
+  rect(-STAIRS.x, STAIRS.x, STAIRS.z0, STAIRS.z1, 'm-stairs'); // bậc thang
+  rect(TAMTHE.x0, TAMTHE.x1, TAMTHE.z0, TAMTHE.z1, 'm-hall');
   for (const s of [-1, 1]) {
     rect(s > 0 ? 21 : -43, s > 0 ? 43 : -21, 18, 40, 'm-stone'); // sân bên
     rect(s > 0 ? 15.5 : -21.5, s > 0 ? 21.5 : -15.5, 22.6, 24.4, 'm-stone'); // lối sang sân bên
@@ -1187,23 +1198,25 @@ function buildMap() {
     ['hall', 0, 2, 'Chánh điện'],
     ['quanam', 15.4, 29.4, 'Quan Âm'],
     ['tower', -15.2, 30, 'Tháp 13 tầng'],
-    ['gate', 0, GATE.z + 7, 'Tam Quan'],
-    ['well', 0, WELL.z + 6.5, 'Giếng Ngọc'],
+    ['gate', 0, GATE.z + 5.5, 'Tam Quan'],
+    ['well', 0, WELL.z, 'Giếng Ngọc'],
     ['bell', BELLTOWER.x, BELLTOWER.z, 'Gác chuông'],
+    ['tamthe', 0, -57, 'Điện Tam Thế'],
+    ['stairs', 6.5, -40, 'Bậc thang'],
     ['qahall', QAHALL.cx, 11, 'Điện Quan Âm'],
     ['lahan', 15.6, 62, 'La Hán'],
     ['lahan', -15.6, 62, 'La Hán'],
   ];
   for (const [id, x, z, text] of labels) {
     const g = el('g', { class: 'm-place', role: 'button', tabindex: 0 });
-    const t = el('text', { x: mapU(z), y: mapV(x) + 1.1, 'text-anchor': 'middle' }, g);
+    const t = el('text', { x: mapU(z), y: mapV(x) + 1.5, 'text-anchor': 'middle' }, g);
     t.textContent = text;
     const go = () => quickTravel(PLACES.find((p) => p.id === id));
     g.addEventListener('click', go);
     g.addEventListener('keydown', (e) => e.key === 'Enter' && go());
   }
   mapOthers = el('g', {});
-  mapMe = el('circle', { r: 1.4, class: 'm-me' });
+  mapMe = el('circle', { r: 2, class: 'm-me' });
 }
 function updateMap() {
   mapMe.setAttribute('cx', mapU(player.pos.z));
@@ -1211,7 +1224,7 @@ function updateMap() {
   const others = [...avatars.values()].filter((a) => a !== player && !a.leaving);
   while (mapOthers.childElementCount < others.length) {
     const c = document.createElementNS(SVGNS, 'circle');
-    c.setAttribute('r', 0.8);
+    c.setAttribute('r', 1.1);
     c.setAttribute('class', 'm-other');
     mapOthers.append(c);
   }
@@ -1567,10 +1580,11 @@ function openIncenseDialog() {
   const st = incenseStats();
   $('#inc-stats').textContent = st.today ? `Hôm nay bạn đã thắp ${st.today} nén nhang.` : '';
   const place = placeOf(player);
-  $('#inc-title').textContent = { tower: 'Thắp nhang dâng Phật trên tháp', qahall: 'Thắp nhang trong điện Quan Âm', out: 'Thắp nhang dâng Quan Âm Bồ Tát' }[place] ?? 'Thắp nhang';
+  $('#inc-title').textContent = { tower: 'Thắp nhang dâng Phật trên tháp', qahall: 'Thắp nhang trong điện Quan Âm', tamthe: 'Thắp nhang dâng Tam Thế Phật', out: 'Thắp nhang dâng Quan Âm Bồ Tát' }[place] ?? 'Thắp nhang';
   $('#modal-incense .muted').textContent = {
     tower: 'Bạn sẽ bước tới trước bàn thờ trên tầng 13, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
     qahall: 'Bạn sẽ bước tới trước bàn thờ Quan Âm Bồ Tát trong điện, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
+    tamthe: 'Bạn sẽ bước tới lư hương giữa điện Tam Thế, chắp tay vái lạy ba đức Phật rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
     out: 'Bạn sẽ bước tới lư hương đá trước tượng Quan Âm, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
   }[place] ?? 'Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.';
   openModal('#modal-incense');
@@ -1617,7 +1631,7 @@ function incenseRitual() {
     st.today += n;
     st.total += n;
     store.set('incense', st);
-    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${{ out: ' dâng Quan Âm Bồ Tát', qahall: ' dâng Quan Âm Bồ Tát', tower: ' dâng Phật trên tháp' }[place] ?? ''}`, 4200);
+    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${{ out: ' dâng Quan Âm Bồ Tát', qahall: ' dâng Quan Âm Bồ Tát', tamthe: ' dâng Tam Thế Phật', tower: ' dâng Phật trên tháp' }[place] ?? ''}`, 4200);
   });
 }
 
@@ -2086,11 +2100,13 @@ function updateCamera(dt) {
   // ở ngoài sân / trên thềm thì camera được lùi ra ngoài chánh điện
   const outside = zoneOfA(player) === 'out' || player.pos.z > HALL.maxZ;
   cam.maxZ += ((outside ? 106 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
+  // sau chánh điện (sân sau, bậc thang, nền đồi): camera không lọt qua tường hậu vào trong
+  if (outside && player.pos.z < -21.4 && Math.abs(player.pos.x) < 16) cam.maxZ = -21.9;
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
     clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 46 : 14.5),
-    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, high ? TOWER.topY + 3.2 : outside ? 14 : 9.4),
-    clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, -15.2, cam.maxZ),
+    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, high ? TOWER.topY + 3.2 : outside ? Math.max(14, cam.target.y + 9) : 9.4),
+    clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -82 : -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);
 }
