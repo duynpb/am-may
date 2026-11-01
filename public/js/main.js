@@ -520,9 +520,10 @@ async function crossZone(a, x, z, seat = null) {
   }
   const target = zoneOf(z, x);
   if (target === zoneOfA(a)) {
-    // vừa xuống tháp, điểm đến vẫn ở ngoài sân
+    // cùng vùng (vd. vừa xuống tháp, điểm đến vẫn ở ngoài sân)
     [x, z] = clampZone(target, x, z);
-    walkRoute(a, x, z, seat);
+    if (target === 'in') a.walkTo(x, z, seat);
+    else walkRoute(a, x, z, seat);
     return true;
   }
   [x, z] = clampZone(target, x, z);
@@ -640,11 +641,13 @@ function botsThink(t) {
       a.walkTo(spot.x, spot.z);
     } else if (r < 0.88) {
       botGardenTrip(a);
+    } else if (r < 0.96 && touring() < Math.max(3, bots.size * 0.35)) {
+      botTour(a);
     }
   }
   if (bots.size < botTarget && Math.random() < 0.004) makeBot({ seated: false });
   if (bots.size > botTarget && Math.random() < 0.01) {
-    const a = pick([...bots].filter((b) => !b.leaving && !b.script && !b.busy));
+    const a = pick([...bots].filter((b) => !b.leaving && !b.script && !b.busy && !b.trip));
     if (a) botLeave(a);
   }
 }
@@ -668,6 +671,78 @@ async function botGardenTrip(a) {
   const s = pick(freeSeats(a));
   await crossZone(a, s ? s.x : rnd(-6, 6), s ? s.z : 10, s ?? null);
   a.trip = false;
+}
+
+// Khách mô phỏng đi tham quan khuôn viên: một hai nơi rồi về chánh điện ngồi
+const touring = () => [...bots].filter((b) => b.tour).length;
+// đi tới (x, z) qua thềm / tháp nếu cần, chờ tới nơi
+async function botGo(a, x, z) {
+  if (!(await crossZone(a, x, z))) return false;
+  while (avatars.has(a.id) && !a.leaving && (a.moving || a.routeTo || a.script)) await wait(300);
+  return avatars.has(a.id) && !a.leaving;
+}
+const ringAround = (cx, cz, r) => {
+  const t = rnd(0, Math.PI * 2);
+  return [cx + Math.cos(t) * r, cz + Math.sin(t) * r];
+};
+const TOUR = [
+  // hành lang La Hán: dạo dọc hàng tượng, chắp tay
+  async (a) => {
+    const s = Math.random() < 0.5 ? -1 : 1;
+    if (!(await botGo(a, s * 14.5, rnd(46, 78)))) return;
+    a.act('gassho', s > 0 ? Math.PI / 2 : -Math.PI / 2);
+    bubble(a, 'chiêm bái La Hán', 3000);
+    await wait(rnd(5000, 12000));
+  },
+  // giếng Ngọc: đứng ngắm
+  async (a) => {
+    const [x, z] = ringAround(WELL.x, WELL.z, WELL.r + 1.4);
+    if (!(await botGo(a, x, z))) return;
+    a.faceRy = Math.atan2(WELL.x - a.pos.x, WELL.z - a.pos.z);
+    await wait(rnd(6000, 14000));
+  },
+  // gác chuông: thỉnh đại hồng chung (thỉnh thoảng)
+  async (a) => {
+    const s = world.greatBell.spot;
+    if (!(await botGo(a, s.x + rnd(-2, 2), s.z + rnd(0, 2)))) return;
+    const c = world.greatBell.center;
+    a.act('gassho', Math.atan2(c.x - a.pos.x, c.z - a.pos.z));
+    if (Math.random() < 0.4) setTimeout(() => avatars.has(a.id) && ringGreatBell(a), 800);
+    await wait(rnd(5000, 9000));
+  },
+  // điện Quan Âm và điện Tam Thế: thắp nhang
+  ...['qahall', 'tamthe'].map((place) => async (a) => {
+    const spot = leastCrowded(burnerOf(place).spots, a);
+    if (!(await botGo(a, spot.x, spot.z))) return;
+    await new Promise((res) => offerIncense(a, Math.random() < 0.6 ? 3 : 1, res, place));
+    await wait(rnd(3000, 8000));
+  }),
+  // tháp 13 tầng: lên tầng trên cùng lạy Phật
+  async (a) => {
+    if (!(await botGo(a, TOWER.arrive.x, TOWER.arrive.z + rnd(-0.6, 0.6)))) return;
+    a.act('bow', faceShrineRy(a));
+    await wait(rnd(6000, 12000));
+  },
+  // cổng Tam Quan: dạo sân trước cổng
+  async (a) => {
+    if (!(await botGo(a, rnd(-9, 9), rnd(GATE.z + 4, 97)))) return;
+    await wait(rnd(5000, 10000));
+  },
+];
+async function botTour(a) {
+  a.trip = a.tour = true;
+  try {
+    const stops = 1 + (Math.random() < 0.5 ? 1 : 0);
+    for (let i = 0; i < stops; i++) {
+      await pick(TOUR)(a);
+      if (!avatars.has(a.id) || a.leaving) return;
+    }
+    const s = pick(freeSeats(a));
+    await botGo(a, s ? s.x : rnd(-6, 6), s ? s.z : 10);
+    if (s && avatars.has(a.id) && !a.leaving && !seatTaken(s.index, a)) a.walkTo(s.x, s.z, s);
+  } finally {
+    a.trip = a.tour = false;
+  }
 }
 
 function botLeave(a) {
@@ -2385,6 +2460,7 @@ document.addEventListener('visibilitychange', () => sound.setHidden(document.hid
 
 // ---------- Vòng lặp ----------
 const clock = new THREE.Clock();
+let lodT = 0;
 let elapsed = 0;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -2404,6 +2480,10 @@ function frame() {
   rack.update(dt);
   leaves.update(dt);
   world.setFocus(player.pos.x, player.pos.z);
+  if ((lodT -= dt) < 0) {
+    lodT = 0.4;
+    world.updateLOD(player.pos.x, player.pos.z);
+  }
   if (mapOpen) updateMap();
   world.update(elapsed, dt);
   updateCamera(dt);
