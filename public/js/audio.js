@@ -457,6 +457,16 @@ export class Sound {
     if (!this.fxReady()) return;
     this.templeBell(this.ctx.currentTime + 0.02, 98, 0.42, this.bus.fx);
   }
+  // Đại hồng chung: tiếng gỗ chày va, rồi tiếng ngân rất trầm, dài
+  greatBell(gain = 0.5) {
+    if (!this.fxReady()) return;
+    const t = this.ctx.currentTime + 0.02, out = this.bus.fx;
+    this.tone(55, t, {
+      dur: 14, gain, out, beat: 0.7,
+      partials: [[0.5, 0.7], [1, 1], [1.18, 0.55], [1.5, 0.4], [2, 0.3], [2.42, 0.2], [3, 0.12], [4.2, 0.05]],
+    });
+    this.noiseHit(t, { freq: 220, q: 0.7, gain: gain * 0.8, dur: 0.12, out, type: 'lowpass' });
+  }
   drum() {
     if (!this.fxReady()) return;
     const ctx = this.ctx, t = ctx.currentTime + 0.02, out = this.bus.fx;
