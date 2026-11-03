@@ -687,11 +687,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   cyl(1.75, 1.85, 0.3, stoneL, 0, 0.49, 0, { parent: shrine }, 40);
   cyl(0.82, 0.95, 1.1, stoneL, 0, 1.19, 0, { parent: shrine }, 8);
   cyl(0.98, 0.98, 0.08, stoneM, 0, 1.78, 0, { parent: shrine }, 8);
+  // khuôn tượng Quan Âm: không đặt ngoài sân nữa, chỉ dùng cho tượng dát vàng trong điện Quan Âm
   const quanAm = makeQuanAm({ quality });
-  quanAm.position.y = 1.82;
-  quanAm.rotation.y = -Math.PI / 2; // nhìn ra lối đi giữa sân
-  quanAm.scale.setScalar(1.45);
-  shrine.add(quanAm);
   obstacles.push({ x: QA.x, z: QA.z, r: 2.55 });
 
   // Mái che nhỏ cho tượng: 4 cột sơn son trên bệ đá, mái ngói cong, bốn đầu đao vểnh, hồ lô trên chóp
