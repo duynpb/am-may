@@ -1,0 +1,11 @@
+{
+  "name": "Am Mây — Chùa trực tuyến",
+  "short_name": "Am Mây",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#efe9df",
+  "theme_color": "#24251f",
+  "lang": "vi",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
