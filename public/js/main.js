@@ -205,7 +205,7 @@ function clampZone(zone, x, z) {
 
 // Ngoài sân, các khu (sân chùa, trục đường, cổng, sân trước cổng, sân giếng, hành lang…) là các hình chữ nhật;
 // hai khu chồng lên nhau ở đâu thì đó là chỗ đi qua lại. Đi xa thì tìm chuỗi khu ngắn nhất rồi đi qua các chỗ nối,
-// gặp giếng Ngọc, bệ tượng Quan Âm hay chân tháp thì đi vòng.
+// gặp giếng Ngọc hay chân tháp thì đi vòng.
 const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
 const PORTALS = WALK_AREAS.map((a, i) => WALK_AREAS.map((b, j) => {
   if (i === j) return null;
@@ -227,7 +227,6 @@ function areaOf(x, z) {
 }
 const ROUND_OBSTACLES = [
   { x: WELL.x, z: WELL.z, r: WELL.r + 0.9 },
-  { x: 10.6, z: 29.4, r: 3.0 }, // bệ tượng Quan Âm
   { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
   { x: 29.4, z: QAHALL.z1 - 0.2, r: 0.75 }, // cột mặt tiền điện Quan Âm
@@ -317,18 +316,18 @@ function clampTower(x, z) {
 const inQaHall = (a) => a.pos.x > QAHALL.x0 && a.pos.x < QAHALL.x1 && a.pos.z > QAHALL.z0 && a.pos.z < QAHALL.z1 + 0.4;
 // Trên nền đồi sau chánh điện (trong hoặc trước điện Tam Thế)
 const inTamThe = (a) => Math.abs(a.pos.x) <= TERRACE.x && a.pos.z >= TERRACE.z0 && a.pos.z < TERRACE.z1 + 0.5;
-// Nơi thắp nhang: trong chánh điện, ngoài sân (Quan Âm), trên tháp, trong điện Quan Âm hay điện Tam Thế
-const placeOf = (a) => (onTower(a) ? 'tower' : inQaHall(a) ? 'qahall' : inTamThe(a) ? 'tamthe' : zoneOfA(a));
-const PLACE_KINDS = ['out', 'tower', 'qahall', 'tamthe'];
+// Nơi thắp nhang: trong chánh điện, trên tháp, trong điện Quan Âm hay điện Tam Thế (ngoài sân thì tới điện Quan Âm)
+const placeOf = (a) => (onTower(a) ? 'tower' : inTamThe(a) ? 'tamthe' : zoneOfA(a) === 'out' ? 'qahall' : 'in');
+const PLACE_KINDS = ['tower', 'qahall', 'tamthe'];
 
-// Hướng mặt về nơi thờ: tượng Phật trong chánh điện, tượng Quan Âm ngoài sân, tượng Phật trên tháp, tượng trong điện Quan Âm
-const SHRINES = { tower: () => world.tower.buddha, qahall: () => world.qaHall.head, tamthe: () => world.tamThe.head, out: () => world.quanAm.head, in: () => BUDDHA };
+// Hướng mặt về nơi thờ: tượng Phật trong chánh điện, tượng Phật trên tháp, tượng trong điện Quan Âm (cả khi ở ngoài sân), điện Tam Thế
+const SHRINES = { tower: () => world.tower.buddha, qahall: () => world.qaHall.head, tamthe: () => world.tamThe.head, in: () => BUDDHA };
 const shrineOf = (a) => SHRINES[placeOf(a)]();
 const faceShrineRy = (a) => {
   const t = shrineOf(a);
   return Math.atan2(t.x - a.pos.x, t.z - a.pos.z);
 };
-const burnerOf = (place) => ({ tower: world.incenseTop, qahall: world.incenseQH, tamthe: world.incenseTT, out: world.incenseOut })[place] ?? world.incense;
+const burnerOf = (place) => ({ tower: world.incenseTop, qahall: world.incenseQH, tamthe: world.incenseTT })[place] ?? world.incense;
 const faceRy = (a, b) => Math.atan2(b.pos.x - a.pos.x, b.pos.z - a.pos.z);
 
 // ---------- Toast ----------
@@ -652,14 +651,14 @@ function botsThink(t) {
   }
 }
 
-// Khách mô phỏng ra sân: mang dép, thắp nhang dâng Quan Âm, ngắm hồ sen rồi vào lại chánh điện
+// Khách mô phỏng ra sân: mang dép, thắp nhang trong điện Quan Âm, ngắm hồ sen rồi vào lại chánh điện
 async function botGardenTrip(a) {
   a.trip = true;
-  const spot = leastCrowded(world.incenseOut.spots, a);
+  const spot = leastCrowded(world.incenseQH.spots, a);
   if (!(await crossZone(a, spot.x, spot.z))) return (a.trip = false);
   await wait(rnd(500, 1500));
   if (!avatars.has(a.id) || a.leaving) return;
-  await new Promise((res) => offerIncense(a, Math.random() < 0.6 ? 3 : 1, res, 'out'));
+  await new Promise((res) => offerIncense(a, Math.random() < 0.6 ? 3 : 1, res, 'qahall'));
   await wait(rnd(3000, 8000));
   if (!avatars.has(a.id) || a.leaving || a.script) return;
   if (Math.random() < 0.6) {
@@ -847,7 +846,8 @@ function wireNet(n) {
     } else if (m.a === 'bell' || m.a === 'drum') {
       ringInstrument(m.a, a);
     } else if (m.a === 'incense') {
-      offerIncense(a, m.n === 3 ? 3 : 1, null, PLACE_KINDS.includes(m.place) ? m.place : 'in');
+      const place = m.place === 'out' ? 'qahall' : m.place; // máy cũ còn gửi 'out' (lư hương đá ngoài sân đã bỏ)
+      offerIncense(a, m.n === 3 ? 3 : 1, null, PLACE_KINDS.includes(place) ? place : 'in');
     } else if (m.a === 'greatbell') {
       ringGreatBell(a);
     }
@@ -1069,7 +1069,7 @@ function movePlayerTo(x, z, seat = null) {
     }
     player.queued = null;
     crossZone(player, x, z, seat).then((ok) => {
-      if (ok && target === 'out') toast('Bạn đang ở ngoài sân — có thể thắp nhang dâng Quan Âm Bồ Tát', 3600);
+      if (ok && target === 'out') toast('Bạn đang ở ngoài sân — có thể vào điện Quan Âm thắp nhang dâng Quan Âm Bồ Tát', 3600);
       if (ok) goQueued();
     });
     return;
@@ -1157,7 +1157,6 @@ function sweepLeaves(dt) {
 // ---------- Bản đồ chùa và đi nhanh ----------
 const PLACES = [
   { id: 'hall', name: 'Chánh điện', x: 0, z: 9 },
-  { id: 'quanam', name: 'Sân Quan Âm', x: world.quanAm.front.x, z: world.quanAm.front.z },
   { id: 'tower', name: 'Tháp 13 tầng', x: TOWER.arrive.x, z: TOWER.arrive.z },
   { id: 'lahan', name: 'Hành lang La Hán', x: 14.5, z: 46, ry: Math.PI / 2 },
   { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
@@ -1267,11 +1266,9 @@ function buildMap() {
   rect(-15, 15, -21, 19, 'm-hall'); // chánh điện
   rect(-9, 9, 19, 21.6, 'm-porch'); // thềm
   rect(-20, 20, GATE.z - 0.4, GATE.z + 0.4, 'm-wall'); // tường cổng
-  el('circle', { cx: mapU(29.4), cy: mapV(10.6), r: 2.4, class: 'm-statue' });
   el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 3.4, class: 'm-tower' });
   const labels = [
     ['hall', 0, 2, 'Chánh điện'],
-    ['quanam', 15.4, 29.4, 'Quan Âm'],
     ['tower', -15.2, 30, 'Tháp 13 tầng'],
     ['gate', 0, GATE.z + 5.5, 'Tam Quan'],
     ['well', 0, WELL.z, 'Giếng Ngọc'],
@@ -1655,12 +1652,11 @@ function openIncenseDialog() {
   const st = incenseStats();
   $('#inc-stats').textContent = st.today ? `Hôm nay bạn đã thắp ${st.today} nén nhang.` : '';
   const place = placeOf(player);
-  $('#inc-title').textContent = { tower: 'Thắp nhang dâng Phật trên tháp', qahall: 'Thắp nhang trong điện Quan Âm', tamthe: 'Thắp nhang dâng Tam Thế Phật', out: 'Thắp nhang dâng Quan Âm Bồ Tát' }[place] ?? 'Thắp nhang';
+  $('#inc-title').textContent = { tower: 'Thắp nhang dâng Phật trên tháp', qahall: 'Thắp nhang trong điện Quan Âm', tamthe: 'Thắp nhang dâng Tam Thế Phật' }[place] ?? 'Thắp nhang';
   $('#modal-incense .muted').textContent = {
     tower: 'Bạn sẽ bước tới trước bàn thờ trên tầng 13, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
     qahall: 'Bạn sẽ bước tới trước bàn thờ Quan Âm Bồ Tát trong điện, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
     tamthe: 'Bạn sẽ bước tới lư hương giữa điện Tam Thế, chắp tay vái lạy ba đức Phật rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
-    out: 'Bạn sẽ bước tới lư hương đá trước tượng Quan Âm, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
   }[place] ?? 'Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.';
   openModal('#modal-incense');
 }
@@ -1706,7 +1702,7 @@ function incenseRitual() {
     st.today += n;
     st.total += n;
     store.set('incense', st);
-    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${{ out: ' dâng Quan Âm Bồ Tát', qahall: ' dâng Quan Âm Bồ Tát', tamthe: ' dâng Tam Thế Phật', tower: ' dâng Phật trên tháp' }[place] ?? ''}`, 4200);
+    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${{ qahall: ' dâng Quan Âm Bồ Tát', tamthe: ' dâng Tam Thế Phật', tower: ' dâng Phật trên tháp' }[place] ?? ''}`, 4200);
   });
 }
 
@@ -2010,13 +2006,6 @@ function handleTap(x, y) {
     hideHint();
     return;
   }
-  if (kind === 'quanam') {
-    // tới trước tượng Quan Âm
-    const f = world.quanAm.front;
-    movePlayerTo(f.x, f.z + rnd(-0.8, 0.8));
-    hideHint();
-    return;
-  }
   let seat = null;
   if (kind === 'seat') seat = seats[firstHit.instanceId];
   else if (kind === 'floor') {
@@ -2091,7 +2080,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'quanam' || k === 'broom' || k === 'tower' || k === 'greatbell' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'tower' || k === 'greatbell' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
 }
 
 // Bàn phím (máy tính)

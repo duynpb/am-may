@@ -658,10 +658,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     };
   })();
 
-  // ---------- Khu cầu nguyện ngoài sân: tượng Quan Âm, lư hương đá, hồ sen, tiểu cảnh ----------
+  // ---------- Tiểu cảnh ngoài sân: thảm cỏ, hồ sen, đèn đá, bụi hoa ----------
   const GY = PORCH.courtY;
-  const QA = new THREE.Vector3(10.6, GY, 29.4); // tâm bệ tượng
-  const URN = new THREE.Vector3(7.9, GY, 29.4); // lư hương đá trước tượng
   const PD = { x: 10.9, z: 35.6, rx: 2.6, rz: 1.7 }; // hồ sen
   const stoneM = std('#a9a49a', { roughness: 0.95 });
   const stoneL = std('#cbc6ba', { roughness: 0.9 });
@@ -676,112 +674,6 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   grass.rotation.x = -Math.PI / 2;
   grass.userData.kind = 'ground';
   pickables.push(grass);
-
-  // bệ đá hai tầng + trụ bát giác + tượng
-  const shrine = new THREE.Group();
-  shrine.position.copy(QA);
-  shrine.userData.kind = 'quanam';
-  scene.add(shrine);
-  pickables.push(shrine);
-  cyl(2.3, 2.45, 0.34, stoneM, 0, 0.17, 0, { parent: shrine }, 40);
-  cyl(1.75, 1.85, 0.3, stoneL, 0, 0.49, 0, { parent: shrine }, 40);
-  cyl(0.82, 0.95, 1.1, stoneL, 0, 1.19, 0, { parent: shrine }, 8);
-  cyl(0.98, 0.98, 0.08, stoneM, 0, 1.78, 0, { parent: shrine }, 8);
-  // khuôn tượng Quan Âm: không đặt ngoài sân nữa, chỉ dùng cho tượng dát vàng trong điện Quan Âm
-  const quanAm = makeQuanAm({ quality });
-  obstacles.push({ x: QA.x, z: QA.z, r: 2.55 });
-
-  // Mái che nhỏ cho tượng: 4 cột sơn son trên bệ đá, mái ngói cong, bốn đầu đao vểnh, hồ lô trên chóp
-  {
-    const pav = new THREE.Group();
-    shrine.add(pav);
-    const C = 1.5; // cột đặt ở (±C, ±C)
-    const H = 6.75; // độ cao đầu cột (trên tượng và hào quang)
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      cyl(0.13, 0.15, H - 0.34, M.lacquer, sx * C, 0.34 + (H - 0.34) / 2, sz * C, { parent: pav }, 12);
-      cyl(0.24, 0.27, 0.22, stoneM, sx * C, 0.45, sz * C, { parent: pav }, 12);
-      cyl(0.16, 0.16, 0.08, M.gold, sx * C, H - 0.3, sz * C, { parent: pav, cast: false }, 12);
-    }
-    for (const s of [-1, 1]) {
-      box(2 * C + 0.42, 0.22, 0.2, M.darkWood, 0, H, s * C, { parent: pav });
-      box(0.2, 0.22, 2 * C + 0.42, M.darkWood, s * C, H, 0, { parent: pav });
-    }
-
-    // mặt mái: nón 64 cạnh nắn thành hình vuông, lõm nhẹ giữa mái, góc vểnh lên thành đầu đao
-    const R = 2.35, RH = 1.75, SAG = 0.32, CURL = 0.6, BASE = H + 0.14;
-    const roofY = (t, corner) => BASE + RH * (1 - t) - SAG * Math.sin(Math.PI * Math.min(t, 1)) + CURL * corner ** 3 * t ** 4;
-    const squareR = (th) => 1 / Math.max(Math.abs(Math.cos(th)), Math.abs(Math.sin(th)));
-    const roofGeo = new THREE.ConeGeometry(1, 1, 64, 10, true);
-    const rp = roofGeo.attributes.position;
-    for (let i = 0; i < rp.count; i++) {
-      const t = 0.5 - rp.getY(i); // 0 ở chóp, 1 ở mép mái
-      const th = Math.atan2(rp.getZ(i), rp.getX(i));
-      const sq = squareR(th);
-      const corner = (sq - 1) / (Math.SQRT2 - 1); // 0 giữa cạnh, 1 ở góc
-      const r = t * R * sq;
-      rp.setXYZ(i, Math.cos(th) * r, roofY(t, corner), Math.sin(th) * r);
-    }
-    roofGeo.computeVertexNormals();
-    const tiles = T.canvasTexture(256, 256, (g, w) => {
-      g.fillStyle = '#8a4129';
-      g.fillRect(0, 0, w, w);
-      for (let x = 0; x < w; x += 16) {
-        // rãnh ngói âm dương
-        g.fillStyle = 'rgba(40,14,6,0.45)';
-        g.fillRect(x, 0, 4, w);
-        g.fillStyle = 'rgba(255,190,150,0.12)';
-        g.fillRect(x + 8, 0, 3, w);
-      }
-      for (let y = 0; y < w; y += 32) {
-        g.fillStyle = 'rgba(30,10,4,0.3)';
-        g.fillRect(0, y, w, 3);
-      }
-    }, { repeat: [20, 4] });
-    const roof = new THREE.Mesh(roofGeo, std('#ffffff', { map: tiles, roughness: 0.85, side: THREE.DoubleSide }));
-    roof.castShadow = roof.receiveShadow = true;
-    pav.add(roof);
-
-    // bốn bờ nóc chạy xuống góc mái, cuối cong vút lên (đầu đao)
-    const ridgeM = std('#d9c9a6', { roughness: 0.8 });
-    for (let k = 0; k < 4; k++) {
-      const th = Math.PI / 4 + (k * Math.PI) / 2;
-      const pts = [];
-      for (let i = 0; i <= 14; i++) {
-        const t = (i / 14) * 1.1; // vượt mép mái một chút để làm đầu đao
-        const r = t * R * Math.SQRT2;
-        pts.push(new THREE.Vector3(Math.cos(th) * r, roofY(t, 1) + 0.07 + (t > 1 ? (t - 1) * 3.2 : 0), Math.sin(th) * r));
-      }
-      const ridge = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.065, 8), ridgeM);
-      ridge.castShadow = true;
-      pav.add(ridge);
-      const tip = pts[pts.length - 1];
-      const curl = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), ridgeM);
-      curl.position.copy(tip);
-      pav.add(curl);
-    }
-    // hồ lô trên chóp mái
-    const gourd = lathe([[0, 0], [0.14, 0], [0.18, 0.1], [0.11, 0.24], [0.06, 0.28], [0.12, 0.38], [0.13, 0.47], [0.06, 0.58], [0.02, 0.66], [0, 0.68]], M.gold, 0, BASE + RH - 0.06, 0, { parent: pav });
-    gourd.castShadow = true;
-  }
-  // đèn chiếu tượng, sáng hơn về đêm
-  const qaLight = new THREE.SpotLight(0xfff0dd, 0, 18, 0.45, 0.6, 2);
-  qaLight.position.set(QA.x - 5, GY + 6, QA.z + 1);
-  qaLight.target.position.set(QA.x, GY + 4.2, QA.z);
-  scene.add(qaLight, qaLight.target);
-
-  // lư hương đá + nền đá chỗ đứng thắp nhang
-  box(1.5, 0.04, 2.8, stoneL, 6.75, GY + 0.02, URN.z, { cast: false });
-  cyl(0.32, 0.38, 0.25, stoneM, URN.x, GY + 0.125, URN.z, {}, 16);
-  lathe([[0, 0], [0.3, 0], [0.42, 0.12], [0.46, 0.3], [0.4, 0.42], [0.44, 0.46], [0.4, 0.46]], stoneM, URN.x, GY + 0.25, URN.z);
-  obstacles.push({ x: URN.x, z: URN.z, r: 0.6 });
-  const incenseOut = makeBurner({
-    center: new THREE.Vector3(URN.x, GY + 0.66, URN.z),
-    radius: 0.3,
-    spots: [28.6, 29.4, 30.2].map((z) => ({ x: 6.75, z })),
-    target: new THREE.Vector3(QA.x, GY + 4.6, QA.z),
-    smoke: 30,
-    min: 2,
-  });
 
   // hồ sen: đáy tối, mặt nước trong, viền đá, lá sen, hoa sen, non bộ, cá koi
   const pondBottom = mesh(new THREE.CircleGeometry(1, 40), std('#1a2a27', { roughness: 1 }), PD.x, GY + 0.012, PD.z, { cast: false });
@@ -931,7 +823,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     obstacles.push({ x: BROOM.x + 0.2, z: BROOM.z + 0.1, r: 0.75 });
   }
 
-  // bụi cây và bồn hoa quanh bệ tượng
+  // bụi cây và bồn hoa trên thảm cỏ
   const flowerColors = ['#f3a3b6', '#f6d36b', '#ffffff', '#e2534a', '#c58ae0'].map((c) => std(c, { roughness: 0.7 }));
   function bush(x, z, s = 1) {
     const was = batching;
@@ -1383,11 +1275,11 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     mesh(new THREE.PlaneGeometry(4.2, 0.8), boardMat(['QUAN ÂM ĐIỆN'], { w: 1024, h: 196, size: 110 }), QH.cx, GY + 6.1, cz + d * 0.31 + 0.06, { cast: false });
     rectRoof(QH.cx, GY + 6.8, cz, w * 0.66 + 2.4, d * 0.62 + 2.4, 1.6, sideTile, { top: 0.35 });
     mesh(new THREE.SphereGeometry(0.3, 14, 10), M.gold, QH.cx, GY + 8.7, cz);
-    // bàn thờ và tượng Quan Âm dát vàng (dùng lại khuôn tượng ngoài sân)
+    // bàn thờ và tượng Quan Âm dát vàng
     box(5.2, 1.0, 1.7, M.lacquer, QH.cx, GY + 0.7, QH.z0 + 1.2);
     box(5.4, 0.08, 1.9, M.gold, QH.cx, GY + 1.22, QH.z0 + 1.2, { cast: false });
     const gilt = new Map();
-    const qa2 = quanAm.clone();
+    const qa2 = makeQuanAm({ quality });
     qa2.traverse((m) => {
       if (!m.isMesh) return;
       if (!gilt.has(m.material)) {
@@ -1756,7 +1648,6 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   nightHooks.push((night) => {
     lampMat.emissiveIntensity = 2.2 * night;
     for (const g of lampGlows) g.material.opacity = 0.7 * night;
-    qaLight.intensity = 80 * night;
   });
 
   // Đẩy điểm đến ra khỏi bệ tượng, hồ, cây… (đi lại ngoài sân)
@@ -2040,7 +1931,6 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     seats,
     pickables,
     incense,
-    incenseOut,
     incenseTop,
     incenseQH,
     qaHall: { head: QH_HEAD },
@@ -2049,8 +1939,6 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     greatBell,
     merit,
     tower: { ...TOWER, buddha: TOP_BUDDHA },
-    // khu Quan Âm: tâm bệ tượng, điểm đứng chiêm bái phía trước
-    quanAm: { center: QA, front: new THREE.Vector3(6.75, 0, QA.z), head: new THREE.Vector3(QA.x, GY + 4.6, QA.z) },
     pushOut,
     // giá chổi: chỗ đứng để lấy / trả chổi
     broom: { center: BROOM, spot: new THREE.Vector3(BROOM.x, 0, BROOM.z + 1.05) },
