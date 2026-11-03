@@ -1,4 +1,5 @@
-// Tượng Phật A Di Đà ngồi kiết già trên tòa sen.
+// Tượng Phật ngồi kiết già trên tòa sen: Thích Ca Mâu Ni (ấn xúc địa, áo vắt vai trái, để trần vai phải)
+// cho chánh điện, hoặc bản ấn thiền định áo phủ hai vai cho các tượng khác.
 // Thân tượng được "điêu khắc" bằng hàm khoảng cách (SDF): các khối hòa liền nhau bằng smooth-min,
 // rồi dựng bề mặt bằng marching cubes; pháp tuyến lấy từ gradient, bóng kẽ lõm (AO) tô vào màu đỉnh.
 import * as THREE from 'three';
@@ -133,25 +134,119 @@ function body(x, y, z) {
   return Math.abs(d) < 0.07 ? d + robe(x, y, z) : d;
 }
 
+// ---------- Thích Ca Mâu Ni: ấn xúc địa (tay phải chạm đất), áo vắt vai trái ----------
+// Tượng quay mặt về +z; tay phải của tượng ở phía x âm.
+// mép áo chéo từ vai trái xuống nách phải
+const diagY = (x) => 1.56 + (x + 0.6) * 0.66;
+
+function skinThichCa(x, y, z) {
+  // vai, cánh tay, cẳng tay phải để trần
+  let d = sph(x, y, z, -0.64, 1.95, -0.03, 0.19);
+  d = smin(d, cone(x, y, z, [-0.68, 1.95, -0.03], [-0.8, 1.42, 0.1], 0.17, 0.135), 0.08);
+  d = smin(d, cone(x, y, z, [-0.8, 1.42, 0.1], [-0.9, 1.14, 0.46], 0.125, 0.075), 0.06);
+  // bàn tay phải úp trên gối, các ngón duỗi chạm xuống tòa sen
+  d = smin(d, ell(x, y, z, -0.91, 1.05, 0.535, 0.07, 0.085, 0.034), 0.04);
+  for (const [fx, len] of [[-0.955, 0.13], [-0.927, 0.15], [-0.899, 0.14], [-0.872, 0.115]]) {
+    d = smin(d, cone(x, y, z, [fx, 0.99, 0.56], [fx - 0.004, 0.99 - len, 0.585], 0.02, 0.015), 0.012);
+  }
+  d = smin(d, cone(x, y, z, [-0.85, 1.07, 0.535], [-0.838, 0.97, 0.58], 0.021, 0.016), 0.015); // ngón cái
+  // bàn tay trái ngửa trong lòng, các ngón khép duỗi về bên phải
+  d = smin(d, cone(x, y, z, [0.32, 1.2, 0.47], [0.17, 1.2, 0.53], 0.075, 0.06), 0.04);
+  d = smin(d, ell(x, y, z, 0.09, 1.2, 0.56, 0.1, 0.035, 0.075), 0.04);
+  [0.512, 0.546, 0.58, 0.612].forEach((fz, i) => {
+    d = smin(d, cone(x, y, z, [0.0, 1.215, fz], [-0.13 + (i === 3 ? 0.03 : 0), 1.22, fz + 0.005], 0.019, 0.016), 0.012);
+  });
+  d = smin(d, cone(x, y, z, [0.1, 1.215, 0.635], [0.0, 1.235, 0.66], 0.021, 0.017), 0.015); // ngón cái
+  // bàn chân phải gác trên đùi trái, lòng bàn chân ngửa lên, các ngón quay ra ngoài
+  d = smin(d, cone(x, y, z, [0.22, 1.07, 0.52], [0.6, 1.09, 0.45], 0.07, 0.058), 0.05);
+  for (const [tx, tz, r] of [[0.655, 0.405, 0.03], [0.665, 0.437, 0.024], [0.662, 0.465, 0.022], [0.652, 0.49, 0.02], [0.636, 0.512, 0.018]]) {
+    d = smin(d, sph(x, y, z, tx, 1.1, tz, r), 0.02);
+  }
+  return smin(d, NECK(x, y, z), 0.1);
+}
+
+function clothThichCa(x, y, z) {
+  // hai chân xếp kiết già, phủ áo
+  let d = ell(x, y, z, 0, 0.9, 0.15, 1.05, 0.22, 0.64);
+  d = smin(d, cone(x, y, z, [-0.86, 0.96, 0.3], [0.38, 0.99, 0.62], 0.17, 0.12), 0.14);
+  d = smin(d, cone(x, y, z, [0.86, 0.93, 0.28], [-0.38, 0.94, 0.57], 0.17, 0.12), 0.14);
+  for (const s of [-1, 1]) d = smin(d, sph(x, y, z, s * 0.95, 0.95, 0.32, 0.21), 0.14);
+  d = smin(d, ell(x, y, z, 0, 0.8, 0.45, 0.98, 0.13, 0.42), 0.14);
+  // hông, bụng thon, ngực nở (thân sư tử), vai rộng
+  d = smin(d, ell(x, y, z, 0, 1.18, 0.0, 0.56, 0.3, 0.41), 0.15);
+  d = smin(d, ell(x, y, z, 0, 1.42, 0.04, 0.46, 0.32, 0.35), 0.12);
+  d = smin(d, ell(x, y, z, 0, 1.77, 0.03, 0.6, 0.42, 0.37), 0.14);
+  d = smin(d, ell(x, y, z, 0, 2.02, -0.03, 0.56, 0.17, 0.28), 0.14);
+  // vai và tay trái phủ áo, vạt tay áo rủ xuống
+  d = smin(d, sph(x, y, z, 0.64, 1.95, -0.03, 0.2), 0.14);
+  d = smin(d, cone(x, y, z, [0.68, 1.95, -0.03], [0.8, 1.4, 0.08], 0.18, 0.16), 0.08);
+  d = smin(d, cone(x, y, z, [0.8, 1.4, 0.08], [0.32, 1.2, 0.47], 0.16, 0.1), 0.07);
+  d = smin(d, ell(x, y, z, 0.82, 1.3, 0.12, 0.2, 0.44, 0.32), 0.2);
+  // vạt áo gấp vắt qua vai trái, buông xuống trước ngực tới rốn
+  d = smin(d, ell(x, y, z, 0.24, 1.7, 0.33, 0.1, 0.4, 0.05), 0.05);
+  return d;
+}
+
+function robeThichCa(x, y, z, cover) {
+  if (cover < 0.01) return 0;
+  // nếp áo mảnh chạy chéo theo mép áo trên ngực, lưng
+  const e = y - diagY(x);
+  const torso = 0.0025 * Math.sin((y - 0.66 * x) * 44) * smooth(1.15, 1.35, y) * smooth(0.0, -0.08, e);
+  // nếp dọc trên vạt áo gấp
+  const flap = 0.005 * Math.sin(x * 70) * Math.exp(-(((x - 0.24) / 0.1) ** 2)) * smooth(1.3, 1.4, y) * smooth(2.1, 1.95, y) * smooth(0.25, 0.32, z);
+  const sleeve = 0.016 * Math.sin(z * 22 + x * 9 + y * 1.2) * smooth(0.52, 0.7, x) * smooth(1.0, 1.2, y) * smooth(1.95, 1.75, y);
+  const r = Math.hypot(x * 0.8, z - 0.55);
+  const legs = 0.017 * Math.sin(r * 24) * smooth(0.72, 0.95, y) * smooth(1.2, 1.08, y);
+  const hem = 0.03 * Math.sin(x * 10) * smooth(0.92, 0.74, y) * smooth(0.2, 0.42, z);
+  // vải dày hơn da một chút, mép áo cuộn tròn dọc đường chéo
+  let f = torso + flap + sleeve + legs + hem + 0.012;
+  if (x < 0.4) f += 0.026 * Math.exp(-(((e + 0.035) / 0.032) ** 2)) * smooth(0.4, 0.3, x);
+  return -f * cover;
+}
+
+function bodyThichCa(x, y, z) {
+  const dc = clothThichCa(x, y, z), ds = skinThichCa(x, y, z);
+  const d = smin(dc, ds, 0.06);
+  if (Math.abs(d) >= 0.07) return d;
+  // phần da: tay phải, hai bàn tay, bàn chân, cổ, và ngực/vai phải phía trên mép áo chéo
+  const skinW = smooth(0.03, -0.03, ds - dc);
+  const bare = smooth(-0.025, 0.02, y - diagY(x)) * smooth(0.4, 0.3, x);
+  return d + robeThichCa(x, y, z, (1 - skinW) * (1 - bare));
+}
+
 // Đầu tạc ở hệ tọa độ riêng: mặt trái xoan, má đầy, tai dài
 function headRaw(x, y, z) {
-  let d = ell(x, y, z, 0, 2.6, 0.02, 0.34, 0.43, 0.37);
-  d = smin(d, ell(x, y, z, 0, 2.47, 0.07, 0.28, 0.25, 0.3), 0.12); // má đầy, hàm thon
-  d = smin(d, ell(x, y, z, 0, 2.33, 0.24, 0.1, 0.07, 0.09), 0.09); // cằm tròn
-  d = smin(d, sph(x, y, z, 0, 2.97, -0.01, 0.17), 0.05); // nhục kế tròn, tách khỏi đỉnh đầu
+  let d = ell(x, y, z, 0, 2.62, 0.0, 0.33, 0.43, 0.36);
+  d = smin(d, ell(x, y, z, 0, 2.47, 0.07, 0.27, 0.24, 0.3), 0.12); // má đầy, hàm thon
+  d = smin(d, ell(x, y, z, 0, 2.33, 0.24, 0.09, 0.065, 0.085), 0.08); // cằm tròn
+  d = smin(d, sph(x, y, z, 0, 2.98, -0.02, 0.18), 0.06); // nhục kế
   for (const s of [-1, 1]) {
-    d = smin(d, ell(x, y, z, s * 0.35, 2.45, -0.01, 0.055, 0.3, 0.11), 0.04); // tai dài
-    d = smax(d, -ell(x, y, z, s * 0.4, 2.5, 0.0, 0.025, 0.2, 0.06), 0.02); // lòng tai
-    d = smin(d, ell(x, y, z, s * 0.13, 2.612, 0.338, 0.09, 0.04, 0.038), 0.035); // mí mắt khép hờ
+    // hốc mắt dưới cung mày, mí trên dày khép hờ nhìn xuống
+    d = smax(d, -ell(x, y, z, s * 0.13, 2.625, 0.44, 0.09, 0.04, 0.05), 0.05);
+    d = smin(d, ell(x, y, z, s * 0.13, 2.603, 0.345, 0.084, 0.034, 0.036), 0.03);
+    // cung mày cong vòng nguyệt, chạy dài tới đuôi mắt
+    let p = [s * 0.025, 2.672, 0.385];
+    for (let i = 1; i <= 6; i++) {
+      const u = i / 6, ax = 0.025 + 0.185 * u;
+      const n = [s * ax, 2.675 + 0.028 * Math.sin(Math.PI * Math.min(1, u * 1.15)) - 0.035 * u, 0.388 - 2.0 * ax * ax];
+      d = smin(d, cone(x, y, z, p, n, 0.009 - 0.003 * u), 0.05);
+      p = n;
+    }
+    // tai dài: vành tai sát đầu, dái tai dài có lỗ xẻ
+    d = smin(d, ell(x, y, z, s * 0.335, 2.58, -0.01, 0.045, 0.13, 0.1), 0.04);
+    d = smin(d, ell(x, y, z, s * 0.345, 2.36, 0.02, 0.03, 0.14, 0.06), 0.05);
+    d = smax(d, -ell(x, y, z, s * 0.375, 2.57, 0.0, 0.03, 0.085, 0.06), 0.015); // lòng tai
+    d = smax(d, -ell(x, y, z, s * 0.345, 2.31, 0.025, 0.08, 0.055, 0.014), 0.01); // lỗ xẻ dái tai
   }
-  // sống mũi, chóp mũi
-  d = smin(d, ell(x, y, z, 0, 2.56, 0.37, 0.045, 0.12, 0.06), 0.04);
-  d = smin(d, ell(x, y, z, 0, 2.475, 0.385, 0.062, 0.036, 0.042), 0.03);
-  // cung mày
-  d = smin(d, cone(x, y, z, [-0.2, 2.7, 0.3], [0.2, 2.7, 0.3], 0.028), 0.06);
-  // môi
-  d = smin(d, ell(x, y, z, 0, 2.408, 0.352, 0.082, 0.026, 0.042), 0.025);
-  d = smin(d, ell(x, y, z, 0, 2.368, 0.345, 0.066, 0.028, 0.042), 0.025);
+  // sống mũi thẳng, chóp mũi tròn, cánh mũi
+  d = smin(d, ell(x, y, z, 0, 2.56, 0.375, 0.04, 0.12, 0.055), 0.04);
+  d = smin(d, sph(x, y, z, 0, 2.47, 0.405, 0.038), 0.03);
+  for (const s of [-1, 1]) {
+    d = smin(d, sph(x, y, z, s * 0.044, 2.466, 0.372, 0.028), 0.02);
+  }
+  // nhân trung và môi: môi trên cánh cung, môi dưới đầy
+  d = smin(d, ell(x, y, z, 0, 2.405, 0.36, 0.075, 0.022, 0.04), 0.025);
+  d = smin(d, ell(x, y, z, 0, 2.37, 0.352, 0.062, 0.026, 0.04), 0.025);
   return d;
 }
 
@@ -340,7 +435,8 @@ export function petalGeometry({ baseC = '#b8862e', tipC = '#ffe08a' } = {}) {
   return merged;
 }
 
-export function makeBuddha({ quality = 'high' } = {}) {
+// style: 'thichca' — Thích Ca Mâu Ni ấn xúc địa (chánh điện); 'thien' — ấn thiền định, áo phủ hai vai
+export function makeBuddha({ quality = 'high', style = 'thien' } = {}) {
   const g = new THREE.Group();
   const q = quality === 'high' ? 1 : 1.45; // máy yếu: lưới thưa hơn
 
@@ -372,7 +468,7 @@ export function makeBuddha({ quality = 'high' } = {}) {
 
   // Thân và đầu tượng
   const geo = sculpt([
-    { sdf: body, min: [-1.3, 0.6, -0.72], max: [1.3, SPLIT_Y, 0.95], step: 0.02 * q },
+    { sdf: style === 'thichca' ? bodyThichCa : body, min: [-1.3, 0.6, -0.72], max: [1.3, SPLIT_Y, 0.95], step: (style === 'thichca' ? 0.018 : 0.02) * q },
     { sdf: head, min: [-0.42, SPLIT_Y, -0.4], max: [0.42, 3.27, 0.5], step: 0.0095 * q },
   ]);
   const statue = new THREE.Mesh(geo, gilt);
@@ -404,11 +500,12 @@ export function makeBuddha({ quality = 'high' } = {}) {
       if (y < hairline || (Math.abs(x) > 0.3 && y < 2.82)) continue;
       pts.push([...fromHead(x, y, z), dx, dy, dz]);
     }
-    const curls = new THREE.InstancedMesh(new THREE.SphereGeometry(0.026 * HEAD_S, 10, 8), goldDeep, pts.length);
+    // mỗi lọn tóc là một nụ xoắn nhọn như vỏ ốc
+    const knob = new THREE.LatheGeometry([[0, 0], [0.026, 0], [0.028, 0.008], [0.024, 0.018], [0.015, 0.026], [0.006, 0.032], [0, 0.034]].map(([a, b]) => new THREE.Vector2(a * HEAD_S, b * HEAD_S)), 10).rotateX(Math.PI / 2);
+    const curls = new THREE.InstancedMesh(knob, goldDeep, pts.length);
     const o = new THREE.Object3D();
     pts.forEach(([x, y, z, dx, dy, dz], i) => {
-      o.position.set(x - dx * 0.007, y - dy * 0.007, z - dz * 0.007);
-      o.scale.set(1, 0.8, 1);
+      o.position.set(x - dx * 0.012, y - dy * 0.012, z - dz * 0.012);
       o.lookAt(x + dx, y + dy, z + dz);
       o.updateMatrix();
       curls.setMatrixAt(i, o.matrix);
@@ -416,6 +513,11 @@ export function makeBuddha({ quality = 'high' } = {}) {
     curls.castShadow = true;
     g.add(curls);
   }
+  // ngọc trên đỉnh nhục kế
+  const gem = new THREE.Mesh(new THREE.SphereGeometry(0.04, 14, 10), goldDeep);
+  gem.position.set(...fromHead(0, 3.19, -0.02));
+  gem.scale.y = 1.3;
+  g.add(gem);
   // bạch hào giữa hai chân mày
   const urna = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), goldDeep);
   urna.position.set(...fromHead(0, 2.72, 0.395));

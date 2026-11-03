@@ -333,9 +333,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   box(5.8, 0.12, 4.4, M.gold, 0, 2.0, -18.8);
   box(5.8, 0.12, 4.4, M.gold, 0, 0.66, -18.8);
 
-  const buddha = makeBuddha({ quality });
+  const buddha = makeBuddha({ quality, style: 'thichca' }); // Thích Ca Mâu Ni, ấn xúc địa
   lodAdd(buddha, 0, -18.8, 100);
-  // bản tượng nhẹ hơn cho các tượng sao (trên tháp, điện Tam Thế); máy yếu thì tượng chính đã là bản nhẹ
+  // bản tượng nhẹ hơn (ấn thiền định) cho các tượng sao trên tháp, điện Tam Thế; máy yếu thì dùng luôn tượng chính
   const buddhaLite = quality === 'high' ? makeBuddha({ quality: 'low' }) : buddha;
   buddha.position.set(0, 2.06, -18.8);
   buddha.scale.setScalar(1.7);
