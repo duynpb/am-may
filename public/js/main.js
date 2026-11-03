@@ -205,7 +205,7 @@ function clampZone(zone, x, z) {
 
 // Ngoài sân, các khu (sân chùa, trục đường, cổng, sân trước cổng, sân giếng, hành lang…) là các hình chữ nhật;
 // hai khu chồng lên nhau ở đâu thì đó là chỗ đi qua lại. Đi xa thì tìm chuỗi khu ngắn nhất rồi đi qua các chỗ nối,
-// gặp giếng Ngọc hay chân tháp thì đi vòng.
+// gặp giếng Ngọc, gốc cây đa hay chân tháp thì đi vòng.
 const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
 const PORTALS = WALK_AREAS.map((a, i) => WALK_AREAS.map((b, j) => {
   if (i === j) return null;
@@ -227,6 +227,7 @@ function areaOf(x, z) {
 }
 const ROUND_OBSTACLES = [
   { x: WELL.x, z: WELL.z, r: WELL.r + 0.9 },
+  { x: 10.6, z: 29.4, r: 3.0 }, // gốc cây đa
   { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
   { x: 29.4, z: QAHALL.z1 - 0.2, r: 0.75 }, // cột mặt tiền điện Quan Âm
@@ -1157,6 +1158,7 @@ function sweepLeaves(dt) {
 // ---------- Bản đồ chùa và đi nhanh ----------
 const PLACES = [
   { id: 'hall', name: 'Chánh điện', x: 0, z: 9 },
+  { id: 'banyan', name: 'Cây đa', x: 7.3, z: 29.4, ry: Math.PI / 2 },
   { id: 'tower', name: 'Tháp 13 tầng', x: TOWER.arrive.x, z: TOWER.arrive.z },
   { id: 'lahan', name: 'Hành lang La Hán', x: 14.5, z: 46, ry: Math.PI / 2 },
   { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
@@ -1267,8 +1269,10 @@ function buildMap() {
   rect(-9, 9, 19, 21.6, 'm-porch'); // thềm
   rect(-20, 20, GATE.z - 0.4, GATE.z + 0.4, 'm-wall'); // tường cổng
   el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 3.4, class: 'm-tower' });
+  el('circle', { cx: mapU(29.4), cy: mapV(10.6), r: 1.4, class: 'm-tree' });
   const labels = [
     ['hall', 0, 2, 'Chánh điện'],
+    ['banyan', 15.4, 29.4, 'Cây đa'],
     ['tower', -15.2, 30, 'Tháp 13 tầng'],
     ['gate', 0, GATE.z + 5.5, 'Tam Quan'],
     ['well', 0, WELL.z, 'Giếng Ngọc'],

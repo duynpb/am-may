@@ -1,21 +1,18 @@
-// Lá rơi trên sân chùa: rụng xuống chao nghiêng, nằm trên sân, bị chổi quét thì bay đi rồi biến mất.
+// Lá đa rơi trên sân chùa: rụng xuống chao nghiêng, nằm trên sân, bị chổi quét thì bay đi rồi biến mất.
 // Mỗi lá: [id, x, z, góc xoay, màu] — máy chủ giữ danh sách chung cho cả chánh điện.
 import * as THREE from 'three';
+import { fallenBanyanLeaf } from './textures.js';
 
-const COLORS = ['#d9a43a', '#c8702a', '#8a5a2a', '#b3a043'].map((c) => new THREE.Color(c));
+// lá đa úa: vàng, vàng cam, nâu, xanh vàng
+const COLORS = ['#f2c64a', '#e0983a', '#a66a34', '#c4c25a'].map((c) => new THREE.Color(c));
 const MAX = 160;
 const FALL = 3.2; // giây rơi từ trên cây xuống
 const GONE = 0.55; // giây bay đi khi bị quét
 
 function leafGeometry() {
-  // phiến lá thon, mũi nhọn, nằm phẳng trên mặt sân (dài theo trục z)
-  const s = new THREE.Shape();
-  s.moveTo(0, -0.1);
-  s.quadraticCurveTo(0.065, -0.03, 0, 0.1);
-  s.quadraticCurveTo(-0.065, -0.03, 0, -0.1);
-  const g = new THREE.ShapeGeometry(s, 6);
+  // lá đa bầu dục to có cuống (vẽ trên texture), nằm phẳng trên mặt sân, dài theo trục z
+  const g = new THREE.PlaneGeometry(0.2, 0.4);
   g.rotateX(-Math.PI / 2);
-  g.scale(1.6, 1, 1.6);
   return g;
 }
 
@@ -25,7 +22,7 @@ export class LeafField {
     this.pushOut = pushOut;
     this.items = [];
     this.byId = new Map();
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide });
+    const mat = new THREE.MeshStandardMaterial({ map: fallenBanyanLeaf(), alphaTest: 0.5, roughness: 0.8, side: THREE.DoubleSide });
     this.mesh = new THREE.InstancedMesh(leafGeometry(), mat, MAX);
     this.mesh.count = 0;
     this.mesh.receiveShadow = true;

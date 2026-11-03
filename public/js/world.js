@@ -675,6 +675,137 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   grass.userData.kind = 'ground';
   pickables.push(grass);
 
+  // ---------- Cây đa cổ thụ (chỗ tượng Quan Âm cũ): thân nhiều gốc quấn, rễ bạnh, rễ phụ buông, tán xòe rộng ----------
+  const BANYAN = { x: 10.6, z: 29.4 };
+  {
+    const barkM = std('#ffffff', { map: T.bark(), roughness: 0.95 });
+    const P = (x, y, z) => new THREE.Vector3(BANYAN.x + x, GY + y, BANYAN.z + z);
+    const UP = new THREE.Vector3(0, 1, 0);
+    // ống cong thuôn dần: bán kính r0 ở đầu, r1 ở cuối
+    const taper = (pts, r0, r1, seg = 8, n = 12) => {
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const geo = new THREE.TubeGeometry(curve, n, 1, seg, false);
+      const p = geo.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+      for (let i = 0; i <= n; i++) {
+        curve.getPointAt(i / n, c);
+        const r = r0 + (r1 - r0) * (i / n);
+        for (let j = 0; j <= seg; j++) {
+          const k = i * (seg + 1) + j;
+          v.fromBufferAttribute(p, k).sub(c).multiplyScalar(r).add(c);
+          p.setXYZ(k, v.x, v.y, v.z);
+        }
+      }
+      geo.computeVertexNormals();
+      return geo;
+    };
+
+    // thân: lõi giữa và sáu gốc quấn xoắn vào nhau
+    mesh(taper([P(0, -0.1, 0), P(0.05, 2.2, 0), P(0, 4.5, 0.05)], 0.6, 0.42, 12, 8), barkM);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + rnd(-0.2, 0.2), r = rnd(0.42, 0.58);
+      const pts = [];
+      for (let k = 0; k <= 5; k++) {
+        const t = k / 5, tw = a + t * 1.2;
+        const rr = r * (1 - 0.4 * t) + 0.2 * t * t;
+        pts.push(P(Math.cos(tw) * rr, -0.1 + t * 4.4, Math.sin(tw) * rr));
+      }
+      mesh(taper(pts, rnd(0.3, 0.38), rnd(0.2, 0.26), 9, 14), barkM);
+    }
+    // rễ bạnh nổi trên mặt đất, tỏa ra quanh gốc
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + rnd(-0.15, 0.15), L = rnd(1.4, 2.2), bend = rnd(-0.25, 0.25);
+      const pts = [0, 0.3, 0.65, 1].map((t) => {
+        const aa = a + bend * t, rr = 0.45 + t * L;
+        return P(Math.cos(aa) * rr, 0.75 * (1 - t) ** 2 + 0.02, Math.sin(aa) * rr);
+      });
+      mesh(taper(pts, rnd(0.26, 0.32), 0.04, 7, 10), barkM);
+    }
+
+    // cành lớn vươn ngang (tránh phía chánh điện), chia nhánh; ghi lại ngọn cành và chỗ buông rễ phụ
+    const tips = [], hang = [];
+    function limb(p0, dir, len, r, depth) {
+      const pts = [p0.clone()];
+      const d = dir.clone();
+      let p = p0.clone();
+      for (let k = 1; k <= 4; k++) {
+        d.x += rnd(-0.15, 0.15);
+        d.z += rnd(-0.15, 0.15);
+        d.y += rnd(-0.1, 0.08);
+        d.normalize();
+        p = p.clone().addScaledVector(d, len / 4);
+        pts.push(p);
+      }
+      const r1 = r * 0.55;
+      mesh(taper(pts, r, r1, depth > 1 ? 9 : 6, depth > 1 ? 14 : 8), barkM);
+      if (depth >= 1) for (let k = 1; k < pts.length; k++) if (Math.random() < 0.8) hang.push(pts[k].clone().lerp(pts[k - 1], Math.random()));
+      tips.push(p);
+      if (depth === 0) return;
+      const n = depth > 1 ? 3 : 2 + (Math.random() < 0.5 ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const nd = d.clone().applyAxisAngle(UP, rnd(-0.75, 0.75));
+        nd.y += rnd(0.05, 0.3);
+        limb(p, nd.normalize(), len * rnd(0.55, 0.7), r1, depth - 1);
+      }
+    }
+    for (const a of [-0.5, 0.3, 1.0, 1.6, 2.2, 2.9, 3.65]) {
+      const a2 = a + rnd(-0.12, 0.12);
+      const dir = new THREE.Vector3(Math.cos(a2), rnd(0.3, 0.45), Math.sin(a2)).normalize();
+      limb(P(Math.cos(a2) * 0.3, rnd(3.7, 4.4), Math.sin(a2) * 0.3), dir, rnd(3.6, 4.4), rnd(0.28, 0.34), 2);
+    }
+
+    // rễ phụ: gần gốc vài rễ to cắm xuống đất thành cột, xa hơn là chùm rễ mảnh buông lơ lửng trên đầu người
+    let pillars = 0;
+    for (const h of hang) {
+      const dx = h.x - BANYAN.x, dz = h.z - BANYAN.z, dist = Math.hypot(dx, dz);
+      if (dist < 1.0) continue;
+      if (dist < 2.3 && pillars < 5 && Math.random() < 0.5) {
+        pillars++;
+        const top = h.y - GY;
+        mesh(taper([P(dx, top, dz), P(dx + rnd(-0.1, 0.1), top * 0.5, dz + rnd(-0.1, 0.1)), P(dx + rnd(-0.15, 0.15), -0.05, dz + rnd(-0.15, 0.15))], 0.05, rnd(0.09, 0.14), 6, 6), barkM);
+        continue;
+      }
+      for (let s = 0, n = 1 + Math.floor(rnd(0, 3)); s < n; s++) {
+        const x = dx + rnd(-0.25, 0.25), z = dz + rnd(-0.25, 0.25);
+        const bottom = Math.max(2.5, h.y - GY - rnd(1.2, 3.6));
+        if (h.y - GY - bottom < 0.4) continue;
+        mesh(taper([P(x, h.y - GY, z), P(x + rnd(-0.05, 0.05), (h.y - GY + bottom) / 2, z + rnd(-0.05, 0.05)), P(x + rnd(-0.08, 0.08), bottom, z + rnd(-0.08, 0.08))], rnd(0.02, 0.03), 0.008, 4, 5), barkM, 0, 0, 0, { cast: false });
+      }
+    }
+
+    // tán lá: các chùm lá đa ở ngọn cành, thêm lá phủ kín vòm tán; lay nhẹ theo gió
+    const crown = new THREE.Group();
+    crown.position.set(BANYAN.x, GY, BANYAN.z);
+    scene.add(crown);
+    const cardMat = new THREE.MeshStandardMaterial({ map: T.banyanLeaves(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.75 });
+    const spots = [];
+    for (const t of tips) for (let k = 0; k < 4; k++) spots.push([t.x - BANYAN.x + rnd(-1, 1), t.y - GY + rnd(-0.4, 1.0), t.z - BANYAN.z + rnd(-1, 1)]);
+    for (let i = 0; i < 220; i++) {
+      const a = rnd(0, Math.PI * 2), r = Math.sqrt(Math.random()) * 6.6;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r + 0.8;
+      if (z < -3.2) continue; // chừa phía mái chánh điện
+      spots.push([x, 6.6 + 3.0 * Math.sqrt(Math.max(0, 1 - (r / 7) ** 2)) + rnd(-0.6, 0.4), z]);
+    }
+    const cards = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.3, 2.3), cardMat, spots.length);
+    const o = new THREE.Object3D();
+    const tint = new THREE.Color();
+    spots.forEach(([x, y, z], i) => {
+      o.position.set(x, y, z);
+      o.rotation.set(rnd(-0.9, 0.9) - Math.PI / 2 * 0.4, rnd(0, Math.PI), rnd(-0.5, 0.5));
+      o.scale.setScalar(rnd(0.85, 1.3));
+      o.updateMatrix();
+      cards.setMatrixAt(i, o.matrix);
+      cards.setColorAt(i, tint.setHSL(0, 0, y > 8.6 ? rnd(0.95, 1.1) : rnd(0.7, 0.9))); // lá trong tán tối hơn
+    });
+    cards.castShadow = true;
+    cards.receiveShadow = true;
+    crown.add(cards);
+    updaters.push((t) => {
+      crown.rotation.z = Math.sin(t * 0.5) * 0.004;
+      crown.rotation.x = Math.sin(t * 0.37 + 1) * 0.003;
+    });
+    obstacles.push({ x: BANYAN.x, z: BANYAN.z, r: 2.55 });
+  }
+
   // hồ sen: đáy tối, mặt nước trong, viền đá, lá sen, hoa sen, non bộ, cá koi
   const pondBottom = mesh(new THREE.CircleGeometry(1, 40), std('#1a2a27', { roughness: 1 }), PD.x, GY + 0.012, PD.z, { cast: false });
   pondBottom.scale.set(PD.rx, PD.rz, 1);

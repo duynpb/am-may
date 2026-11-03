@@ -204,3 +204,78 @@ export function bambooLeaves() {
     }
   });
 }
+
+// Vỏ cây đa: xám nâu, vân dọc và đốm địa y
+export function bark() {
+  return canvasTexture(256, 256, (g, w, h) => {
+    g.fillStyle = '#8a8070';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 140; i++) {
+      const y = rnd(0, h), x = rnd(0, w), l = rnd(30, 120);
+      g.strokeStyle = `rgba(${Math.random() < 0.5 ? '60,52,44' : '170,160,140'},${rnd(0.15, 0.4)})`;
+      g.lineWidth = rnd(1, 4);
+      g.beginPath();
+      g.moveTo(x, y);
+      g.bezierCurveTo(x + rnd(-6, 6), y + l / 3, x + rnd(-6, 6), y + (2 * l) / 3, x + rnd(-4, 4), y + l);
+      g.stroke();
+    }
+    for (let i = 0; i < 40; i++) {
+      g.fillStyle = `rgba(${rnd(120, 160)},${rnd(140, 160)},${rnd(110, 130)},${rnd(0.15, 0.3)})`;
+      g.beginPath();
+      g.ellipse(rnd(0, w), rnd(0, h), rnd(4, 14), rnd(3, 9), 0, 0, Math.PI * 2);
+      g.fill();
+    }
+  }, { repeat: [2, 3] });
+}
+
+// vẽ một lá đa: phiến bầu dục to, mũi tù, gốc tròn, gân giữa và gân bên nhạt màu
+function banyanLeaf(g, len, fill, vein) {
+  const w = len * 0.36;
+  g.fillStyle = fill;
+  g.beginPath();
+  g.moveTo(0, -len / 2);
+  g.bezierCurveTo(w * 1.15, -len * 0.42, w * 1.05, len * 0.3, 0, len / 2);
+  g.bezierCurveTo(-w * 1.05, len * 0.3, -w * 1.15, -len * 0.42, 0, -len / 2);
+  g.fill();
+  g.strokeStyle = vein;
+  g.lineWidth = Math.max(1, len * 0.035);
+  g.beginPath();
+  g.moveTo(0, -len / 2);
+  g.lineTo(0, len * 0.47);
+  g.stroke();
+  g.lineWidth = Math.max(0.6, len * 0.015);
+  for (let k = 1; k <= 5; k++) {
+    const y = -len / 2 + (k / 6) * len * 0.92;
+    for (const s of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(0, y);
+      g.quadraticCurveTo(s * w * 0.5, y + len * 0.04, s * w * 0.8, y + len * 0.12);
+      g.stroke();
+    }
+  }
+}
+
+// Chùm lá đa cho tán cây (nền trong suốt)
+export function banyanLeaves() {
+  return canvasTexture(512, 512, (g, w) => {
+    for (let i = 0; i < 46; i++) {
+      const a = rnd(0, Math.PI * 2), d = Math.sqrt(Math.random()) * 190;
+      g.save();
+      g.translate(w / 2 + Math.cos(a) * d, w / 2 + Math.sin(a) * d * 0.85);
+      g.rotate(rnd(0, Math.PI * 2));
+      const l = rnd(26, 33), li = rnd(18, 34);
+      banyanLeaf(g, rnd(78, 104), `hsl(${rnd(95, 118)}, ${rnd(35, 55)}%, ${li}%)`, `hsla(${rnd(70, 90)}, 40%, ${li + l}%, 0.55)`);
+      g.restore();
+    }
+  });
+}
+
+// Lá đa rụng nằm trên sân: trắng để tô màu theo từng lá, gân nhạt hơn
+export function fallenBanyanLeaf() {
+  return canvasTexture(128, 256, (g, w, h) => {
+    g.translate(w / 2, h / 2 + 8);
+    banyanLeaf(g, 220, '#cfc7b4', 'rgba(255,252,235,0.95)');
+    g.fillStyle = '#d8d0b8';
+    g.fillRect(-2, -128, 4, 26); // cuống lá
+  });
+}
