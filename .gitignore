@@ -3,3 +3,16 @@ node_modules/
 data/
 *.log
 .DS_Store
+
+# chìa và tệp bí mật (skill ab-security-hardening)
+.env
+.env.*
+!.env.mau
+!.env.example
+.dev.vars
+*.pem
+*.key
+.wrangler/
+
+# bao cao quet bao mat vbsec (chi giu tren may)
+vbsec-reports/
