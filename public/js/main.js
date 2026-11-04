@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
+import { Dog } from './dog.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
@@ -98,6 +99,7 @@ try { await document.fonts.load('700 40px "Noto Serif"'); } catch { /* dùng fon
 const world = buildWorld(renderer, { quality: settings.quality });
 const { scene, seats } = world;
 Avatar.ground = groundY;
+Dog.ground = groundY;
 // ?gio=20.5 trên địa chỉ trang: xem thử chánh điện lúc 20 giờ 30 (mặc định theo giờ Việt Nam thật)
 if (params.has('gio')) world.setHour(parseFloat(params.get('gio')));
 
@@ -1291,7 +1293,7 @@ function buildMap() {
   rect(TAMTHE.x0, TAMTHE.x1, TAMTHE.z0, TAMTHE.z1, 'm-hall');
   for (const s of [-1, 1]) {
     el('circle', { cx: mapU(FALLS.poolZ), cy: mapV(s * FALLS.x), r: FALLS.poolR, class: 'm-water' }); // hồ dưới thác
-    rect(s * FALLS.x - 0.6, s * FALLS.x + 0.6, TERRACE.z1, FALLS.poolZ, 'm-water'); // suối
+    rect(s * FALLS.x - 0.6, s * FALLS.x + 0.6, FALLS.poolZ, TERRACE.z1, 'm-water'); // suối
   }
   for (const s of [-1, 1]) {
     rect(s > 0 ? 21 : -43, s > 0 ? 43 : -21, 18, 40, 'm-stone'); // sân bên
@@ -1380,6 +1382,97 @@ $('#btn-map').addEventListener('click', openMap);
 $('#modal-map').addEventListener('transitionend', () => {
   mapOpen = $('#modal-map').classList.contains('show');
 });
+
+// ---------- Chó của nhà chùa: các sư thầy, chú tiểu nuôi ----------
+// Đi lang thang giữa các sân, nằm nghỉ, thấy người thì chạy lại vẫy đuôi, thỉnh thoảng sủa khẽ.
+// Mỗi máy tự cho chó đi (không đồng bộ giữa người chơi).
+const DOG_INFO = [
+  { name: 'Vàng', owner: 'chú tiểu Tâm', coat: ['#c99a52', '#f1dcb4', '#a8743a'], ears: 'down' },
+  { name: 'Mực', owner: 'sư thầy trụ trì', coat: ['#2b2522', '#4a3f38', '#1e1a18'], ears: 'up' },
+  { name: 'Bông', owner: 'chú tiểu An', coat: ['#f3eee4', '#ffffff', '#c98a54'], ears: 'down', size: 0.85 },
+  { name: 'Lu', owner: 'sư cô Diệu Hạnh', coat: ['#8a5a36', '#d8b48a', '#6b4128'], ears: 'up', size: 1.1 },
+];
+// sân chùa, trục đường, sân giếng, sân trước cổng, hai sân bên, sân sau, sân trước điện Tam Thế
+const DOG_AREAS = WALK_AREAS.filter((r) => r.maxX - r.minX > 6 && r.maxZ - r.minZ > 6 && !(r.minX > QAHALL.x0 - 1 && r.maxZ < QAHALL.z1 + 2) && !(Math.abs(r.minX) < 12 && r.maxZ < TAMTHE.z1 && r.minZ > TAMTHE.z0 - 1));
+const dogs = DOG_INFO.slice(0, settings.quality === 'high' ? 4 : 3).map((info) => {
+  const d = new Dog(info);
+  const [x, z] = world.pushOut(rnd(-12, 12), rnd(24, 37));
+  d.placeAt(x, z, rnd(0, 6.28));
+  scene.add(d.root);
+  d.labelEl = document.createElement('div');
+  d.labelEl.className = 'label name dog-label';
+  d.labelEl.textContent = d.name;
+  d.labelEl.title = `Chó của ${d.owner}`;
+  d.labelEl.addEventListener('click', () => petDog(d));
+  labelsEl.append(d.labelEl);
+  d.restUntil = rnd(1, 6);
+  return d;
+});
+const dogV = new THREE.Vector3();
+function pickDog() {
+  let best = null, bestD = Infinity;
+  for (const d of dogs) {
+    dogV.set(d.root.position.x, d.root.position.y + 0.4, d.root.position.z);
+    const along = dogV.clone().sub(ray.ray.origin).dot(ray.ray.direction);
+    if (ray.ray.distanceToPoint(dogV) < 0.5 && along > 0 && along < bestD) {
+      best = d;
+      bestD = along;
+    }
+  }
+  return best;
+}
+function petDog(d) {
+  sound.init();
+  d.route = null;
+  d.routeTo = null;
+  d.goal = null;
+  d.faceRy = Math.atan2(player.pos.x - d.pos.x, player.pos.z - d.pos.z);
+  d.sitting = true;
+  d.hop();
+  d.restUntil = elapsed + rnd(5, 9);
+  if (player.pos.distanceTo(d.pos) < 12) sound.bark(0.18);
+  toast(`Bạn xoa đầu ${d.name} — chú chó của ${d.owner}`, 3200);
+}
+function dogsThink(t, dt) {
+  for (const d of dogs) {
+    d.update(dt);
+    if (d.moving || d.routeTo || t < d.restUntil) continue;
+    const near = zoneOfA(player) === 'out' && !onTower(player) && player.pos.distanceTo(d.pos) < 11;
+    const r = Math.random();
+    if (near && r < 0.35) {
+      // chạy lại chỗ người chơi, ngồi trước mặt vẫy đuôi
+      const a = rnd(-0.8, 0.8) + player.ry;
+      const [x, z] = clampZone('out', player.pos.x + Math.sin(a) * 1.1, player.pos.z + Math.cos(a) * 1.1);
+      d.speed = 3.2;
+      walkRoute(d, x, z).then((ok) => {
+        if (!ok) return;
+        d.faceRy = Math.atan2(player.pos.x - d.pos.x, player.pos.z - d.pos.z);
+        d.sitting = true;
+        d.happy = 4;
+        d.restUntil = elapsed + rnd(5, 10);
+        if (Math.random() < 0.3 && player.pos.distanceTo(d.pos) < 6) sound.bark(0.12);
+      });
+      d.restUntil = Infinity;
+    } else if (r < 0.8) {
+      // đi tới một chỗ ngẫu nhiên trong sân, tới nơi thì nằm nghỉ
+      const area = Math.random() < 0.5 ? DOG_AREAS[0] : pick(DOG_AREAS);
+      const [x, z] = clampZone('out', rnd(area.minX + 1, area.maxX - 1), rnd(area.minZ + 1, area.maxZ - 1));
+      d.speed = rnd(1.3, 2.0);
+      walkRoute(d, x, z).then((ok) => {
+        if (!ok) return;
+        d.sitting = true;
+        d.restUntil = elapsed + rnd(5, 16);
+      });
+      d.restUntil = Infinity;
+    } else {
+      // ngồi ngó quanh, thỉnh thoảng sủa khẽ
+      d.sitting = true;
+      d.faceRy = rnd(-Math.PI, Math.PI);
+      d.restUntil = t + rnd(4, 10);
+      if (Math.random() < 0.3 && player.pos.distanceTo(d.pos) < 14) sound.bark(0.1);
+    }
+  }
+}
 
 // ---------- Lấy dép (đùa vui) ----------
 // Bấm vào dép của người khác trên thềm để lấy đi một chiếc
@@ -2024,6 +2117,11 @@ function handleTap(x, y) {
     takeSandal(sandalHit.object.userData.owner);
     return;
   }
+  const dogHit = pickDog();
+  if (dogHit && (!firstHit || camera.position.distanceTo(dogHit.root.position) < firstHit.distance + 0.6)) {
+    petDog(dogHit);
+    return;
+  }
   if (avatarHit && (!firstHit || avatarHit.pos.distanceTo(firstHit.point) < 1.2 || camera.position.distanceTo(avatarHit.pos) < firstHit.distance)) {
     doGassho(avatarHit);
     return;
@@ -2132,7 +2230,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'tower' || k === 'greatbell' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'tower' || k === 'greatbell' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
 }
 
 // Bàn phím (máy tính)
@@ -2221,7 +2319,7 @@ function updateCamera(dt) {
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
     clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 46 : 14.5),
-    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, high ? TOWER.topY + 3.2 : outside ? Math.max(14, cam.target.y + 9) : 9.4),
+    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, high ? TOWER.topY + 3.2 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);
@@ -2250,6 +2348,10 @@ function placeLabel(el, a, { lift = 0, fade = false } = {}) {
 function updateLabels(now) {
   placeLabel(player.labelEl, player);
   updateGains(now);
+  for (const d of dogs) {
+    d.labelEl.hidden = !settings.showNames;
+    if (settings.showNames) placeLabel(d.labelEl, d, { fade: true });
+  }
   for (const a of avatars.values()) {
     // nhãn tên của mình luôn hiện; của người khác tùy cài đặt
     let lift = a === player || settings.showNames ? 26 : 0;
@@ -2512,6 +2614,7 @@ function frame() {
     if (arrived && a === player) sendMove();
   }
   botsThink(elapsed);
+  dogsThink(elapsed, dt);
   incenseRitual();
   meritRitual();
   broomRitual();

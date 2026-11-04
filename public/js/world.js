@@ -300,6 +300,149 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   box(30, 3.0, 0.4, M.plaster, 0, 8.5, 19);
   box(30, 0.5, 0.5, M.darkWood, 0, 6.95, 19);
 
+  // ---------- Mái chánh điện kiểu chùa Việt (bố cục chữ Đinh) ----------
+  // Tiền đường phía trước: mái chồng diêm hai tầng, nóc chạy ngang mặt tiền, lưỡng long chầu nguyệt.
+  // Chánh điện phía sau: một mái lớn. Mặt mái lõm (thoải ở diềm, dốc dần lên nóc), bốn góc đầu đao cong vút.
+  const roofTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#6e3524';
+    g.fillRect(0, 0, 128, 128);
+    for (let y = 0; y < 128; y += 16) {
+      g.fillStyle = 'rgba(255,190,150,0.10)';
+      g.fillRect(0, y, 128, 5); // mép viên ngói
+      g.fillStyle = 'rgba(0,0,0,0.22)';
+      g.fillRect(0, y + 14, 128, 2);
+    }
+    for (let x = 0; x < 128; x += 16) {
+      g.fillStyle = 'rgba(0,0,0,0.28)';
+      g.fillRect(x, 0, 3, 128); // rãnh ngói âm dương
+      g.fillStyle = 'rgba(255,200,160,0.08)';
+      g.fillRect(x + 7, 0, 3, 128);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const roofM = std('#ffffff', { map: roofTex, roughness: 0.75, side: THREE.DoubleSide });
+  const ridgeM = std('#4a2219', { roughness: 0.6 });
+  const glazeM = std('#2f7a5c', { roughness: 0.35, metalness: 0.2 }); // rồng sành men xanh
+  // halfX, halfZ: nửa bề ngang, nửa bề sâu ở diềm mái; shrink: mỗi phía thu vào bao nhiêu khi lên tới nóc
+  function curvedRoof(cx, y0, cz, halfX, halfZ, h, shrink, { lift = 1.1 } = {}) {
+    const R = 8, K = 24;
+    const pos = [], uv = [];
+    const ringPts = [];
+    const reach = 0.42 * Math.min(halfX, halfZ);
+    for (let j = 0; j <= R; j++) {
+      const t = j / R, f = 1 - (1 - t) ** 2;
+      const hx = halfX - shrink * f, hz = halfZ - shrink * f;
+      const ring = [];
+      // bốn cạnh: trước (+z), trái (-x), sau (-z), phải (+x); mỗi cạnh K đoạn
+      const sides = [[[hx, hz], [-hx, hz]], [[-hx, hz], [-hx, -hz]], [[-hx, -hz], [hx, -hz]], [[hx, -hz], [hx, hz]]];
+      const eaveLen = [2 * halfX, 2 * halfZ, 2 * halfX, 2 * halfZ];
+      sides.forEach(([a, b], si) => {
+        for (let i = 0; i <= K; i++) {
+          const u = i / K;
+          let x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
+          // gần góc thì diềm mái cong vút lên và vươn ra
+          const c = Math.max(0, 1 - (Math.min(u, 1 - u) * eaveLen[si]) / reach);
+          const k = c * c * (1 - t) ** 2;
+          const y = y0 + h * t + lift * k;
+          x += Math.sign(x) * lift * 0.45 * k;
+          z += Math.sign(z) * lift * 0.45 * k;
+          ring.push([cx + x, y, cz + z, u * eaveLen[si] / 1.6, (t * Math.hypot(h, shrink)) / 1.2]);
+        }
+      });
+      ringPts.push(ring);
+    }
+    const quad = (a, b, c2, d) => {
+      for (const p of [a, b, c2, a, c2, d]) {
+        pos.push(p[0], p[1], p[2]);
+        uv.push(p[3], p[4]);
+      }
+    };
+    for (let j = 0; j < R; j++) {
+      for (let i = 0; i < ringPts[j].length - 1; i++) {
+        if ((i + 1) % (K + 1) === 0) continue; // không nối giữa hai cạnh
+        quad(ringPts[j][i], ringPts[j][i + 1], ringPts[j + 1][i + 1], ringPts[j + 1][i]);
+      }
+    }
+    const top = ringPts[R];
+    quad(top[0], top[K], top[2 * (K + 1)], top[3 * (K + 1)]); // nắp phẳng trên nóc
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.computeVertexNormals();
+    mesh(geo, roofM, 0, 0, 0);
+    // bờ mái dọc bốn góc và đầu đao cuộn ở chân
+    for (let s = 0; s < 4; s++) {
+      const pts = ringPts.map((r) => new THREE.Vector3(r[s * (K + 1)][0], r[s * (K + 1)][1] + 0.12, r[s * (K + 1)][2]));
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.13, 6), ridgeM, 0, 0, 0);
+      const p0 = pts[0], d = new THREE.Vector3(Math.sign(p0.x - cx), 0, Math.sign(p0.z - cz)).normalize();
+      const up = new THREE.Vector3(0, 1, 0);
+      const curl = [p0, p0.clone().addScaledVector(d, 0.5).addScaledVector(up, 0.3), p0.clone().addScaledVector(d, 0.85).addScaledVector(up, 0.95), p0.clone().addScaledVector(d, 0.6).addScaledVector(up, 1.4)];
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(curl), 12, 0.11, 6), ridgeM, 0, 0, 0);
+      mesh(new THREE.SphereGeometry(0.12, 8, 6), M.gold, curl[3].x, curl[3].y, curl[3].z);
+    }
+    // bờ nóc, hai đầu cong lên
+    const rx = halfX - shrink, yTop = y0 + h;
+    box(2 * rx + 0.4, 0.42, 0.42, ridgeM, cx, yTop + 0.2, cz);
+    for (const s of [-1, 1]) {
+      const e = new THREE.Vector3(cx + s * (rx + 0.2), yTop + 0.2, cz);
+      const curl = [e, e.clone().add(new THREE.Vector3(s * 0.45, 0.25, 0)), e.clone().add(new THREE.Vector3(s * 0.6, 0.8, 0)), e.clone().add(new THREE.Vector3(s * 0.35, 1.15, 0))];
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(curl), 10, 0.16, 6), ridgeM, 0, 0, 0);
+    }
+    return { rx, yTop };
+  }
+
+  // chánh điện phía sau: một mái lớn
+  const back = curvedRoof(0, 10.1, -7, 17.6, 16.4, 6.4, 15.9, { lift: 1.3 });
+  mesh(new THREE.SphereGeometry(0.42, 14, 10), M.gold, 0, back.yTop + 0.75, -7); // bầu trên nóc
+  // tiền đường: mái dưới (diềm che thềm), thân gác, mái trên
+  curvedRoof(0, 9.9, 15, 19, 7, 2.0, 3.0, { lift: 1.0 });
+  box(31.4, 1.8, 7.6, M.darkWood, 0, 12.75, 15);
+  for (let x = -14; x <= 14; x += 2) box(1.3, 0.9, 0.06, std('#c9a46a', { roughness: 0.6 }), x, 12.75, 18.82); // ô cửa chấn song trên gác
+  const front = curvedRoof(0, 13.5, 15, 17.6, 5.6, 3.8, 5.2, { lift: 1.3 });
+  // lưỡng long chầu nguyệt trên bờ nóc tiền đường
+  {
+    const y = front.yTop + 0.42;
+    mesh(new THREE.SphereGeometry(0.42, 16, 12), std('#d9542a', { emissive: '#ff7a2a', emissiveIntensity: 0.35, roughness: 0.4 }), 0, y + 0.55, 15);
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2;
+      const fl = mesh(new THREE.ConeGeometry(0.1, 0.42, 6), M.gold, Math.cos(a) * 0.52, y + 0.55 + Math.sin(a) * 0.52, 15);
+      fl.rotation.z = a - Math.PI / 2;
+    }
+    for (const s of [-1, 1]) {
+      const pts = [[5.6, 0.1], [4.6, 0.75], [3.6, 0.25], [2.6, 0.85], [1.6, 0.55], [1.05, 0.75]].map(([x, dy]) => new THREE.Vector3(s * x, y + dy, 15));
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, 0.17, 8), glazeM, 0, 0, 0);
+      mesh(new THREE.SphereGeometry(0.27, 12, 10), glazeM, s * 0.95, y + 0.82, 15);
+      const snout = mesh(new THREE.ConeGeometry(0.13, 0.4, 8), M.gold, s * 0.62, y + 0.8, 15);
+      snout.rotation.z = s * Math.PI / 2; // hướng vào mặt trăng
+      for (const dz of [-0.12, 0.12]) {
+        const horn = mesh(new THREE.ConeGeometry(0.04, 0.32, 6), M.gold, s * 1.1, y + 1.1, 15 + dz);
+        horn.rotation.z = -s * 0.6;
+      }
+      for (let k = 0; k < 4; k++) {
+        const fin = mesh(new THREE.ConeGeometry(0.06, 0.28, 5), M.gold, s * (4.8 - k * 1.0), y + (k % 2 ? 0.5 : 1.0), 15);
+        fin.rotation.z = -s * 0.3;
+      }
+    }
+  }
+  // hoành phi trước tiền đường
+  box(9.4, 1.9, 0.12, M.gold, 0, 8.55, 19.25, { cast: false });
+  mesh(new THREE.PlaneGeometry(9, 1.6), std('#ffffff', { map: T.boardTexture(['ĐẠI HÙNG BẢO ĐIỆN'], { w: 1536, h: 280, size: 150 }), roughness: 0.45 }), 0, 8.55, 19.32, { cast: false });
+  // hàng cột son dưới hiên (chừa khoảng giữa rộng cho lối đi và chỗ để dép), xà ngang
+  for (const x of [-15.1, -12.4, -9.6, 9.6, 12.4, 15.1]) {
+    cyl(0.34, 0.38, 9.9, M.lacquer, x, 4.95, 21.15);
+    cyl(0.55, 0.6, 0.3, M.stone, x, 0.15, 21.15);
+    cyl(0.4, 0.4, 0.12, M.gold, x, 8.8, 21.15, { cast: false });
+  }
+  box(30.8, 0.5, 0.45, M.darkWood, 0, 9.75, 21.15);
+  // bệ đá quanh nền chánh điện (lộ ra ở hai bên và phía sau)
+  box(31.4, 0.42, 41.2, M.stone, 0, -0.22, -1.1, { cast: false });
+
   // Trần, xà, rui
   box(30.6, 0.2, 40.6, M.darkWood, 0, 10.1, -1);
   const colZ = [-18, -12, -6, 0, 6, 12, 18];

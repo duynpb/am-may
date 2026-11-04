@@ -503,6 +503,30 @@ export class Sound {
     o.stop(t + 1.5);
     this.noiseHit(t, { freq: 260, q: 0.7, gain: 0.5, dur: 0.18, out, type: 'lowpass' });
   }
+  // tiếng chó sủa khẽ "gâu gâu"
+  bark(gain = 0.15) {
+    if (!this.fxReady()) return;
+    const ctx = this.ctx, out = this.bus.fx, t0 = ctx.currentTime + 0.02;
+    for (const dt of [0, 0.24]) {
+      const t = t0 + dt;
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(560, t);
+      o.frequency.exponentialRampToValueAtTime(300, t + 0.11);
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 900;
+      f.Q.value = 1.2;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+      o.connect(f).connect(g).connect(out);
+      o.start(t);
+      o.stop(t + 0.16);
+      this.noiseHit(t, { freq: 1400, q: 1, gain: gain * 0.4, dur: 0.05, out });
+    }
+  }
   bead() {
     if (!this.fxReady()) return;
     const t = this.ctx.currentTime + 0.01, out = this.bus.fx;

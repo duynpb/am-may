@@ -32,6 +32,7 @@ public/
   js/buddha.js       Tượng Phật trong chánh điện (tạc bằng SDF), công cụ tạc dùng chung
   js/quanam.js       Tượng Quan Âm đứng trên tòa sen (dát vàng, trong điện Quan Âm)
   js/lahan.js        Tượng La Hán đá (ba tư thế, vẽ hàng loạt)
+  js/dog.js          Chó nhỏ của nhà chùa (dáng, đi, ngồi, vẫy đuôi)
   js/sandals.js      Dép và hàng dép trên thềm
   js/leaves.js       Lá rơi trên sân và chổi tre quét lá
   js/karma.js        Quy tắc điểm phước / nghiệp
@@ -47,8 +48,10 @@ public/
 
 | Tính năng | Cách dùng |
 |---|---|
+| Chánh điện | Bố cục chữ Đinh kiểu chùa Việt: tiền đường phía trước mái chồng diêm hai tầng, trên bờ nóc có lưỡng long chầu nguyệt; chánh điện phía sau một mái lớn. Mặt mái cong lõm lợp ngói, bốn góc đầu đao cong vút; hiên có hàng cột son, hoành phi ĐẠI HÙNG BẢO ĐIỆN, nền có bệ đá |
 | Vào chánh điện | Nhân vật đi từ sân lên thềm, cởi dép, quay lại sắp dép ngay ngắn (mũi hướng ra sân) rồi bước vào; chạm để bỏ qua. Mỗi người trong chánh điện có một đôi dép trên thềm, khi về thì mang dép đi ra |
 | Đi lại | Chạm / nhấp sàn, hoặc W A S D |
+| Chó nhà chùa | Bốn chú chó nhỏ của các sư thầy, chú tiểu (Vàng, Mực, Bông, Lu) đi lang thang quanh các sân, nằm nghỉ, thấy người thì chạy lại ngồi vẫy đuôi, thỉnh thoảng sủa khẽ. Chạm vào chó (hoặc tên của nó) để xoa đầu. Mỗi máy tự cho chó đi lại, không đồng bộ giữa người chơi; đồ họa Nhẹ có ba chú |
 | Ngồi | Chạm vào bồ đoàn trống |
 | Nhìn quanh, phóng to | Kéo; lăn chuột hoặc chụm hai ngón |
 | Chat | Gõ vào ô chat ở góc dưới bên trái (máy tính: nhấn Enter để mở ô chat, Enter để gửi, Esc để thoát). Lời chat hiện thành bong bóng trên đầu mình trong 5 giây, mọi người trong cùng chánh điện đều thấy. Tối đa 80 ký tự, mỗi lần cách nhau ít nhất 1 giây |
