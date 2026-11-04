@@ -101,9 +101,13 @@ export function groundY(x, z) {
   if (z < -32.5) {
     // bậc thang: dốc đều từ sân sau lên nền đồi; nền đồi phẳng
     if (ax <= STAIRS.x && z > STAIRS.z0) return PORCH.courtY + (8 * Math.max(0, STAIRS.z1 - z)) / (STAIRS.z1 - STAIRS.z0);
+    // nền điện Tam Thế cao hơn mặt nền đồi 0,21 m
+    if (x > TAMTHE.x0 - 0.6 && x < TAMTHE.x1 + 0.6 && z > TAMTHE.z0 - 0.6 && z < TAMTHE.z1 + 0.6) return TERRACE.y + 0.21;
     if (ax <= TERRACE.x && z <= TERRACE.z1 && z >= TERRACE.z0) return TERRACE.y;
     return PORCH.courtY;
   }
+  // nền đá cổng Tam Quan (30 × 6 m, cao 0,24 m)
+  if (ax < 15 && Math.abs(z - GATE.z) < 3) return PORCH.courtY + 0.24;
   if (z > CORRIDOR.z0 && z < CORRIDOR.z1 && ax > CORRIDOR.x0 && ax < CORRIDOR.x1) return PORCH.courtY + CORRIDOR.floor;
   {
     // gác chuông: cầu thang, sàn trên, nền đá trước chân cầu thang
@@ -119,7 +123,7 @@ export function groundY(x, z) {
     if (d < TOWER.topR) return TOWER.topY;
     if (d < TOWER.plinthR) return PORCH.courtY + TOWER_BASE;
   }
-  if (x > QAHALL.x0 && x < QAHALL.x1 && z > QAHALL.z0 && z < QAHALL.z1 + 0.3) return PORCH.courtY + 0.21; // sàn điện Quan Âm
+  if (x > QAHALL.x0 - 0.6 && x < QAHALL.x1 + 0.6 && z > QAHALL.z0 - 0.5 && z < QAHALL.z1 + 0.9) return PORCH.courtY + 0.21; // nền và sàn điện Quan Âm
   if (ax > 15.6 || z < -21.6) return PORCH.courtY; // ngoài chánh điện và thềm
   if (z <= PORCH.z1 - 0.05) return 0;
   if (z >= PORCH.z1 + 0.6) return PORCH.courtY;
