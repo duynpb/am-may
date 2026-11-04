@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, QAHALL, TERRACE, STAIRS, TAMTHE, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
@@ -234,6 +234,8 @@ const ROUND_OBSTACLES = [
   { x: 34.6, z: QAHALL.z1 - 0.2, r: 0.75 },
   { x: -4.4, z: TAMTHE.z1 - 0.2, r: 0.8 }, // cột hai bên cửa giữa điện Tam Thế
   { x: 4.4, z: TAMTHE.z1 - 0.2, r: 0.8 },
+  { x: -FALLS.x, z: FALLS.poolZ, r: FALLS.poolR + 0.8 }, // hồ dưới hai thác
+  { x: FALLS.x, z: FALLS.poolZ, r: FALLS.poolR + 0.8 },
 ];
 // Đoạn thẳng a → b cắt qua chướng ngại tròn thì chèn điểm vòng qua bên cạnh
 function detour(ax, az, bx, bz, depth = 0) {
@@ -1165,7 +1167,7 @@ const PLACES = [
   { id: 'bell', name: 'Gác chuông', x: BELLTOWER.x, z: BELLTOWER.z + BELLTOWER.r + 0.6, ry: Math.PI },
   { id: 'qahall', name: 'Điện Quan Âm', x: QAHALL.cx, z: 12, ry: Math.PI },
   { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
-  { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: -55.6, ry: Math.PI },
+  { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: TAMTHE.z0 + 8.4, ry: Math.PI },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
 ];
 
@@ -1240,12 +1242,16 @@ function buildMap() {
     return e;
   };
   const rect = (x0, x1, z0, z1, cls) => el('rect', { x: mapU(z1), y: mapV(x0), width: z1 - z0, height: x1 - x0, class: cls });
-  el('rect', { x: -2, y: -45, width: 182, height: 90, class: 'm-bg' });
+  el('rect', { x: -2, y: -45, width: 194, height: 90, class: 'm-bg' });
   for (const s of [-1, 1]) rect(s > 0 ? 16.2 : -20.8, s > 0 ? 20.8 : -16.2, -29, 23.2, 'm-stone'); // lối hai bên
   rect(-20.8, 20.8, -33.2, -26, 'm-stone'); // sân sau
   rect(-TERRACE.x, TERRACE.x, TERRACE.z0, TERRACE.z1, 'm-terrace'); // nền đồi
   rect(-STAIRS.x, STAIRS.x, STAIRS.z0, STAIRS.z1, 'm-stairs'); // bậc thang
   rect(TAMTHE.x0, TAMTHE.x1, TAMTHE.z0, TAMTHE.z1, 'm-hall');
+  for (const s of [-1, 1]) {
+    el('circle', { cx: mapU(FALLS.poolZ), cy: mapV(s * FALLS.x), r: FALLS.poolR, class: 'm-water' }); // hồ dưới thác
+    rect(s * FALLS.x - 0.6, s * FALLS.x + 0.6, TERRACE.z1, FALLS.poolZ, 'm-water'); // suối
+  }
   for (const s of [-1, 1]) {
     rect(s > 0 ? 21 : -43, s > 0 ? 43 : -21, 18, 40, 'm-stone'); // sân bên
     rect(s > 0 ? 15.5 : -21.5, s > 0 ? 21.5 : -15.5, 22.6, 24.4, 'm-stone'); // lối sang sân bên
@@ -1277,7 +1283,7 @@ function buildMap() {
     ['gate', 0, GATE.z + 5.5, 'Tam Quan'],
     ['well', 0, WELL.z, 'Giếng Ngọc'],
     ['bell', BELLTOWER.x, BELLTOWER.z, 'Gác chuông'],
-    ['tamthe', 0, -57, 'Điện Tam Thế'],
+    ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['stairs', 6.5, -40, 'Bậc thang'],
     ['qahall', QAHALL.cx, 11, 'Điện Quan Âm'],
     ['lahan', 15.6, 62, 'La Hán'],
@@ -2174,7 +2180,7 @@ function updateCamera(dt) {
   camera.position.set(
     clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 46 : 14.5),
     clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, 0.4, high ? TOWER.topY + 3.2 : outside ? Math.max(14, cam.target.y + 9) : 9.4),
-    clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -82 : -15.2, cam.maxZ),
+    clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);
 }
@@ -2476,6 +2482,8 @@ function frame() {
   if ((lodT -= dt) < 0) {
     lodT = 0.4;
     world.updateLOD(player.pos.x, player.pos.z);
+    const d = Math.min(...world.falls.map((f) => player.root.position.distanceTo(f)));
+    sound.setWaterfall(clamp(1 - d / 55, 0, 1));
   }
   if (mapOpen) updateMap();
   world.update(elapsed, dt);

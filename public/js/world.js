@@ -27,9 +27,11 @@ export const WELL = { x: 0, z: 62, r: 2.7 };
 export const BELLTOWER = { x: -32, z: 29, r: 6.4 };
 export const QAHALL = { x0: 25, x1: 39, z0: 5, z1: 17, cx: 32 };
 // Sau chánh điện: sân sau, bậc thang đá lên nền đồi cao 8 m, trên đó là điện Tam Thế
-export const TERRACE = { x: 18.6, z0: -67, z1: -47.6, y: PORCH.courtY + 8 };
+export const TERRACE = { x: 26, z0: -86, z1: -47.6, y: PORCH.courtY + 8 };
 export const STAIRS = { x: 3.6, z0: -48, z1: -32.9 };
-export const TAMTHE = { x0: -12, x1: 12, z0: -64, z1: -52 };
+export const TAMTHE = { x0: -12, x1: 12, z0: -78, z1: -66 };
+// Hai thác hai bên điện Tam Thế: đổ từ vách núi xuống hồ trên nền đồi (x = ±FALLS.x)
+export const FALLS = { x: 21, z: -83.8, poolZ: -81.5, poolR: 2.8 };
 // Các vùng đi lại được ngoài chánh điện (hình chữ nhật). Hai vùng chồng lên nhau là đi qua lại được.
 export const WALK_AREAS = [
   GARDEN,
@@ -50,9 +52,10 @@ export const WALK_AREAS = [
   ...[-1, 1].map((s) => ({ minX: s > 0 ? 16.2 : -20.8, maxX: s > 0 ? 20.8 : -16.2, minZ: -29, maxZ: 23.2 })), // lối dọc hai bên chánh điện
   { minX: -20.8, maxX: 20.8, minZ: -33.2, maxZ: -26 }, // sân sau chánh điện
   { minX: -3, maxX: 3, minZ: STAIRS.z0 - 0.2, maxZ: STAIRS.z1 + 0.3 }, // bậc thang
-  { minX: -18, maxX: 18, minZ: -51.6, maxZ: TERRACE.z1 }, // sân trước điện Tam Thế
+  { minX: -25, maxX: 25, minZ: TAMTHE.z1 + 0.4, maxZ: TERRACE.z1 }, // sân trước điện Tam Thế
+  ...[-1, 1].map((s) => ({ minX: s > 0 ? 12.8 : -25, maxX: s > 0 ? 25 : -12.8, minZ: TERRACE.z0 + 1.5, maxZ: TAMTHE.z1 + 0.6 })), // hai bên điện, ra tới hồ thác
   { minX: -4, maxX: 4, minZ: TAMTHE.z1 - 1.2, maxZ: TAMTHE.z1 + 0.8 }, // cửa giữa điện Tam Thế
-  { minX: TAMTHE.x0 + 1, maxX: TAMTHE.x1 - 1, minZ: -60.4, maxZ: TAMTHE.z1 - 0.8 }, // trong điện Tam Thế
+  { minX: TAMTHE.x0 + 1, maxX: TAMTHE.x1 - 1, minZ: TAMTHE.z0 + 3.6, maxZ: TAMTHE.z1 - 0.8 }, // trong điện Tam Thế
 ];
 // Tháp 13 tầng phía bên kia sân, đối diện tượng Quan Âm. Mỗi tầng nhỏ và thấp dần lên trên.
 const TOWER_LEVELS = Array.from({ length: 13 }, (_, i) => ({ r: 3.3 - i * 0.08, h: 2.0 - i * 0.03 }));
@@ -1217,13 +1220,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     top.rotation.x = -Math.PI / 2;
     top.userData.kind = 'ground';
     pickables.push(top);
-    // đồi xanh phía sau và hai bên
-    const hillM = std('#5f7a45', { roughness: 1 });
-    mesh(new THREE.SphereGeometry(1, 36, 18), hillM, 0, GY - 8, -98, { cast: false }).scale.set(75, 26, 40);
-    for (const s of [-1, 1]) mesh(new THREE.SphereGeometry(1, 28, 14), hillM, s * 40, GY - 6, -70, { cast: false }).scale.set(26, 17, 30);
-    // cây trên nền đồi
+    // cây trên nền đồi (tránh hai dòng suối ở x = ±21)
     const trunkM = std('#5e4a38', { roughness: 0.9 });
-    for (const [tx, tz] of [[-16, -50], [16, -50], [-16, -62], [16, -62], [-15, -66], [15, -66]]) {
+    for (const [tx, tz] of [[-16, -50], [16, -50], [-24, -55], [24, -55], [-24, -68], [24, -68]]) {
       mesh(new THREE.CylinderGeometry(0.18, 0.26, 2.6, 8), trunkM, tx, H + 1.3, tz);
       mesh(new THREE.SphereGeometry(1.6, 14, 10), leafM, tx, H + 3.4, tz).scale.set(1, 0.85, 1);
       mesh(new THREE.SphereGeometry(1.1, 12, 9), leafD, tx + 0.5, H + 4.1, tz - 0.4);
@@ -1245,7 +1244,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     box(w, 6, 0.3, sideWall, 0, H + 3.2, TT.z0 + 0.15);
     for (const sx of [-1, 1]) {
       box(0.3, 6, d, sideWall, sx * (w / 2 - 0.15), H + 3.2, cz);
-      for (const wz of [-61, -57.5, -54]) box(0.08, 1.6, 1.2, std('#2c2018', { roughness: 0.8 }), sx * (w / 2 - 0.32), H + 3.0, wz);
+      for (const wz of [TT.z0 + 3, TT.z0 + 6.5, TT.z0 + 10]) box(0.08, 1.6, 1.2, std('#2c2018', { roughness: 0.8 }), sx * (w / 2 - 0.32), H + 3.0, wz);
     }
     for (const cx of [-11.4, -8, -4.4, 4.4, 8, 11.4]) cyl(0.3, 0.33, 6, sideCol, cx, H + 3.2, TT.z1 - 0.2, {}, 12);
     box(w, 0.5, 0.4, sideCol, 0, H + 6.0, TT.z1 - 0.2);
@@ -1273,21 +1272,21 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       flame(x, H + 1.88, TT.z0 + 2.5, 0.9);
     }
     // kệ lư hương giữa điện, bồ đoàn hai hàng
-    box(1.0, 0.8, 0.7, M.lacquer, 0, H + 0.61, -59.8);
-    cyl(0.26, 0.22, 0.22, M.bronze, 0, H + 1.12, -59.8);
+    box(1.0, 0.8, 0.7, M.lacquer, 0, H + 0.61, TT.z0 + 4.2);
+    cyl(0.26, 0.22, 0.22, M.bronze, 0, H + 1.12, TT.z0 + 4.2);
     incenseTT = makeBurner({
-      center: new THREE.Vector3(0, H + 1.2, -59.8),
+      center: new THREE.Vector3(0, H + 1.2, TT.z0 + 4.2),
       radius: 0.16,
-      spots: [-1, 0, 1].map((dx) => ({ x: dx, z: -58.4 })),
+      spots: [-1, 0, 1].map((dx) => ({ x: dx, z: TT.z0 + 5.6 })),
       target: TT_HEAD,
       smoke: 26,
       min: 3,
     });
-    for (const x of [-7, -5, -3, 3, 5, 7]) for (const z of [-56.4, -54.6]) {
+    for (const x of [-7, -5, -3, 3, 5, 7]) for (const z of [TT.z0 + 7.6, TT.z0 + 9.4]) {
       cyl(0.36, 0.38, 0.1, std('#c9a23e', { roughness: 0.8 }), x, H + 0.26, z, {}, 18);
     }
     const ttLight = new THREE.PointLight('#ffc27a', 8, 16, 2);
-    ttLight.position.set(0, H + 4.6, -58);
+    ttLight.position.set(0, H + 4.6, TT.z0 + 6);
     scene.add(ttLight);
     nightHooks.push((night) => (ttLight.intensity = 8 + 26 * night));
   }
@@ -1463,13 +1462,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     // khối núi đá vôi: vách dựng đứng, đỉnh tròn, cây phủ trên đỉnh và các gờ đá
     const prof = [[1, 0], [1.02, 0.18], [0.96, 0.38], [0.93, 0.55], [0.85, 0.72], [0.7, 0.85], [0.48, 0.95], [0.2, 1.0], [0, 1.01]];
     const cliff = new THREE.Color('#9a998c'), dark = new THREE.Color('#6f7266'), green = new THREE.Color('#4f6b3a'), green2 = new THREE.Color('#5f7d44');
-    const peakGeo = (seed) => {
+    const peakGeo = (seed, amp = 0.16) => {
       const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 18).toNonIndexed();
       const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
       const n = (x, y, z) => Math.sin(x * 3.1 + seed) * Math.sin(z * 2.7 - seed * 1.3) + 0.5 * Math.sin(y * 9 + x * 5 + seed * 2);
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-        const k = 1 + 0.16 * n(x, y, z);
+        const k = 1 + amp * n(x, y, z);
         p.setXYZ(i, x * k, y * (1 + 0.05 * n(z, x, y)), z * k);
         const leafy = y > 0.78 || (Math.sin(y * 26 + seed) > 0.75 && y > 0.25);
         c.copy(leafy ? (n(x, z, y) > 0 ? green : green2) : (n(y, x, z) > 0.3 ? dark : cliff));
@@ -1502,6 +1501,112 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       m.count = used[v];
       scene.add(m);
     });
+    // núi đá lớn sau lưng điện Tam Thế, hai núi nhỏ hai bên (ít gồ ghề để vách núi sát sau điện)
+    for (const [x, z, sx, sy, sz, seed, amp] of [[0, -106, 48, 58, 24, 3.3, 0.07], [-40, -96, 18, 44, 16, 5.1, 0.12], [40, -96, 18, 46, 16, 8.9, 0.12]]) {
+      const m = new THREE.Mesh(peakGeo(seed, amp), karstM);
+      m.position.set(x, GY - 1, z);
+      m.scale.set(sx, sy, sz);
+      m.receiveShadow = true;
+      scene.add(m);
+    }
+
+    // hai thác nước: đổ từ vách núi xuống hồ trên nền đồi, chảy thành suối ra mép nền, đổ tiếp xuống hồ dưới chân
+    const fallTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 256;
+      const g = c.getContext('2d');
+      g.fillStyle = 'rgba(205,232,240,0.42)';
+      g.fillRect(0, 0, 64, 256);
+      for (let i = 0; i < 70; i++) {
+        const x = Math.random() * 64, w = 1 + Math.random() * 3, y = Math.random() * 256, h = 30 + Math.random() * 120;
+        g.fillStyle = `rgba(255,255,255,${0.25 + Math.random() * 0.6})`;
+        g.fillRect(x, y, w, h);
+        g.fillRect(x, y - 256, w, h); // nối liền khi lặp lại
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const fallMats = [];
+    const fallMat = (repeatY) => {
+      const t = fallTex.clone();
+      t.repeat.set(1, repeatY);
+      t.needsUpdate = true;
+      const m = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+      fallMats.push(m);
+      return m;
+    };
+    const poolM = std('#3f7f86', { roughness: 0.15, metalness: 0.1 });
+    const mist = [];
+    const fallTop = H + 30;
+    for (const s of [-1, 1]) {
+      const fx = s * FALLS.x;
+      // thác chính: dải nước cong nhẹ áp vào vách núi
+      const fg = new THREE.PlaneGeometry(3.6, fallTop - H, 1, 12);
+      const p = fg.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const y = p.getY(i) / (fallTop - H) + 0.5; // 0 dưới, 1 trên
+        p.setZ(i, -Math.pow(y, 1.6) * 1.6);
+        p.setX(i, p.getX(i) * (0.8 + 0.4 * (1 - y)));
+      }
+      const fall = new THREE.Mesh(fg, fallMat(3));
+      fall.position.set(fx, (fallTop + H) / 2, FALLS.z);
+      scene.add(fall);
+      // hồ dưới thác
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(FALLS.poolR + 0.15, 0.22, 8, 40).rotateX(Math.PI / 2), stoneM);
+      rim.position.set(fx, H + 0.12, FALLS.poolZ);
+      scene.add(rim);
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(FALLS.poolR, 40).rotateX(-Math.PI / 2), poolM);
+      pool.position.set(fx, H + 0.06, FALLS.poolZ);
+      scene.add(pool);
+      // suối chảy ra mép nền
+      const z0 = FALLS.poolZ + FALLS.poolR - 0.3, z1 = TERRACE.z1, len = z0 - z1;
+      const bed = new THREE.Mesh(new THREE.PlaneGeometry(1.2, len).rotateX(-Math.PI / 2), poolM);
+      bed.position.set(fx, H + 0.03, (z0 + z1) / 2);
+      scene.add(bed);
+      const flow = new THREE.Mesh(new THREE.PlaneGeometry(1.1, len).rotateX(-Math.PI / 2), fallMat(len / 6));
+      flow.material.opacity = 0.55; // vân nước trôi về phía mép nền
+      flow.position.set(fx, H + 0.05, (z0 + z1) / 2);
+      scene.add(flow);
+      for (const dx of [-0.75, 0.75]) {
+        const curb = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, len), stoneL);
+        curb.position.set(fx + dx, H + 0.1, (z0 + z1) / 2);
+        scene.add(curb);
+      }
+      // thác nhỏ đổ qua tường đá xuống hồ dưới chân
+      const drop = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 8), fallMat(1.2));
+      drop.position.set(fx, GY + 4, TERRACE.z1 + 0.08);
+      scene.add(drop);
+      const rim2 = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.2, 8, 36).rotateX(Math.PI / 2), stoneM);
+      rim2.position.set(fx, GY + 0.1, TERRACE.z1 + 2.2);
+      scene.add(rim2);
+      const pool2 = new THREE.Mesh(new THREE.CircleGeometry(2.0, 36).rotateX(-Math.PI / 2), poolM);
+      pool2.position.set(fx, GY + 0.05, TERRACE.z1 + 2.2);
+      scene.add(pool2);
+      obstacles.push({ x: fx, z: FALLS.poolZ, r: FALLS.poolR + 0.5 }, { x: fx, z: TERRACE.z1 + 2.2, r: 2.5 });
+      // bụi nước bốc lên ở chân thác
+      for (const [mx, mz, my, sz] of [[0, FALLS.poolZ - 1.2, H + 0.8, 4], [0, TERRACE.z1 + 1.2, GY + 0.7, 2.4]]) {
+        for (let k = 0; k < 6; k++) {
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: '#ffffff', transparent: true, depthWrite: false, opacity: 0 }));
+          sp.userData = { x: fx + mx, z: mz, y: my, size: sz, t: k / 6 };
+          scene.add(sp);
+          mist.push(sp);
+        }
+      }
+    }
+    updaters.push((t, dt) => {
+      for (const m of fallMats) m.map.offset.y += dt * 0.9;
+      for (const sp of mist) {
+        const u = sp.userData;
+        u.t = (u.t + dt * 0.35) % 1;
+        sp.position.set(u.x + Math.sin(u.t * 6 + u.size) * 0.6, u.y + u.t * 2.2, u.z + Math.cos(u.t * 5) * 0.4);
+        sp.scale.setScalar(u.size * (0.5 + u.t));
+        sp.material.opacity = 0.32 * Math.sin(u.t * Math.PI);
+      }
+    });
+
     // sông uốn lượn phía nam, sau sân trước cổng
     const segs = 80, pts = [], idx = [];
     for (let i = 0; i <= segs; i++) {
@@ -2066,6 +2171,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     incenseQH,
     qaHall: { head: QH_HEAD },
     tamThe: { head: TT_HEAD },
+    falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
     incenseTT,
     greatBell,
     merit,

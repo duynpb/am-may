@@ -254,7 +254,7 @@ wss.on('connection', (ws, req) => {
     if (m.t === 'move') {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       me.x = clamp(m.x, -45, 45);
-      me.z = clamp(m.z, -70, 100);
+      me.z = clamp(m.z, -90, 100);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat, w: m.w ? 1 : undefined }, me.id);

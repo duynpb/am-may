@@ -250,6 +250,21 @@ export class Sound {
     lfo2.connect(lfo2G).connect(g.gain);
     src.connect(bp).connect(lp).connect(g).connect(this.bus.ambient);
     src.start();
+    // tiếng thác nước: tiếng ồn trầm, to dần khi lại gần (setWaterfall)
+    const fsrc = ctx.createBufferSource();
+    fsrc.buffer = this.noise;
+    fsrc.loop = true;
+    fsrc.playbackRate.value = 0.7;
+    const fhp = ctx.createBiquadFilter();
+    fhp.type = 'highpass';
+    fhp.frequency.value = 160;
+    const flp = ctx.createBiquadFilter();
+    flp.type = 'lowpass';
+    flp.frequency.value = 1400;
+    this.fallGain = ctx.createGain();
+    this.fallGain.gain.value = 0;
+    fsrc.connect(fhp).connect(flp).connect(this.fallGain).connect(this.bus.ambient);
+    fsrc.start();
     lfo.start();
     lfo2.start();
     const loop = () => {
@@ -259,6 +274,12 @@ export class Sound {
       }, 3500 + Math.random() * 7500);
     };
     loop();
+  }
+
+  // mức tiếng thác 0..1 theo khoảng cách
+  setWaterfall(level) {
+    if (!this.fallGain) return;
+    this.fallGain.gain.setTargetAtTime(0.5 * level * level, this.ctx.currentTime, 0.4);
   }
 
   tone(freq, t, { dur = 2, gain = 0.1, partials = [[1, 1]], out, type = 'sine', beat = 0 }) {
