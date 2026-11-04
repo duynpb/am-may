@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { applyEvent, newProfile, publicProfile, vnDate, CLIENT_KINDS } from './public/js/karma.js';
 import { openStorage } from './storage.js';
+import { DUST_IDS, lahanSpot } from './public/js/statues.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -205,6 +206,30 @@ setInterval(() => {
   }
 }, 10000);
 
+// ---------- Tượng La Hán bám bụi: mỗi chánh điện một hành lang, mọi người cùng thấy ----------
+const DUST_MAX = 40;
+const dustRooms = new Map(ROOMS.map((r) => [r.id, new Set()]));
+function dustSome(roomId, n) {
+  const D = dustRooms.get(roomId);
+  const clean = DUST_IDS.filter((id) => !D.has(id));
+  const add = [];
+  while (n-- > 0 && clean.length && D.size < DUST_MAX) {
+    const id = clean.splice((Math.random() * clean.length) | 0, 1)[0];
+    D.add(id);
+    add.push(id);
+  }
+  return add;
+}
+for (const r of ROOMS) dustSome(r.id, 24);
+// bụi bám thêm dần khi có người trong chùa
+setInterval(() => {
+  for (const r of ROOMS) {
+    if (!rooms.get(r.id).size) continue;
+    const add = dustSome(r.id, 1);
+    if (add.length) broadcast(r.id, { t: 'dust', add });
+  }
+}, 30000);
+
 wss.on('connection', (ws, req) => {
   let me = null;
   let roomId = null;
@@ -242,6 +267,7 @@ wss.on('connection', (ws, req) => {
         t: 'welcome', id: me.id, room: roomId, peers: [...members.values()].map((p) => p.p),
         merit: { ...meritPublic(), used },
         leaves: [...leafRooms.get(roomId).list.values()],
+        dust: [...dustRooms.get(roomId)],
       }));
       broadcast(roomId, { t: 'join', p: me });
       members.set(me.id, { ws, p: me, uid });
@@ -258,11 +284,12 @@ wss.on('connection', (ws, req) => {
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat, w: m.w ? 1 : undefined }, me.id);
-    } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense', 'greatbell'].includes(m.a)) {
+    } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense', 'greatbell', 'wipe'].includes(m.a)) {
       const to = typeof m.to === 'string' ? m.to.slice(0, 12) : undefined;
       const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
       const place = m.a === 'incense' && ['out', 'tower', 'qahall', 'tamthe'].includes(m.place) ? m.place : undefined;
-      broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n, place }, me.id);
+      const statue = m.a === 'wipe' && DUST_IDS.includes(m.id) ? m.id : undefined; // đang lau tượng nào
+      broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n, place, statue }, me.id);
       if (m.a === 'bow') award(ws, uid, 'bow');
       else if (m.a === 'incense') award(ws, uid, 'incense', { n });
       else if (m.a === 'bell' || m.a === 'drum' || m.a === 'greatbell') {
@@ -324,6 +351,15 @@ wss.on('connection', (ws, req) => {
       if (!gone.length) return;
       broadcast(roomId, { t: 'leaves', gone, by: me.id }, me.id);
       award(ws, uid, 'sweep', { n: gone.length });
+    } else if (m.t === 'wipe' && Number.isInteger(m.id)) {
+      // lau sạch một tượng La Hán đang bám bụi; phải đứng trước tượng đó
+      const D = dustRooms.get(roomId);
+      if (!D.has(m.id)) return;
+      const sp = lahanSpot(m.id);
+      if (Math.hypot(me.x - sp.standX, me.z - sp.z) > 2.5) return;
+      D.delete(m.id);
+      broadcast(roomId, { t: 'dust', gone: [m.id], by: me.id }, me.id);
+      award(ws, uid, 'wipe');
     } else if (m.t === 'chat') {
       // lời chat hiện trên đầu người nói; tối đa 80 ký tự, cách nhau ít nhất 1 giây
       const text = String(m.text ?? '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);

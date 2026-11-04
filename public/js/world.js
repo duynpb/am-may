@@ -7,6 +7,7 @@ import { makeBuddha } from './buddha.js';
 import { makeQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
+import { lahanSpot, LAHAN_IDS } from './statues.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -25,6 +26,24 @@ export const CORRIDOR = { x0: 13.2, x1: 18, z0: 43.6, z1: 80.4, floor: 0.3 };
 export const WELL = { x: 0, z: 62, r: 2.7 };
 // Hai sân bên chánh điện: phía tây có gác chuông (đại hồng chung), phía đông có điện Quan Âm
 export const BELLTOWER = { x: -32, z: 29, r: 6.4 };
+// Tầng trên gác chuông: cầu thang gỗ trong tầng dưới (phía tây) dẫn lên sàn treo đại hồng chung
+export const BELL_LOFT = (() => {
+  const { x, z } = BELLTOWER;
+  const base = PORCH.courtY + 0.6, y = PORCH.courtY + 4.11;
+  return {
+    x, z, y, base,
+    stair: { x0: x - 3.35, x1: x - 2.25, zTop: z - 2.2, zFoot: z + 3.9 }, // dốc từ nền đá lên sàn trên
+    landing: { x0: x - 3.35, x1: x - 2.25, z0: z - 3.3, z1: z - 2.2 }, // chiếu nghỉ đầu cầu thang
+    floor: { x0: x - 2.25, x1: x + 3.25, z0: z - 3.25, z1: z + 3.25 }, // sàn đi lại được
+    bellR: 1.5, // không đứng dưới vành chuông
+    striker: { x0: x + 1.0, x1: x + 3.6, dz: 0.55 }, // không đứng dưới chày
+    foot: { x: x - 2.8, z: z + 7.5 }, // ngoài sân, trước chân cầu thang
+    entry: { x: x - 2.8, z: z + 4.1 }, // bậc đầu tiên
+    top: { x: x - 2.8, z: z - 2.75 }, // đầu cầu thang
+    arrive: { x: x - 1.4, z: z - 2.75 }, // bước lên sàn
+    pull: { x: x + 2.9, z: z + 0.95 }, // chỗ đứng nắm dây kéo chày (quay mặt vào chày)
+  };
+})();
 export const QAHALL = { x0: 25, x1: 39, z0: 5, z1: 17, cx: 32 };
 // Sau chánh điện: sân sau, bậc thang đá lên nền đồi cao 8 m, trên đó là điện Tam Thế
 export const TERRACE = { x: 26, z0: -86, z1: -47.6, y: PORCH.courtY + 8 };
@@ -86,6 +105,15 @@ export function groundY(x, z) {
     return PORCH.courtY;
   }
   if (z > CORRIDOR.z0 && z < CORRIDOR.z1 && ax > CORRIDOR.x0 && ax < CORRIDOR.x1) return PORCH.courtY + CORRIDOR.floor;
+  {
+    // gác chuông: cầu thang, sàn trên, nền đá trước chân cầu thang
+    const B = BELL_LOFT, S = B.stair, dx = x - B.x, dz = z - B.z;
+    if (Math.abs(dx) < 4.7 && Math.abs(dz) < 4.7) {
+      if (x >= S.x0 - 0.1 && x <= S.x1 + 0.05 && z > S.zTop && z < S.zFoot) return B.base + ((B.y - B.base) * (S.zFoot - z)) / (S.zFoot - S.zTop);
+      if (dz > 3.9) return dz < 4.3 ? B.base : PORCH.courtY + 0.4;
+      return B.y;
+    }
+  }
   if (z > 24 && z < 36) {
     const d = Math.hypot(x - TOWER.x, z - TOWER.z);
     if (d < TOWER.topR) return TOWER.topY;
@@ -1226,6 +1254,15 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   }
 
   // ---------- Hai dãy hành lang La Hán: mái ngói, cột son, tượng La Hán đá hai hàng ----------
+  const lahan = new Map(); // mã tượng → { vị trí, instance, mức bụi }
+  const lahanBusy = new Set(); // tượng đang đổi màu
+  const sparkles = []; // ánh lấp lánh khi lau sạch
+  const LAHAN_DUSTY = new THREE.Color('#8f8166'); // màu bụi phủ lên đá
+  const lahanCol = new THREE.Color();
+  function paintLahan(st) {
+    st.inst.setColorAt(st.i, lahanCol.copy(st.clean).lerp(LAHAN_DUSTY, st.dust * 0.75));
+    st.inst.instanceColor.needsUpdate = true;
+  }
   {
     const C = CORRIDOR, len = C.z1 - C.z0, cz = (C.z0 + C.z1) / 2;
     const colM = std('#9c2a1c', { roughness: 0.55 });
@@ -1235,7 +1272,6 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     // tượng: hai hàng (hàng sau cao hơn), ba tư thế xen kẽ; máy yếu chỉ dựng hàng trước
     const geos = makeLaHanGeometries({ step: quality === 'high' ? 0.036 : 0.05 });
     const statueM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
-    const spots = [];
     for (const s of [-1, 1]) {
       const xFront = s * 15.9, xBack = s * 16.95;
       // nền, tường hậu, trần, mái
@@ -1253,31 +1289,65 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       // bậc tượng: hàng trước thấp, hàng sau cao
       box(0.9, 0.3, len - 1, stoneM, xFront, GY + C.floor + 0.15, cz);
       box(0.9, 0.75, len - 1, stoneM, xBack, GY + C.floor + 0.375, cz);
-      for (let z = C.z0 + 1.2; z <= C.z1 - 1.2; z += 1.12) {
-        spots.push([xFront, GY + C.floor + 0.3, z, s]);
-        if (quality === 'high') spots.push([xBack, GY + C.floor + 0.75, z + 0.56, s]);
-      }
       // biển hành lang ở đầu phía sân chùa
       const bz = C.z0 - 0.05;
       box(3.0, 0.8, 0.06, M.gold, s * (C.x0 + C.x1) / 2, GY + 3.0, bz, { cast: false });
       mesh(new THREE.PlaneGeometry(2.8, 0.66), boardMat(['HÀNH LANG LA HÁN'], { w: 1024, h: 240, size: 96 }), s * (C.x0 + C.x1) / 2, GY + 3.0, bz - 0.04, { cast: false }).rotation.y = Math.PI;
     }
+    // mỗi tượng có mã cố định (statues.js); máy yếu chỉ dựng hàng trước
+    const spots = LAHAN_IDS.map(lahanSpot).filter((t) => quality === 'high' || t.row === 0);
     const o = new THREE.Object3D();
-    const tint = new THREE.Color();
     geos.forEach((g, v) => {
-      const mine = spots.filter((_, i) => i % 3 === v);
+      const mine = spots.filter((t) => (t.id + t.row) % 3 === v);
       const inst = new THREE.InstancedMesh(g, statueM, mine.length);
-      mine.forEach(([x, y, z, s], i) => {
-        o.position.set(x, y, z);
-        o.rotation.set(0, -s * Math.PI / 2 + rnd(-0.12, 0.12), 0);
+      mine.forEach((t, i) => {
+        o.position.set(t.x, GY + C.floor + (t.row ? 0.75 : 0.3), t.z);
+        o.rotation.set(0, -t.s * Math.PI / 2 + rnd(-0.12, 0.12), 0);
         o.scale.setScalar(rnd(0.95, 1.08));
         o.updateMatrix();
         inst.setMatrixAt(i, o.matrix);
-        inst.setColorAt(i, tint.setHSL(0.1, rnd(0.02, 0.1), rnd(0.82, 1)));
+        const clean = new THREE.Color().setHSL(0.1, rnd(0.02, 0.1), rnd(0.86, 1));
+        lahan.set(t.id, { ...t, inst, i, clean, dust: 0, want: 0, y: GY + C.floor + (t.row ? 0.75 : 0.3) });
+        inst.setColorAt(i, clean);
       });
       inst.receiveShadow = true;
       scene.add(inst);
       lodAdd(inst, 0, 62, 85);
+    });
+    // hộp vô hình trùm lên mỗi tượng để chạm chọn (nhẹ hơn dò cả khối tượng)
+    const all = [...lahan.values()].filter((t) => t.row === 0);
+    const hit = new THREE.InstancedMesh(new THREE.BoxGeometry(0.85, 1.05, 0.85).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ visible: false }), all.length);
+    all.forEach((t, i) => {
+      o.position.set(t.x, t.y, t.z);
+      o.rotation.set(0, 0, 0);
+      o.scale.setScalar(1);
+      o.updateMatrix();
+      hit.setMatrixAt(i, o.matrix);
+    });
+    hit.userData = { kind: 'lahan', ids: all.map((t) => t.id) };
+    hit.frustumCulled = false;
+    scene.add(hit);
+    pickables.push(hit);
+    // bụi bám dần / sạch dần: đổi màu từ từ
+    updaters.push((t, dt) => {
+      for (const st of lahanBusy) {
+        st.dust += Math.sign(st.want - st.dust) * Math.min(Math.abs(st.want - st.dust), dt * (st.want > st.dust ? 0.25 : 0.9));
+        paintLahan(st);
+        if (st.dust === st.want) lahanBusy.delete(st);
+      }
+      for (let k = sparkles.length - 1; k >= 0; k--) {
+        const sp = sparkles[k];
+        sp.life += dt;
+        const u = sp.life / 1.6;
+        sp.obj.position.y = sp.y0 + u * 0.6;
+        sp.obj.material.opacity = Math.sin(Math.min(u, 1) * Math.PI) * 0.9;
+        sp.obj.scale.setScalar(0.5 + u * 0.7);
+        if (u >= 1) {
+          sp.obj.removeFromParent();
+          sp.obj.material.dispose();
+          sparkles.splice(k, 1);
+        }
+      }
     });
   }
 
@@ -1451,11 +1521,37 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       for (const [cx, cz] of [[a, -3.6], [a, 3.6]]) cyl(0.2, 0.23, 7.2, sideCol, cx, 0.6 + 3.6, cz, o, 12);
     }
     for (const a of [-1.2, 1.2]) for (const cx of [-3.6, 3.6]) cyl(0.2, 0.23, 7.2, sideCol, cx, 0.6 + 3.6, a, o, 12);
-    // sàn tầng trên, lan can
-    box(8.2, 0.22, 8.2, std('#5b3a24', { roughness: 0.7 }), 0, 4.0, 0, o);
+    // sàn tầng trên (chừa lỗ cầu thang phía tây), lan can
+    const L = BELL_LOFT, S = L.stair;
+    const floorM = std('#5b3a24', { roughness: 0.7 });
+    const hx0 = S.x0 - BT.x - 0.05, hx1 = S.x1 - BT.x, hz0 = S.zTop - BT.z, hz1 = 3.45; // lỗ cầu thang
+    for (const [x0, x1, z0, z1] of [[hx1, 4.1, -4.1, 4.1], [-4.1, hx1, -4.1, hz0], [-4.1, hx0, hz0, 4.1], [hx0, hx1, hz1, 4.1]]) {
+      const f = box(x1 - x0, 0.22, z1 - z0, floorM, (x0 + x1) / 2, 4.0, (z0 + z1) / 2, o);
+      f.userData.kind = 'ground'; // chạm sàn thì đi tới đó
+    }
     for (const sz of [-1, 1]) {
       box(8.0, 0.08, 0.08, sideCol, 0, 4.75, sz * 3.6, o);
       box(0.08, 0.08, 8.0, sideCol, sz * 3.6, 4.75, 0, o);
+    }
+    // lan can quanh lỗ cầu thang
+    const railM = std('#7a4a2c', { roughness: 0.7 });
+    box(0.07, 0.07, hz1 - hz0, railM, hx1, 4.11 + 0.75, (hz0 + hz1) / 2, o);
+    box(hx1 - hx0, 0.07, 0.07, railM, (hx0 + hx1) / 2, 4.11 + 0.75, hz1, o);
+    for (let zz = hz0; zz <= hz1 + 0.01; zz += (hz1 - hz0) / 6) box(0.06, 0.75, 0.06, railM, hx1, 4.11 + 0.375, zz, o);
+    // cầu thang gỗ: hai tấm limon, bậc gỗ, tay vịn
+    const stairM = std('#6b4329', { roughness: 0.75 });
+    const run = S.zFoot - S.zTop, rise = L.y - L.base, n = 24;
+    const sx = (S.x0 + S.x1) / 2 - BT.x, sw = S.x1 - S.x0;
+    for (let i = 0; i < n; i++) {
+      const u = (i + 0.5) / n;
+      box(sw - 0.08, 0.05, run / n + 0.02, stairM, sx, 0.6 + rise * u - 0.02, S.zFoot - BT.z - run * u, o);
+    }
+    const slope = Math.atan2(rise, run), len = Math.hypot(rise, run);
+    for (const side of [S.x0 - BT.x + 0.03, S.x1 - BT.x - 0.03]) {
+      const st = box(0.06, 0.24, len, stairM, side, 0.6 + rise / 2 - 0.1, (S.zFoot + S.zTop) / 2 - BT.z, o);
+      st.rotation.x = slope;
+      const hr = box(0.05, 0.05, len, railM, side, 0.6 + rise / 2 + 0.75, (S.zFoot + S.zTop) / 2 - BT.z, o);
+      hr.rotation.x = slope;
     }
     // biển gác chuông ở tầng trên, mặt trông ra sân
     box(2.6, 0.75, 0.06, M.gold, 0, 7.1, 3.72, o);
@@ -1487,10 +1583,22 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const log = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 2.0, 12).rotateZ(Math.PI / 2), std('#8a6a44', { roughness: 0.8 }));
     log.position.y = -1.85;
     strikerG.add(log);
+    const ropeM = std('#c9b07a', { roughness: 1 });
     for (const dx of [-0.6, 0.6]) {
-      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.85, 4), std('#c9b07a', { roughness: 1 }));
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.85, 4), ropeM);
       rope.position.set(dx, -0.92, 0);
       strikerG.add(rope);
+    }
+    // dây kéo buộc ở đầu chày, buông xuống chỗ người thỉnh chuông đứng
+    {
+      const a = new THREE.Vector3(0.6, -1.85, 0), b = new THREE.Vector3(0.6, -2.55, 0.5);
+      const pull = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, a.distanceTo(b), 5), ropeM);
+      pull.position.copy(a).add(b).multiplyScalar(0.5);
+      pull.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      strikerG.add(pull);
+      const knot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), std('#a8443a', { roughness: 0.9 }));
+      knot.position.copy(b);
+      strikerG.add(knot);
     }
     // hai tầng mái
     rectRoof(BT.x, GY + 3.7, BT.z, 10.6, 10.6, 0.7, sideTile, { top: 0.72, ridge: false });
@@ -1509,7 +1617,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       bellG.rotation.z = k > 1.05 ? Math.sin((k - 1.05) * 3.2) * 0.035 * Math.exp(-(k - 1.05) * 0.5) : 0;
     });
     greatBell = {
-      spot: new THREE.Vector3(BT.x, 0, BT.z + BT.r + 0.6),
+      spot: new THREE.Vector3(L.pull.x, L.y, L.pull.z), // trên gác, nắm dây kéo chày
       center: new THREE.Vector3(BT.x, GY + 6, BT.z),
       // trả về thời điểm chày chạm chuông (giây) để phát tiếng đúng lúc
       ring() {
@@ -1947,18 +2055,76 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   }
   nightHooks.push((night) => (towerMats.win.emissiveIntensity = 0.85 * night));
 
-  // tầng 13: bàn thờ, tượng Phật (như trong chánh điện), lư hương, nến
-  const TOP_BUDDHA = new THREE.Vector3(TW.x - 1.15, TW.topY + 0.45 + 0.8, TW.z);
+  // tầng 13: bàn thờ, xá lợi Phật tròn phát sáng trên đài sen, lư hương, nến
+  const TOP_RELIC = new THREE.Vector3(TW.x - 1.15, TW.topY + 1.2, TW.z);
   {
     box(1.4, 0.45, 1.5, M.lacquer, TW.x - 1.12, TW.topY + 0.225, TW.z);
     box(1.46, 0.06, 1.56, M.gold, TW.x - 1.12, TW.topY + 0.45, TW.z, { cast: false });
-    const b = buddhaLite.clone();
-    b.traverse((m) => (m.castShadow = false));
-    lodAdd(b, TW.x, TW.z, 45);
-    b.position.set(TW.x - 1.15, TW.topY + 0.48, TW.z);
-    b.scale.setScalar(0.5);
-    b.rotation.y = Math.PI / 2; // nhìn ra sân, về phía tượng Quan Âm
-    scene.add(b);
+    const R = TOP_RELIC;
+    const relic = new THREE.Group();
+    relic.position.copy(R);
+    scene.add(relic);
+    // đài sen vàng: chân tròn, hai lớp cánh sen ngửa đỡ viên xá lợi
+    const lotusGold = std('#d9a54e', { metalness: 0.85, roughness: 0.3 });
+    cyl(0.2, 0.26, 0.12, lotusGold, R.x, TW.topY + 0.54, R.z, { cast: false }, 20);
+    cyl(0.07, 0.12, 0.3, lotusGold, R.x, TW.topY + 0.75, R.z, { cast: false }, 14);
+    const petalGeo = new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    for (const [n, r, y, tilt, sx] of [[12, 0.2, -0.3, 0.75, 0.085], [8, 0.13, -0.26, 0.45, 0.07]]) {
+      for (let k = 0; k < n; k++) {
+        const a = ((k + (n === 8 ? 0.5 : 0)) / n) * Math.PI * 2;
+        const pg = new THREE.Group();
+        pg.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+        pg.rotation.y = -a + Math.PI / 2;
+        const p = new THREE.Mesh(petalGeo, lotusGold);
+        p.scale.set(sx, 0.17, 0.04);
+        p.rotation.x = -tilt;
+        pg.add(p);
+        relic.add(pg);
+      }
+    }
+    // viên xá lợi: lõi sáng trắng ngà, vỏ ngọc trong suốt bao ngoài
+    const coreM = new THREE.MeshStandardMaterial({ color: '#fff6dc', emissive: '#ffe2a0', emissiveIntensity: 1.6, roughness: 0.25 });
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 20), coreM);
+    relic.add(core);
+    const shellM = new THREE.MeshBasicMaterial({ color: '#ffe9b8', transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending });
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.21, 32, 20), shellM);
+    relic.add(shell);
+    // hào quang tỏa tròn và vòng sáng xoay chậm
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffd67a', transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+    halo.scale.setScalar(1.3);
+    relic.add(halo);
+    const haloBig = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffb84a', transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
+    haloBig.scale.setScalar(3.2);
+    relic.add(haloBig);
+    const ringM = new THREE.MeshBasicMaterial({ color: '#ffe0a0', transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const rings = [0.3, 0.38].map((r, k) => {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.006, 6, 64), ringM);
+      ring.rotation.set(Math.PI / 2 + (k ? 0.5 : -0.4), 0, 0);
+      relic.add(ring);
+      return ring;
+    });
+    // tia sáng nhẹ quanh viên ngọc
+    const motes = new THREE.Points(
+      new THREE.BufferGeometry().setFromPoints(Array.from({ length: 28 }, () => new THREE.Vector3().randomDirection().multiplyScalar(rnd(0.26, 0.5)))),
+      new THREE.PointsMaterial({ map: glowTex, color: '#fff0c0', size: 0.06, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    relic.add(motes);
+    const relicLight = new THREE.PointLight('#ffd690', 3, 7, 2);
+    relic.add(relicLight);
+    let nightK = 0;
+    nightHooks.push((night) => (nightK = night));
+    updaters.push((t) => {
+      const pulse = 0.5 + 0.5 * Math.sin(t * 1.6);
+      core.position.y = shell.position.y = Math.sin(t * 0.9) * 0.015;
+      coreM.emissiveIntensity = 1.4 + 0.6 * pulse;
+      halo.material.opacity = 0.55 + 0.25 * pulse;
+      halo.scale.setScalar(1.15 + 0.15 * pulse);
+      haloBig.material.opacity = (0.15 + 0.15 * pulse) * (0.6 + 0.6 * nightK);
+      relicLight.intensity = (2.5 + 1.5 * pulse) * (1 + 2.5 * nightK);
+      rings[0].rotation.z = t * 0.5;
+      rings[1].rotation.z = -t * 0.35;
+      motes.rotation.y = t * 0.25;
+    });
     for (const dz of [-0.62, 0.62]) {
       cyl(0.05, 0.06, 0.04, M.bronze, TW.x - 0.55, TW.topY + 0.5, TW.z + dz);
       cyl(0.03, 0.03, 0.16, M.candle, TW.x - 0.55, TW.topY + 0.6, TW.z + dz);
@@ -1977,7 +2143,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     center: new THREE.Vector3(TW.x - 0.2, TW.topY + 0.62, TW.z),
     radius: 0.09,
     spots: [-0.45, 0, 0.45].map((dz) => ({ x: TW.x + 0.45, z: TW.z + dz })),
-    target: TOP_BUDDHA,
+    target: TOP_RELIC,
     smoke: 24,
     min: 2,
   });
@@ -2466,6 +2632,30 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     get night() {
       return night;
     },
+    // tượng La Hán: vị trí, bám bụi / lau sạch (instant = đổi màu ngay, không chuyển dần)
+    lahan: {
+      get(id) {
+        return lahan.get(id);
+      },
+      has: (id) => lahan.has(id),
+      setDust(id, dusty, instant = false) {
+        const st = lahan.get(id);
+        if (!st) return;
+        st.want = dusty ? 1 : 0;
+        if (!instant) return void lahanBusy.add(st);
+        st.dust = st.want;
+        lahanBusy.delete(st);
+        paintLahan(st);
+      },
+      sparkle(id) {
+        const st = lahan.get(id);
+        if (!st) return;
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#fff2c4', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+        sp.position.set(st.x, st.y + 0.6, st.z);
+        scene.add(sp);
+        sparkles.push({ obj: sp, life: 0, y0: st.y + 0.5 });
+      },
+    },
     // bật / tắt trang trí ngày lễ (hoa đăng, cờ ngũ sắc)
     setFestival(on) {
       fest.visible = !!on;
@@ -2482,7 +2672,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     incenseTT,
     greatBell,
     merit,
-    tower: { ...TOWER, buddha: TOP_BUDDHA },
+    tower: { ...TOWER, relic: TOP_RELIC },
     pushOut,
     // giá chổi: chỗ đứng để lấy / trả chổi
     broom: { center: BROOM, spot: new THREE.Vector3(BROOM.x, 0, BROOM.z + 1.05) },

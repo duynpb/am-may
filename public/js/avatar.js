@@ -63,7 +63,7 @@ export class Avatar {
     this.seat = null;
     this.action = null;
     this.seed = Math.random() * 100;
-    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0, stoop: 0, broom: 0 };
+    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0, stoop: 0, broom: 0, wipe: 0, pull: 0, lean: 0 };
     this.hasBroom = false;
     this.sweepPhase = 0;
     this.phase = 0;
@@ -192,6 +192,17 @@ export class Avatar {
     if (this.broomRig) this.broomRig.visible = on;
   }
 
+  // Khăn lau tượng cầm ở tay phải
+  holdCloth(on) {
+    if (!this.cloth && on) {
+      this.cloth = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.12), mat('#e9c35a', 0.95));
+      this.cloth.position.set(0, -0.43, 0.03);
+      this.cloth.rotation.set(0.3, 0, 0.2);
+      this.arms[1].add(this.cloth);
+    }
+    if (this.cloth) this.cloth.visible = on;
+  }
+
   // Vị trí đầu chổi trên sân (để quét lá)
   broomTip(v) {
     return this.broomTipObj.getWorldPosition(v);
@@ -224,7 +235,7 @@ export class Avatar {
     this.seat = null;
     this.faceRy = null;
     this.onArrive = null;
-    if (this.action?.kind === 'bow' || this.action?.kind === 'stoop') this.action = null;
+    if (['bow', 'stoop', 'wipe', 'pull'].includes(this.action?.kind)) this.action = null;
   }
 
   // walkTo dạng Promise — xong khi tới nơi (không xong nếu bị lệnh đi khác chen vào)
@@ -245,6 +256,7 @@ export class Avatar {
   }
 
   // kind: 'gassho' (chắp tay) | 'bow' (lạy) | 'stoop' (cúi xuống sắp dép)
+  //       | 'wipe' (lau tượng, khoảng 3 giây) | 'pull' (kéo dây chày rồi buông)
   act(kind, faceRy = null) {
     this.action = { kind, start: this.time };
     // đang mang / cởi dép (this.script do main.js gán) thì chỉ làm cử chỉ, không dừng bước
@@ -281,10 +293,18 @@ export class Avatar {
     }
     this.ry = dampAngle(this.ry, wantRy, 9, dt);
 
-    let gT = 0, bT = 0, sT = 0;
+    let gT = 0, bT = 0, sT = 0, wT = 0, pT = 0, lT = 0;
     if (this.action) {
       const e = this.time - this.action.start;
-      if (this.action.kind === 'gassho') {
+      if (this.action.kind === 'wipe') {
+        wT = e < 3.0 ? 1 : 0;
+        if (e > 3.4) this.action = null;
+      } else if (this.action.kind === 'pull') {
+        // 0–0,9 s ngả người kéo dây chày lùi ra, rồi buông cho chày lao vào chuông
+        pT = e < 1.3 ? 1 : 0;
+        lT = e < 0.9 ? 1 : 0;
+        if (e > 2.0) this.action = null;
+      } else if (this.action.kind === 'gassho') {
         gT = e < 2.2 ? 1 : 0;
         if (e > 2.8) this.action = null;
       } else if (this.action.kind === 'stoop') {
@@ -303,6 +323,9 @@ export class Avatar {
     p.bow = damp(p.bow, bT, 3.5, dt);
     p.stoop = damp(p.stoop, sT, 5, dt);
     p.broom = damp(p.broom, this.hasBroom ? 1 : 0, 8, dt);
+    p.wipe = damp(p.wipe, wT, 7, dt);
+    p.pull = damp(p.pull, pT, 9, dt);
+    p.lean = damp(p.lean, lT, 4, dt);
     this.phase += dt * 9.5 * p.walk;
     this.sweepPhase += dt * 5.5 * p.walk;
     this.sync();
@@ -330,7 +353,7 @@ export class Avatar {
     });
 
     this.upper.position.y = 0.4 - 0.18 * p.sit;
-    this.upper.rotation.x = p.bow * mix(0.62, 0.95, p.sit) + p.stoop * 0.95;
+    this.upper.rotation.x = p.bow * mix(0.62, 0.95, p.sit) + p.stoop * 0.95 + 0.12 * p.wipe - 0.32 * p.lean + 0.1 * p.pull * (1 - p.lean);
     this.upper.scale.y = 1 + Math.sin(t * 1.7) * 0.012;
     this.head.rotation.x = 0.16 * p.sit * (1 - p.bow) + Math.sin(this.phase * 2) * 0.03 * p.walk;
     this.head.rotation.z = Math.sin(t * 0.4) * 0.04 * (1 - p.walk);
@@ -350,6 +373,13 @@ export class Avatar {
       rz = mix(rz, -s * 0.2, p.stoop);
       rx = mix(rx, -0.75 + s * sweep * 0.15, p.broom); // hai tay cầm cán chổi
       rz = mix(rz, -s * 0.32, p.broom);
+      // lau tượng: tay phải cầm khăn xoay vòng, tay trái đỡ phía trước
+      const w = (this.time + this.seed) * 8;
+      rx = mix(rx, s > 0 ? -1.25 + Math.sin(w) * 0.28 : -0.95, p.wipe);
+      rz = mix(rz, s > 0 ? -0.25 + Math.cos(w) * 0.22 : 0.25, p.wipe);
+      // kéo dây chày: hai tay đưa ra trước nắm dây
+      rx = mix(rx, -1.1 + 0.25 * p.lean, p.pull);
+      rz = mix(rz, -s * 0.12, p.pull);
       arm.rotation.set(rx, 0, rz);
     }
   }

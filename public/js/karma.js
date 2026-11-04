@@ -17,6 +17,7 @@ export const RULES = {
   steal: { label: 'Lấy dép của người khác', nghiep: 1, cap: 20 },
   // 'sweep' được báo kèm số lá vừa quét; cứ đủ 15 lá trong ngày thì cộng phước
   sweep: { label: 'Quét lá sân chùa (15 lá)', phuoc: 2, cap: 10 },
+  wipe: { label: 'Lau tượng La Hán', phuoc: 1, cap: 15, gap: 2e3 },
 };
 export const LEAVES_PER_POINT = 15;
 const LEAF_DAY_CAP = 600; // tối đa 600 lá được ghi mỗi ngày
@@ -36,7 +37,7 @@ export function newProfile(name, now = Date.now()) {
     phuoc: 0,
     nghiep: 0,
     visits: 0,
-    stats: { bow: 0, greet: 0, incense: 0, merit: 0, beads: 0, chant: 0, bell: 0, leaves: 0 },
+    stats: { bow: 0, greet: 0, incense: 0, merit: 0, beads: 0, chant: 0, bell: 0, leaves: 0, wipe: 0 },
     history: [],
     day: { date: vnDate(now), counts: {} },
     last: {},
@@ -99,7 +100,7 @@ export function applyEvent(p, kind, { n = 1, fest } = {}, now = Date.now()) {
   p.day.counts[kind] = used + 1;
   p.last[kind] = now;
   if (kind === 'visit') p.visits++;
-  else if (kind in p.stats) p.stats[kind] += kind === 'incense' ? n : 1;
+  else if (kind in p.stats || kind === 'wipe') p.stats[kind] = (p.stats[kind] || 0) + (kind === 'incense' ? n : 1);
   const entry = { at: now, kind, label: kind === 'incense' ? `${rule.label} (${n} nén)` : rule.label };
   if (rule.phuoc) addPhuoc(p, entry, rule.phuoc, fest);
   if (rule.nghiep) {
