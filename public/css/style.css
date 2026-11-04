@@ -57,6 +57,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .count { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; margin-right: 6px; }
 .count b { font-weight: 600; min-width: 1.2em; }
 .icon-btn { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; transition: background 0.2s; }
+#btn-overview.on { color: var(--accent); background: rgba(226, 187, 108, 0.18); }
 #btn-mute .off { display: none; }
 #btn-mute.muted .on { display: none; }
 #btn-mute.muted .off { display: block; }
@@ -389,7 +390,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   .hud-tl { top: calc(10px + var(--sat)); left: calc(10px + var(--sal)); gap: 6px; }
   .hud-tr { top: calc(10px + var(--sat)); right: calc(10px + var(--sar)); gap: 8px; }
   .round { width: 40px; height: 40px; }
-  .brand { height: 40px; padding: 0 10px; gap: 6px; font-size: 14px; max-width: calc(100vw - 210px - var(--sal) - var(--sar)); }
+  .brand { height: 40px; padding: 0 10px; gap: 6px; font-size: 14px; max-width: calc(100vw - 244px - var(--sal) - var(--sar)); }
   .brand .sep, .brand #room-name { display: none; }
   .fest-badge { width: 40px; height: 40px; padding: 0; justify-content: center; }
   .fest-badge #fest-name { display: none; }

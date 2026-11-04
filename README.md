@@ -51,6 +51,7 @@ public/
 | Chánh điện | Bố cục chữ Đinh kiểu chùa Việt: tiền đường phía trước mái chồng diêm hai tầng, trên bờ nóc có lưỡng long chầu nguyệt; chánh điện phía sau một mái lớn. Mặt mái cong lõm lợp ngói, bốn góc đầu đao cong vút; hiên có hàng cột son, hoành phi ĐẠI HÙNG BẢO ĐIỆN, nền có bệ đá |
 | Vào chánh điện | Nhân vật đi từ sân lên thềm, cởi dép, quay lại sắp dép ngay ngắn (mũi hướng ra sân) rồi bước vào; chạm để bỏ qua. Mỗi người trong chánh điện có một đôi dép trên thềm, khi về thì mang dép đi ra |
 | Đi lại | Chạm / nhấp sàn, hoặc W A S D |
+| Nhìn toàn cảnh | Nút ba lớp ở góc phải (hoặc phím V) đưa camera lên cao nhìn cả khuôn viên. Kéo để dời góc nhìn, chụm hai ngón / lăn chuột để phóng to, chuột phải kéo (hoặc giữ Shift) để xoay. Vẫn chạm / nhấp xuống đất để nhân vật đi tới, W A S D vẫn dùng được; mũi tên vàng chỉ chỗ mình đứng. Bấm lại nút, phím V hoặc Esc để trở về |
 | Chó nhà chùa | Bốn chú chó nhỏ của các sư thầy, chú tiểu (Vàng, Mực, Bông, Lu) đi lang thang quanh các sân, nằm nghỉ, thấy người thì chạy lại ngồi vẫy đuôi, thỉnh thoảng sủa khẽ. Chạm vào chó (hoặc tên của nó) để xoa đầu. Mỗi máy tự cho chó đi lại, không đồng bộ giữa người chơi; đồ họa Nhẹ có ba chú |
 | Ngồi | Chạm vào bồ đoàn trống |
 | Nhìn quanh, phóng to | Kéo; lăn chuột hoặc chụm hai ngón |
