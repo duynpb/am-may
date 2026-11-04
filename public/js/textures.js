@@ -93,11 +93,16 @@ export function boardTexture(lines, { w = 1024, h = 256, size = 120 } = {}) {
     g.fillStyle = '#f0cd78';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = `700 ${size}px "Noto Serif", Georgia, serif`;
     g.shadowColor = 'rgba(0,0,0,.55)';
     g.shadowBlur = 8;
     g.shadowOffsetY = 3;
-    lines.forEach((ln, i) => g.fillText(ln, w / 2, (h * (i + 0.5)) / lines.length + size * 0.04));
+    lines.forEach((ln, i) => {
+      // chữ dài thì tự co lại cho vừa khung viền trong, không bị cắt hai đầu
+      g.font = `700 ${size}px "Noto Serif", Georgia, serif`;
+      const fit = Math.min(size, (size * (w - 110)) / g.measureText(ln).width);
+      g.font = `700 ${fit}px "Noto Serif", Georgia, serif`;
+      g.fillText(ln, w / 2, (h * (i + 0.5)) / lines.length + fit * 0.04);
+    });
   });
 }
 

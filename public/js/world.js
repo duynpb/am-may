@@ -1821,7 +1821,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     box(4.6, 1.8, 2.8, wallM, 0, GY + 6.9, GZ, o);
     for (const sz of [-1, 1]) {
       box(3.1, 0.95, 0.06, M.gold, 0, GY + 6.95, GZ + sz * 1.43, o);
-      const plaque = mesh(new THREE.PlaneGeometry(2.9, 0.8), boardMat(['AM MÂY TỰ']), 0, GY + 6.95, GZ + sz * 1.47, o);
+      const plaque = mesh(new THREE.PlaneGeometry(2.9, 0.8), boardMat(['AM MÂY']), 0, GY + 6.95, GZ + sz * 1.47, o);
       if (sz < 0) plaque.rotation.y = Math.PI;
     }
     hipRoof(0, GY + 7.75, 6.6, 4.4, 0.7);
