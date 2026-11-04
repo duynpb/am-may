@@ -279,3 +279,19 @@ export function fallenBanyanLeaf() {
     g.fillRect(-2, -128, 4, 26); // cuống lá
   });
 }
+
+// Cờ Phật giáo: năm sọc dọc xanh, vàng, đỏ, trắng, cam; sọc thứ sáu gồm năm màu xếp ngang
+export const FLAG_COLORS = ['#2f5fd0', '#f5c400', '#d42a2a', '#f7f4ec', '#f08a1c'];
+export function buddhistFlag() {
+  return canvasTexture(240, 160, (g, w, h) => {
+    const cw = w / 6;
+    FLAG_COLORS.forEach((c, i) => {
+      g.fillStyle = c;
+      g.fillRect(i * cw, 0, cw + 1, h);
+    });
+    FLAG_COLORS.forEach((c, i) => {
+      g.fillStyle = c;
+      g.fillRect(5 * cw, (i * h) / 5, cw, h / 5 + 1);
+    });
+  });
+}

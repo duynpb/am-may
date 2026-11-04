@@ -1939,6 +1939,166 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     }));
   }
 
+  // ---------- Ngày lễ (mùng một, Rằm): hoa đăng trên hồ sen, cờ Phật giáo ngũ sắc dọc trục đường ----------
+  // Dựng sẵn và ẩn đi; main.js bật bằng setFestival(true). Không gộp lô để bật / tắt được.
+  const fest = new THREE.Group();
+  fest.visible = false;
+  scene.add(fest);
+  {
+    // hoa đăng: đế lá xanh, cánh sen giấy hồng, ngọn nến sáng, trôi chậm theo vòng trong hồ
+    const ponds = [
+      { x: PD.x - 0.6, z: PD.z + 0.15, rx: PD.rx * 0.62, rz: PD.rz * 0.62, n: 7, y: GY + 0.075 },
+      { x: -9.2, z: 61, rx: 3.6 * 0.72, rz: 16 * 0.85, n: 22, y: GY + 0.035 },
+      { x: 9.2, z: 61, rx: 3.6 * 0.72, rz: 16 * 0.85, n: 22, y: GY + 0.035 },
+    ];
+    const total = ponds.reduce((s, p) => s + p.n, 0);
+    const baseGeo = new THREE.CylinderGeometry(0.2, 0.17, 0.035, 10);
+    const cupGeo = new THREE.CylinderGeometry(0.17, 0.07, 0.13, 8, 1, true).translate(0, 0.085, 0);
+    const petalGeo = new THREE.ConeGeometry(0.06, 0.16, 4).translate(0, 0.08, 0);
+    const baseM = std('#3f7a34', { roughness: 0.8 });
+    const cupM = std('#f6a9b8', { emissive: '#ff7a8a', emissiveIntensity: 0.25, roughness: 0.7, side: THREE.DoubleSide });
+    const petalM = std('#f8c0cc', { emissive: '#ff8a9a', emissiveIntensity: 0.2, roughness: 0.7 });
+    const PET = 6;
+    const bases = new THREE.InstancedMesh(baseGeo, baseM, total);
+    const cups = new THREE.InstancedMesh(cupGeo, cupM, total);
+    const petals = new THREE.InstancedMesh(petalGeo, petalM, total * PET);
+    for (const m of [bases, cups, petals]) {
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.castShadow = false;
+      m.frustumCulled = false;
+      fest.add(m);
+    }
+    const flameGeo = new THREE.BufferGeometry();
+    const flamePos = new Float32Array(total * 3);
+    flameGeo.setAttribute('position', new THREE.BufferAttribute(flamePos, 3).setUsage(THREE.DynamicDrawUsage));
+    const flames = new THREE.Points(flameGeo, new THREE.PointsMaterial({
+      map: glowTex, color: '#ffc46a', size: 0.55, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    flames.frustumCulled = false;
+    fest.add(flames);
+    const items = [];
+    for (const p of ponds) for (let i = 0; i < p.n; i++) {
+      items.push({ p, a: rnd(0, Math.PI * 2), r: 0.25 + 0.75 * Math.sqrt(Math.random()), w: rnd(0.012, 0.035) * (Math.random() < 0.5 ? -1 : 1), spin: rnd(0, 6), seed: rnd(0, 6) });
+    }
+    const o = new THREE.Object3D(), q = new THREE.Object3D();
+    let lastT = null;
+    updaters.push((t) => {
+      if (!fest.visible) return;
+      const dt = lastT == null ? 0 : Math.min(t - lastT, 0.1);
+      lastT = t;
+      items.forEach((it, i) => {
+        it.a += it.w * dt;
+        it.spin += it.w * 2 * dt;
+        const x = it.p.x + Math.cos(it.a) * it.r * it.p.rx, z = it.p.z + Math.sin(it.a) * it.r * it.p.rz;
+        const y = it.p.y + Math.sin(t * 1.3 + it.seed) * 0.006;
+        o.position.set(x, y, z);
+        o.rotation.set(Math.sin(t * 0.9 + it.seed) * 0.04, it.spin, Math.cos(t * 0.8 + it.seed) * 0.04);
+        o.scale.setScalar(1);
+        o.updateMatrix();
+        bases.setMatrixAt(i, o.matrix);
+        cups.setMatrixAt(i, o.matrix);
+        for (let k = 0; k < PET; k++) {
+          const ang = (k / PET) * Math.PI * 2;
+          q.position.set(Math.cos(ang) * 0.15, 0.02, Math.sin(ang) * 0.15);
+          q.rotation.set(0, -ang, 0);
+          q.rotateZ(-0.55);
+          q.updateMatrix();
+          q.matrix.premultiply(o.matrix);
+          petals.setMatrixAt(i * PET + k, q.matrix);
+        }
+        flamePos[i * 3] = x;
+        flamePos[i * 3 + 1] = y + 0.17;
+        flamePos[i * 3 + 2] = z;
+      });
+      bases.instanceMatrix.needsUpdate = cups.instanceMatrix.needsUpdate = petals.instanceMatrix.needsUpdate = true;
+      flameGeo.attributes.position.needsUpdate = true;
+    });
+    nightHooks.push((night) => {
+      cupM.emissiveIntensity = 0.25 + 1.4 * night;
+      petalM.emissiveIntensity = 0.2 + 1.1 * night;
+      flames.material.opacity = 0.35 + 0.6 * night;
+      flames.material.size = 0.45 + 0.5 * night;
+    });
+
+    // cờ ngũ sắc: cột tre hai bên trục đường (tránh sân giếng và lối ngang sang hành lang)
+    const flagTex = T.buddhistFlag();
+    const poleM = std('#c9b27a', { roughness: 0.75 });
+    const flagM = new THREE.MeshStandardMaterial({ map: flagTex, roughness: 0.85, side: THREE.DoubleSide });
+    const POLE_H = 5.2, FW = 1.2, FH = 0.8;
+    const poleZ = [41.5, 48, 54.5, 69, 74.5]; // xen giữa các đèn đá (z 45, 51, 72, 77)
+    const flags = [];
+    for (const z of poleZ) for (const s of [-1, 1]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.055, POLE_H, 6), poleM);
+      pole.position.set(s * 4.6, GY + POLE_H / 2, z);
+      pole.castShadow = true;
+      fest.add(pole);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), M.gold);
+      tip.position.set(s * 4.6, GY + POLE_H + 0.05, z);
+      fest.add(tip);
+      // lá cờ treo bên cột, bay ra phía ngoài trục đường; lưới nhiều ô để gợn sóng
+      const geo = new THREE.PlaneGeometry(FW, FH, 10, 4).translate(FW / 2, 0, 0);
+      const flag = new THREE.Mesh(geo, flagM);
+      flag.position.set(s * 4.6, GY + POLE_H - FH / 2 - 0.08, z);
+      flag.rotation.y = s > 0 ? 0 : Math.PI;
+      flag.castShadow = true;
+      flag.userData = { base: Float32Array.from(geo.attributes.position.array), seed: rnd(0, 6) };
+      fest.add(flag);
+      flags.push(flag);
+    }
+    updaters.push((t) => {
+      if (!fest.visible) return;
+      for (const f of flags) {
+        const pos = f.geometry.attributes.position, b = f.userData.base;
+        for (let i = 0; i < pos.count; i++) {
+          const x = b[i * 3], y = b[i * 3 + 1];
+          const k = x / FW; // càng xa cột càng gợn nhiều
+          pos.setZ(i, Math.sin(t * 3.2 - x * 4.5 + f.userData.seed) * 0.09 * k);
+          pos.setY(i, y - k * k * 0.06 + Math.sin(t * 2.1 + x * 3 + f.userData.seed) * 0.02 * k);
+        }
+        pos.needsUpdate = true;
+        f.geometry.computeVertexNormals();
+      }
+    });
+
+    // dây cờ đuôi nheo năm màu: chăng ngang qua đường giữa hai cột, và dọc theo mỗi bên
+    const pennantGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.11, 0, 0), new THREE.Vector3(0.11, 0, 0), new THREE.Vector3(0, -0.3, 0)]);
+    pennantGeo.computeVertexNormals();
+    const top = GY + POLE_H - 0.15;
+    const spans = poleZ.map((z) => [new THREE.Vector3(-4.6, top, z), new THREE.Vector3(4.6, top, z), 0.9]);
+    for (let i = 0; i < poleZ.length - 1; i++) {
+      if (poleZ[i + 1] - poleZ[i] > 10) continue; // không chăng qua sân giếng Ngọc
+      for (const s of [-1, 1]) spans.push([new THREE.Vector3(s * 4.6, top, poleZ[i]), new THREE.Vector3(s * 4.6, top, poleZ[i + 1]), 0.55]);
+    }
+    const SPACING = 0.34;
+    const slots = spans.map(([a, b, sag]) => ({ a, b, sag, n: Math.floor(a.distanceTo(b) / SPACING) }));
+    const nP = slots.reduce((s, x) => s + x.n, 0);
+    const pennants = new THREE.InstancedMesh(pennantGeo, new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide }), nP);
+    const ropeM = new THREE.LineBasicMaterial({ color: '#5a4a3a' });
+    const c = new THREE.Color();
+    let j = 0;
+    for (const { a, b, sag, n } of slots) {
+      const pts = [];
+      for (let i = 0; i <= 24; i++) {
+        const u = i / 24;
+        pts.push(new THREE.Vector3().lerpVectors(a, b, u).setY(a.y - sag * 4 * u * (1 - u)));
+      }
+      fest.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), ropeM));
+      const dir = new THREE.Vector3().subVectors(b, a).setY(0).normalize();
+      const ry = Math.atan2(-dir.z, dir.x);
+      for (let i = 0; i < n; i++, j++) {
+        const u = (i + 0.5) / n;
+        o.position.lerpVectors(a, b, u).setY(a.y - sag * 4 * u * (1 - u));
+        o.rotation.set(0, ry, 0);
+        o.scale.setScalar(1);
+        o.updateMatrix();
+        pennants.setMatrixAt(j, o.matrix);
+        pennants.setColorAt(j, c.set(T.FLAG_COLORS[j % 5]));
+      }
+    }
+    pennants.castShadow = true;
+    fest.add(pennants);
+  }
+
   // ---------- Chiếu & bồ đoàn ----------
   const seats = [];
   for (const z of SEAT_Z) for (const x of SEAT_X) seats.push({ index: seats.length, x, z });
@@ -2162,6 +2322,10 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     },
     get night() {
       return night;
+    },
+    // bật / tắt trang trí ngày lễ (hoa đăng, cờ ngũ sắc)
+    setFestival(on) {
+      fest.visible = !!on;
     },
     scene,
     seats,

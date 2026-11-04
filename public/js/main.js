@@ -7,6 +7,7 @@ import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, fetchMerit, ROOMS } from './net.js';
 import { applyEvent, newProfile, publicProfile, RULES, CLIENT_KINDS } from './karma.js';
+import { festivalOf, FESTIVAL_PHUOC } from './lunar.js';
 
 const $ = (s) => document.querySelector(s);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -99,6 +100,35 @@ const { scene, seats } = world;
 Avatar.ground = groundY;
 // ?gio=20.5 trên địa chỉ trang: xem thử chánh điện lúc 20 giờ 30 (mặc định theo giờ Việt Nam thật)
 if (params.has('gio')) world.setHour(parseFloat(params.get('gio')));
+
+// ---------- Ngày lễ: mùng một và ngày Rằm âm lịch ----------
+// Hoa đăng trên hồ sen, cờ ngũ sắc dọc trục đường, khách đông hơn, điểm phước nhân đôi.
+// ?am=15 (hoặc ?am=1) trên địa chỉ trang: xem thử ngày Rằm / mùng một vào một ngày bất kỳ
+// (khi trực tuyến, máy chủ vẫn tính điểm theo ngày âm lịch thật).
+const amOverride = [1, 15].includes(parseInt(params.get('am'), 10)) ? parseInt(params.get('am'), 10) : null;
+let festival = festivalOf(Date.now(), amOverride);
+function applyFestival() {
+  world.setFestival(!!festival);
+  const b = $('#fest-badge');
+  b.hidden = !festival;
+  if (!festival) return;
+  b.classList.toggle('mung1', festival.kind === 'mung1');
+  $('#fest-name').textContent = festival.name;
+  b.title = `${festival.name} — điểm phước ×${FESTIVAL_PHUOC}`;
+}
+applyFestival();
+$('#fest-badge').addEventListener('click', () => festival && toast(festivalMsg(), 6000));
+const festivalMsg = () =>
+  `Hôm nay là ${festival.name}. Điểm phước được nhân ${FESTIVAL_PHUOC} cả ngày; ra hồ sen ngắm hoa đăng, trục đường treo cờ ngũ sắc.`;
+// qua nửa đêm (giờ Việt Nam) thì xét lại
+setInterval(() => {
+  const f = festivalOf(Date.now(), amOverride);
+  if (f?.name === festival?.name) return;
+  festival = f;
+  applyFestival();
+  if (online) botTarget = fillTarget();
+  if (festival) toast(festivalMsg(), 6000);
+}, 60e3);
 const rack = new SandalRack(scene);
 const leaves = new LeafField(scene, { groundY, pushOut: world.pushOut });
 
@@ -643,7 +673,7 @@ function botsThink(t) {
       a.walkTo(spot.x, spot.z);
     } else if (r < 0.88) {
       botGardenTrip(a);
-    } else if (r < 0.96 && touring() < Math.max(3, bots.size * 0.35)) {
+    } else if (r < 0.96 && touring() < Math.max(3, bots.size * (festival ? 0.5 : 0.35))) {
       botTour(a);
     }
   }
@@ -731,12 +761,21 @@ const TOUR = [
     await wait(rnd(5000, 10000));
   },
 ];
+// ngày lễ: ra bờ hồ sen ngắm hoa đăng
+const FEST_TOUR = async (a) => {
+  const s = Math.random() < 0.5 ? -1 : 1;
+  const z = Math.random() < 0.5 ? rnd(44, 55) : rnd(68, 77);
+  if (!(await botGo(a, s * 3.1, z))) return;
+  a.act('gassho', s > 0 ? Math.PI / 2 : -Math.PI / 2);
+  bubble(a, pick(['ngắm hoa đăng', 'hoa đăng đẹp quá', 'Nam mô A Di Đà Phật']), 3000);
+  await wait(rnd(6000, 14000));
+};
 async function botTour(a) {
   a.trip = a.tour = true;
   try {
     const stops = 1 + (Math.random() < 0.5 ? 1 : 0);
     for (let i = 0; i < stops; i++) {
-      await pick(TOUR)(a);
+      await (festival && Math.random() < 0.4 ? FEST_TOUR : pick(TOUR))(a);
       if (!avatars.has(a.id) || a.leaving) return;
     }
     const s = pick(freeSeats(a));
@@ -758,7 +797,8 @@ function botLeave(a) {
 }
 
 // Khi có người thật, khách mô phỏng nhường chỗ dần
-const fillTarget = () => (online ? Math.max(0, 14 - onlineCount) : botTarget);
+// ngày lễ chùa đông hơn
+const fillTarget = () => (online ? Math.max(0, (festival ? 24 : 14) - onlineCount) : botTarget);
 
 // Người thật ngồi vào chỗ khách mô phỏng đang ngồi → khách chuyển chỗ
 function yieldSeat(index) {
@@ -961,7 +1001,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     botTarget = fillTarget();
     if (!intro) sendMove();
   } else {
-    botTarget = Math.floor(rnd(16, 30));
+    botTarget = Math.floor(festival ? rnd(30, 42) : rnd(16, 30));
     earn('visit');
     leaves.reset(makeLeaves(45));
   }
@@ -1001,6 +1041,7 @@ function startIntro() {
     player.zone = 'in';
     movePlayerTo(rnd(-1, 1), ENTRANCE.z - 4);
     showHint(baseHint, 8000);
+    if (festival) toast(festivalMsg(), 6000);
   });
 }
 function skipIntro() {
@@ -1480,7 +1521,7 @@ function earn(kind, opts) {
     return;
   }
   localProfile.name = myName;
-  const entry = applyEvent(localProfile, kind, opts);
+  const entry = applyEvent(localProfile, kind, { ...opts, fest: festival });
   if (!entry) return;
   store.set('profile', localProfile);
   if (!entry.silent) showGain(entry);
@@ -1591,6 +1632,7 @@ function renderProfile(name, p, note) {
   for (const r of Object.values(RULES)) {
     rl.append(el('li', null, `${r.label}: +${r.phuoc || r.nghiep} ${r.phuoc ? 'phước' : 'nghiệp'} (tối đa ${r.cap} lần/ngày)`));
   }
+  rl.append(el('li', null, `Ngày mùng một và ngày Rằm (âm lịch): điểm phước ×${FESTIVAL_PHUOC}, điểm nghiệp và giới hạn mỗi ngày giữ nguyên${festival ? ` — hôm nay là ${festival.name}` : ''}`));
   rules.append(rl);
   body.append(scores, stats, hist, rules);
 }

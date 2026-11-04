@@ -1,5 +1,7 @@
 // Quy tắc điểm phước / nghiệp — dùng chung cho máy chủ (Node) và trình duyệt (khi ngoại tuyến).
 // Mỗi việc có giới hạn số lần được tính điểm trong ngày (giờ Việt Nam) để tránh "cày" điểm.
+// Ngày mùng một và ngày Rằm (âm lịch) điểm phước được nhân đôi; điểm nghiệp và giới hạn mỗi ngày giữ nguyên.
+import { festivalOf, FESTIVAL_PHUOC } from './lunar.js';
 
 export const RULES = {
   visit: { label: 'Vào chùa lễ Phật', phuoc: 2, cap: 1 },
@@ -41,10 +43,23 @@ export function newProfile(name, now = Date.now()) {
   };
 }
 
+// Cộng phước vào hồ sơ và mục lịch sử (nhân đôi trong ngày lễ)
+function addPhuoc(p, entry, phuoc, fest) {
+  const k = fest ? FESTIVAL_PHUOC : 1;
+  entry.phuoc = phuoc * k;
+  if (fest) {
+    entry.fest = fest.kind;
+    entry.label += fest.kind === 'ram' ? ' · ngày Rằm ×2' : ' · mùng một ×2';
+  }
+  p.phuoc += entry.phuoc;
+}
+
 // Ghi nhận một việc. Trả về mục lịch sử nếu được tính điểm, null nếu đã quá giới hạn.
-export function applyEvent(p, kind, { n = 1 } = {}, now = Date.now()) {
+// fest: ngày lễ đang áp dụng (bỏ trống = tự tính theo âm lịch của now; null = ngày thường)
+export function applyEvent(p, kind, { n = 1, fest } = {}, now = Date.now()) {
   const rule = RULES[kind];
   if (!rule) return null;
+  if (fest === undefined) fest = festivalOf(now);
   const today = vnDate(now);
   if (p.day?.date !== today) p.day = { date: today, counts: {} };
   if (kind === 'chant') {
@@ -56,8 +71,8 @@ export function applyEvent(p, kind, { n = 1 } = {}, now = Date.now()) {
     p.stats.chantMin = (p.stats.chantMin ?? (p.stats.chant || 0) * 10) + 1;
     if ((mins + 1) % 10 !== 0 || (p.day.counts.chant || 0) >= rule.cap) return { silent: true };
     p.day.counts.chant = (p.day.counts.chant || 0) + 1;
-    const entry = { at: now, kind, label: rule.label, phuoc: rule.phuoc };
-    p.phuoc += rule.phuoc;
+    const entry = { at: now, kind, label: rule.label };
+    addPhuoc(p, entry, rule.phuoc, fest);
     p.history.unshift(entry);
     if (p.history.length > HISTORY_MAX) p.history.length = HISTORY_MAX;
     return entry;
@@ -72,8 +87,8 @@ export function applyEvent(p, kind, { n = 1 } = {}, now = Date.now()) {
     const crossed = Math.floor((done + k) / LEAVES_PER_POINT) > Math.floor(done / LEAVES_PER_POINT);
     if (!crossed || (p.day.counts.sweep || 0) >= rule.cap) return { silent: true };
     p.day.counts.sweep = (p.day.counts.sweep || 0) + 1;
-    const entry = { at: now, kind, label: rule.label, phuoc: rule.phuoc };
-    p.phuoc += rule.phuoc;
+    const entry = { at: now, kind, label: rule.label };
+    addPhuoc(p, entry, rule.phuoc, fest);
     p.history.unshift(entry);
     if (p.history.length > HISTORY_MAX) p.history.length = HISTORY_MAX;
     return entry;
@@ -86,10 +101,7 @@ export function applyEvent(p, kind, { n = 1 } = {}, now = Date.now()) {
   if (kind === 'visit') p.visits++;
   else if (kind in p.stats) p.stats[kind] += kind === 'incense' ? n : 1;
   const entry = { at: now, kind, label: kind === 'incense' ? `${rule.label} (${n} nén)` : rule.label };
-  if (rule.phuoc) {
-    p.phuoc += rule.phuoc;
-    entry.phuoc = rule.phuoc;
-  }
+  if (rule.phuoc) addPhuoc(p, entry, rule.phuoc, fest);
   if (rule.nghiep) {
     p.nghiep += rule.nghiep;
     entry.nghiep = rule.nghiep;
