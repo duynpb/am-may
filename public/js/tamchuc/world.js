@@ -5,6 +5,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as T from '../textures.js';
 import { curvedRoof, dragonsOnRidge, karstGeometry, karstMaterial, ARCH } from '../arch.js';
 import { PILLARS } from './sutras.js';
+import { makeBuddha } from '../buddha.js';
+import { makeQuanAm } from '../quanam.js';
 
 // Mặt đất đi lại cao 0,8 m so với mặt hồ; bờ kè thẳng ở z = SHORE
 export const LAND = 0.8;
@@ -34,9 +36,47 @@ export const PILLAR_POS = [];
 for (const z of [-24, -10, 4, 18]) for (let i = 0; i < 8; i++) PILLAR_POS.push({ x: -61 - 6.6 * i, z });
 WALK_AREAS.push(SUTRA_GARDEN, { minX: -58, maxX: -46, minZ: -19, maxZ: -13 }); // vườn và lối từ sân sang
 ROUND_OBSTACLES.push(...PILLAR_POS.map((p) => ({ x: p.x, z: p.z, r: 1.4 })));
+// Sườn núi sau sân lớn: ba nền đá, càng vào trong càng cao, mỗi nền một điện.
+// front/back: mép trước / sau của nền (z); hall: điện giữa nền; lối lên nền kế tiếp ở phía sau điện.
+export const TERRACES = [
+  { key: 'quanam', name: 'Điện Quan Âm', plaque: 'QUAN ÂM ĐIỆN', y: LAND + 6, front: -52, back: -92, halfX: 24, hall: { hx: 9, front: -58, back: -70 } },
+  { key: 'phapchu', name: 'Điện Pháp Chủ', plaque: 'PHÁP CHỦ ĐIỆN', y: LAND + 14, front: -92, back: -130, halfX: 26, hall: { hx: 12, front: -98, back: -112 } },
+  { key: 'tamthe', name: 'Điện Tam Thế', plaque: 'TAM THẾ ĐIỆN', y: LAND + 24, front: -130, back: -170, halfX: 30, hall: { hx: 15, front: -138, back: -154 } },
+];
+// bậc thang: top là mép nền trên, bottom là chân bậc (z), y0 → y1
+export const STAIRS = [
+  { x: 4, top: -52, bottom: -40.4, y0: LAND, y1: TERRACES[0].y },
+  { x: 4, top: -92, bottom: -80, y0: TERRACES[0].y, y1: TERRACES[1].y },
+  { x: 4, top: -130, bottom: -117, y0: TERRACES[1].y, y1: TERRACES[2].y },
+];
+for (const T of TERRACES) {
+  const H = T.hall;
+  WALK_AREAS.push(
+    { minX: -T.halfX + 1, maxX: T.halfX - 1, minZ: H.front + 0.6, maxZ: T.front - 0.6 }, // sân trước điện
+    { minX: -T.halfX + 1, maxX: -H.hx - 0.9, minZ: H.back - 0.6, maxZ: H.front + 0.9 }, // lối hai bên điện
+    { minX: H.hx + 0.9, maxX: T.halfX - 1, minZ: H.back - 0.6, maxZ: H.front + 0.9 },
+    { minX: -T.halfX + 1, maxX: T.halfX - 1, minZ: T.back + 0.6, maxZ: H.back - 0.4 }, // sân sau điện
+    { minX: -3.4, maxX: 3.4, minZ: H.front - 1.0, maxZ: H.front + 1.0 }, // cửa giữa
+    { minX: -H.hx + 1, maxX: H.hx - 1, minZ: H.back + 3.0, maxZ: H.front - 0.6 }, // trong điện (bàn thờ ở phía sau)
+  );
+}
+for (const S of STAIRS) WALK_AREAS.push({ minX: -S.x + 0.8, maxX: S.x - 0.8, minZ: S.top - 1.0, maxZ: S.bottom + 0.4 });
 export const SPAWN = { x: 0, z: 47, ry: Math.PI };
 
 export function groundY(x, z) {
+  if (z < PLAZA.minZ - 0.3) {
+    const ax = Math.abs(x);
+    for (const S of STAIRS) {
+      if (ax <= S.x && z <= S.bottom && z >= S.top) return S.y0 + ((S.y1 - S.y0) * (S.bottom - z)) / (S.bottom - S.top);
+    }
+    for (const T of TERRACES) {
+      if (ax <= T.halfX && z <= T.front && z >= T.back) {
+        const H = T.hall;
+        return ax < H.hx + 0.7 && z < H.front + 1.1 && z > H.back - 0.5 ? T.y + 0.25 : T.y;
+      }
+    }
+    return LAND;
+  }
   // bến thuyền: dốc gỗ từ bờ kè xuống mặt bến, rồi phẳng
   if (Math.abs(x) < PIER.halfW && z > PIER.z0 && z < PIER.z1) {
     const k = Math.min(1, Math.max(0, (z - SHORE) / PIER.ramp));
@@ -195,7 +235,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       peaks.push([Math.cos(a) * d * 1.2, SHORE + Math.sin(a) * d, 30 + rr() * 30, 60 + rr() * 70, -2]);
     }
     // dãy núi phía sau chùa (ba điện sẽ dựng trên sườn núi ở các đợt sau)
-    for (const p of [[0, -150, 60, 95], [-85, -125, 40, 70], [85, -130, 44, 76], [-160, -90, 50, 80], [160, -95, 52, 84], [-240, -20, 60, 90], [240, -10, 60, 92]]) peaks.push([...p, LAND - 3]);
+    for (const p of [[0, -225, 70, 110], [-95, -185, 42, 80], [95, -190, 46, 86], [-165, -110, 50, 80], [165, -115, 52, 84], [-240, -20, 60, 90], [240, -10, 60, 92]]) peaks.push([...p, LAND - 3]);
     const insts = geos.map((g) => new THREE.InstancedMesh(g, karstM, 40));
     const used = geos.map(() => 0);
     const o = new THREE.Object3D();
@@ -377,8 +417,6 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
         mesh(new THREE.SphereGeometry(1.2, 12, 9), leafD, tx + s * 0.4, LAND + 5.0, z - 0.4);
       }
     }
-    // bậc đá cuối sân, dẫn lên sườn núi (các điện sẽ dựng ở đợt sau)
-    for (let i = 0; i < 6; i++) box(16, 0.25 * (i + 1), 0.8, stone, 0, LAND + 0.125 * (i + 1), PLAZA.minZ - 0.4 - i * 0.8);
   }
 
   // ---------- Vườn kinh: cột đá khắc kinh, lối đi, cổng đá, phù điêu đời Đức Phật ----------
@@ -577,6 +615,135 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     }
   }
 
+  // ---------- Sườn núi: ba nền đá, bậc thang, ba điện (Quan Âm, Pháp Chủ, Tam Thế) ----------
+  const lods = [];
+  {
+    const retainM = std('#8f897d', { roughness: 1 });
+    const paveM = std('#b3aa98', { roughness: 1 });
+    const stepM = std('#b8b1a3', { roughness: 0.95 });
+    const floorTex = T.woodFloor();
+    for (const Tr of TERRACES) {
+      const d = Tr.front - Tr.back, cz = (Tr.front + Tr.back) / 2, h = Tr.y - LAND;
+      box(Tr.halfX * 2, h, d, retainM, 0, LAND + h / 2, cz);
+      const top = mesh(new THREE.PlaneGeometry(Tr.halfX * 2, d), paveM, 0, Tr.y + 0.012, cz, { cast: false });
+      top.rotation.x = -Math.PI / 2;
+      top.userData.kind = 'ground';
+      pickables.push(top);
+      // lan can đá dọc mép trước nền (chừa lối bậc thang)
+      for (const s of [-1, 1]) box(Tr.halfX - 4.6, 0.7, 0.3, stone, s * (Tr.halfX + 4.6) / 2, Tr.y + 0.35, Tr.front - 0.2);
+    }
+    // bậc thang đá có lan can dốc hai bên
+    for (const S of STAIRS) {
+      const len = S.bottom - S.top, rise = S.y1 - S.y0, n = Math.max(8, Math.round(rise / 0.3));
+      const steps = new THREE.Group();
+      steps.userData.kind = 'ground';
+      scene.add(steps);
+      pickables.push(steps);
+      for (let i = 0; i < n; i++) {
+        const hh = (S.y0 - LAND) + ((i + 1) * rise) / n;
+        box(S.x * 2, hh, len / n + 0.02, stepM, 0, LAND + hh / 2, S.bottom - (i + 0.5) * (len / n), { parent: steps });
+      }
+      const L = Math.hypot(len, rise), tilt = Math.atan2(rise, len);
+      for (const s of [-1, 1]) {
+        const rail = box(0.4, 0.9, L, stone, s * (S.x + 0.2), (S.y0 + S.y1) / 2 + 0.45, (S.top + S.bottom) / 2);
+        rail.rotation.x = tilt;
+      }
+    }
+    // điện: nền, sàn gỗ, tường, cột son, mái chồng diêm có lưỡng long chầu nguyệt, bàn thờ, tượng, nến, đèn ấm
+    const candleM = std('#f3e8d0', { emissive: '#ffb860', emissiveIntensity: 0.6, roughness: 0.6 });
+    const lacquer = std('#7d2217', { roughness: 0.38 });
+    function hall(Tr, placeStatue) {
+      const H = Tr.hall, y = Tr.y, w = H.hx * 2, d = H.front - H.back, cz = (H.front + H.back) / 2;
+      box(w + 1.4, 0.24, d + 1.6, stone, 0, y + 0.12, cz + 0.3);
+      const fl = mesh(new THREE.PlaneGeometry(w - 0.4, d - 0.4), std('#ffffff', { map: floorTex, roughness: 0.55 }), 0, y + 0.25, cz, { cast: false });
+      fl.rotation.x = -Math.PI / 2;
+      fl.userData.kind = 'ground';
+      pickables.push(fl);
+      box(2.4, 0.02, d - 3.5, std('#7a271c', { roughness: 1 }), 0, y + 0.26, cz + 1.4, { cast: false });
+      box(w, 6.4, 0.3, wallM, 0, y + 3.45, H.back + 0.15);
+      for (const sx of [-1, 1]) {
+        box(0.3, 6.4, d, wallM, sx * (H.hx - 0.15), y + 3.45, cz);
+        for (let k = 1; k < 4; k++) box(0.08, 1.6, 1.3, std('#2c2018', { roughness: 0.8 }), sx * (H.hx - 0.32), y + 3.2, H.back + (d * k) / 4);
+      }
+      for (const cx of [-(H.hx - 0.5), -H.hx * 0.55, -3.6, 3.6, H.hx * 0.55, H.hx - 0.5]) cyl(0.32, 0.36, 6.4, red, cx, y + 3.45, H.front - 0.2, {}, 14);
+      box(w, 0.5, 0.4, red, 0, y + 6.45, H.front - 0.2);
+      box(w, 0.1, d, std('#5b3a24', { roughness: 0.7 }), 0, y + 6.65, cz, { cast: false });
+      // mái chồng diêm
+      const s1 = (d / 2 + 1.6) * 0.38;
+      curvedRoof(scene, 0, y + 6.6, cz, H.hx + 1.6, d / 2 + 1.6, 1.3, s1, { lift: 1.1 });
+      box(w * 0.62, 1.9, d * 0.55, wallM, 0, y + 8.8, cz);
+      box(5.4, 1.15, 0.06, ARCH.gold, 0, y + 8.8, cz + d * 0.275 + 0.03, { cast: false });
+      mesh(new THREE.PlaneGeometry(5.2, 1.0), std('#ffffff', { map: T.boardTexture([Tr.plaque], { w: 1024, h: 196, size: 110 }), roughness: 0.45 }), 0, y + 8.8, cz + d * 0.275 + 0.07, { cast: false });
+      const hx2 = w * 0.31 + 1.5, hz2 = d * 0.275 + 1.5;
+      const top = curvedRoof(scene, 0, y + 9.75, cz, hx2, hz2, 2.3, hz2 - 0.4, { lift: 1.2 });
+      dragonsOnRidge(scene, 0, top.yTop + 0.42, cz, top.rx);
+      // bàn thờ, tượng, nến
+      box(w * 0.6, 1.1, 2.2, lacquer, 0, y + 0.8, H.back + 1.7);
+      box(w * 0.6 + 0.2, 0.08, 2.4, ARCH.gold, 0, y + 1.39, H.back + 1.7, { cast: false });
+      placeStatue(y + 1.43, H.back + 1.7);
+      for (const cx of [-w * 0.24, w * 0.24]) {
+        cyl(0.05, 0.05, 0.3, candleM, cx, y + 1.58, H.back + 2.6, {}, 8);
+        cyl(0.1, 0.12, 0.06, std('#6e5530', { metalness: 0.75, roughness: 0.4 }), cx, y + 1.45, H.back + 2.6, {}, 10);
+      }
+      const L = new THREE.PointLight('#ffc27a', 8, 18, 2);
+      L.position.set(0, y + 4.6, cz);
+      scene.add(L);
+      nightHooks.push((night) => (L.intensity = 8 + 24 * night));
+    }
+    const q = quality === 'high' ? 'high' : 'low';
+    // điện Quan Âm: tượng Quan Âm đứng trên tòa sen, dát vàng
+    hall(TERRACES[0], (y, z) => {
+      const qa = makeQuanAm({ quality: q });
+      const gilt = new Map();
+      qa.traverse((m) => {
+        if (!m.isMesh) return;
+        if (!gilt.has(m.material)) {
+          const gm = m.material.clone();
+          gm.color = new THREE.Color('#f3c560');
+          gm.metalness = 0.85;
+          gm.roughness = 0.3;
+          gm.envMapIntensity = 1.6;
+          gilt.set(m.material, gm);
+        }
+        m.material = gilt.get(m.material);
+        m.castShadow = false;
+      });
+      qa.position.set(0, y, z);
+      qa.scale.setScalar(1.2);
+      scene.add(qa);
+      lods.push({ obj: qa, z });
+    });
+    // điện Pháp Chủ: một tượng Phật lớn ấn xúc địa; điện Tam Thế: ba tượng Phật
+    const thichca = makeBuddha({ quality: 'low', style: 'thichca' });
+    hall(TERRACES[1], (y, z) => {
+      thichca.position.set(0, y, z);
+      thichca.scale.setScalar(1.45);
+      thichca.traverse((m) => (m.castShadow = false));
+      scene.add(thichca);
+      lods.push({ obj: thichca, z });
+    });
+    const thien = makeBuddha({ quality: 'low' });
+    hall(TERRACES[2], (y, z) => {
+      for (const x of [-5.4, 0, 5.4]) {
+        const b = x === 0 ? thien : thien.clone();
+        b.position.set(x, y, z);
+        b.scale.setScalar(1.1);
+        b.traverse((m) => (m.castShadow = false));
+        scene.add(b);
+        lods.push({ obj: b, z });
+      }
+    });
+    // đèn đá hai bên sân trước mỗi điện
+    for (const Tr of TERRACES) {
+      for (const s of [-1, 1]) {
+        const lx = s * (Tr.hall.hx + 4), lz = Tr.front - 3;
+        cyl(0.1, 0.12, 1.0, stone, lx, Tr.y + 0.5, lz, {}, 8);
+        box(0.4, 0.36, 0.4, lampMat, lx, Tr.y + 1.18, lz);
+        mesh(new THREE.ConeGeometry(0.48, 0.28, 4), stoneD, lx, Tr.y + 1.5, lz).rotation.y = Math.PI / 4;
+      }
+    }
+  }
+
   // ---------- Ngày và đêm theo giờ Việt Nam ----------
   const dayTop = new THREE.Color('#7fb3d9'), nightTop = new THREE.Color('#0b1424');
   const dayBot = new THREE.Color('#e4e2d6'), nightBot = new THREE.Color('#1b2233');
@@ -612,6 +779,10 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     boats,
     boatState,
     pillars,
+    // tượng trong các điện chỉ vẽ khi người chơi ở gần
+    updateLOD(x, z) {
+      for (const l of lods) l.obj.visible = Math.hypot(x, z - l.z) < 70;
+    },
     get night() {
       return night;
     },

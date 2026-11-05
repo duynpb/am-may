@@ -50,6 +50,9 @@
         <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.7 3 2.6 3 5.2"/></svg>
         <b id="people">1</b>
       </span>
+      <button class="icon-btn" id="btn-map" aria-label="Bản đồ khu Tam Chúc">
+        <svg viewBox="0 0 24 24"><path d="M3.5 6.5 9 4.5l6 2 5.5-2v13l-5.5 2-6-2-5.5 2Z"/><path d="M9 4.5v13M15 6.5v13"/></svg>
+      </button>
       <button class="icon-btn" id="btn-mute" aria-label="Tắt / bật âm thanh">
         <svg viewBox="0 0 24 24" class="on"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
         <svg viewBox="0 0 24 24" class="off"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>
@@ -88,6 +91,15 @@
       <div class="sheet-head"><h2 id="room-title">Chọn khu và phòng</h2><button class="x" data-close aria-label="Đóng">×</button></div>
       <p class="muted">Mỗi phòng là một nơi riêng. Pháp danh và điểm phước của bạn dùng chung ở mọi khu.</p>
       <div id="room-list" class="room-grid"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-map" hidden role="dialog" aria-modal="true" aria-labelledby="map-title">
+    <div class="sheet map-sheet">
+      <div class="sheet-head"><h2 id="map-title">Bản đồ khu Tam Chúc</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p class="muted">Chấm vàng là bạn, chấm nâu là mọi người. Chạm tên một nơi hoặc chọn bên dưới để đi nhanh tới đó.</p>
+      <svg id="map-svg" class="map-svg map-wide" viewBox="-10 -122 290 190" aria-label="Sơ đồ khu Tam Chúc"></svg>
+      <div id="map-go" class="room-grid"></div>
     </div>
   </div>
 

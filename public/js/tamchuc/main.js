@@ -1,7 +1,7 @@
 // Trang khu Tam Chúc: đi dạo bờ hồ, qua cổng Tam Quan vào sân lớn, gặp mọi người cùng phòng.
 // Dùng chung nhân vật, kết nối mạng, âm thanh, pháp danh và điểm phước với khu Am Mây.
 import * as THREE from 'three';
-import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND, BOARD, BOATS, PIER, PILLAR_POS } from './world.js';
+import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND, BOARD, BOATS, PIER, PILLAR_POS, TERRACES, STAIRS, PLAZA, SUTRA_GARDEN, SHORE, GATE, CAULDRON } from './world.js';
 import { PILLARS } from './sutras.js';
 import { Avatar, ROBES } from '../avatar.js';
 import { SANDAL_COLORS } from '../sandals.js';
@@ -371,6 +371,107 @@ $('#sutra-done').addEventListener('click', () => {
   else toast('Bạn đã đọc xong một cột kinh — nguyện an lạc', 3000);
   reading = -1;
 });
+
+// ---------- Bản đồ khu Tam Chúc và đi nhanh ----------
+const PLACES = [
+  { id: 'shore', name: 'Bờ hồ', x: SPAWN.x, z: SPAWN.z, ry: Math.PI },
+  { id: 'pier', name: 'Bến thuyền', x: 0, z: 60, ry: 0 },
+  { id: 'plaza', name: 'Sân lớn', x: 0, z: 14, ry: Math.PI },
+  { id: 'garden', name: 'Vườn kinh', x: -58.5, z: -16, ry: -Math.PI / 2 },
+  ...TERRACES.map((T) => ({ id: T.key, name: T.name, x: 0, z: T.hall.back + 7.5, ry: Math.PI })),
+];
+function quickTravel(p) {
+  closeModal($('#modal-map'));
+  if (ride) return toast('Bạn đang ngồi thuyền — thuyền về bến sẽ lên bờ', 2600);
+  pendingBoard = false;
+  pendingRead = null;
+  player.route = null;
+  player.routeTo = null;
+  player.placeAt(p.x, p.z, p.ry);
+  cam.target.set(player.root.position.x, player.root.position.y + 1.1, player.root.position.z);
+  cam.yaw = p.ry + Math.PI;
+  net?.send({ t: 'move', x: p.x, z: p.z, seat: null, w: 1 });
+  toast(`Bạn đang ở ${p.name}`, 2600);
+}
+// bản đồ nằm ngang: bên trái là hồ, bên phải là sườn núi với ba điện
+const SVGNS = 'http://www.w3.org/2000/svg';
+const mapU = (z) => 90 - z, mapV = (x) => x;
+let mapMe = null, mapOthers = null, mapOpen = false;
+function buildMap() {
+  const svg = $('#map-svg');
+  if (svg.childElementCount) return;
+  const el = (tag, attrs, parent = svg) => {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.append(e);
+    return e;
+  };
+  const rect = (x0, x1, z0, z1, cls) => el('rect', { x: mapU(z1), y: mapV(x0), width: z1 - z0, height: x1 - x0, class: cls });
+  el('rect', { x: -10, y: -122, width: 290, height: 190, class: 'm-bg' });
+  el('rect', { x: -10, y: -122, width: mapU(SHORE) + 10, height: 190, class: 'm-water' }); // hồ
+  rect(-68, 68, 39.5, SHORE, 'm-stone'); // bờ hồ
+  rect(-1.7, 1.7, SHORE, 66, 'm-porch'); // bến thuyền
+  rect(-60, 60, GATE.z - 0.5, GATE.z + 0.5, 'm-wall'); // tường cổng
+  rect(PLAZA.minX, PLAZA.maxX, PLAZA.minZ, PLAZA.maxZ, 'm-stone'); // sân lớn
+  el('circle', { cx: mapU(CAULDRON.z), cy: mapV(CAULDRON.x), r: 2.6, class: 'm-statue' });
+  rect(SUTRA_GARDEN.minX, -46, -19, -13, 'm-stone');
+  rect(SUTRA_GARDEN.minX, SUTRA_GARDEN.maxX, SUTRA_GARDEN.minZ, SUTRA_GARDEN.maxZ, 'm-stone'); // vườn kinh
+  for (const p of PILLAR_POS) el('rect', { x: mapU(p.z) - 0.6, y: mapV(p.x) - 0.6, width: 1.2, height: 1.2, class: 'm-wall' });
+  for (const T of TERRACES) {
+    rect(-T.halfX, T.halfX, T.back, T.front, 'm-terrace');
+    rect(-T.hall.hx, T.hall.hx, T.hall.back, T.hall.front, 'm-hall');
+  }
+  for (const S of STAIRS) rect(-S.x, S.x, S.top, S.bottom, 'm-stairs');
+  const labels = [
+    ['shore', -34, 46, 'Bờ hồ'], ['pier', 0, 78, 'Bến thuyền'], ['plaza', 0, 20, 'Sân lớn'], ['garden', -84, -3, 'Vườn kinh'],
+    ...TERRACES.map((T) => [T.key, 0, (T.hall.front + T.hall.back) / 2, T.name.replace('Điện ', '')]),
+  ];
+  for (const [id, x, z, text] of labels) {
+    const g = el('g', { class: 'm-place', role: 'button', tabindex: 0 });
+    el('text', { x: mapU(z), y: mapV(x) + 2.6, 'text-anchor': 'middle' }, g).textContent = text;
+    const go = () => quickTravel(PLACES.find((p) => p.id === id));
+    g.addEventListener('click', go);
+    g.addEventListener('keydown', (e) => e.key === 'Enter' && go());
+  }
+  mapOthers = el('g', {});
+  mapMe = el('circle', { r: 3, class: 'm-me' });
+}
+function updateMap() {
+  mapMe.setAttribute('cx', mapU(player.pos.z));
+  mapMe.setAttribute('cy', mapV(player.pos.x));
+  const others = [...avatars.values()].filter((a) => a !== player);
+  while (mapOthers.childElementCount < others.length) {
+    const c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('r', 1.8);
+    c.setAttribute('class', 'm-other');
+    mapOthers.append(c);
+  }
+  [...mapOthers.children].forEach((c, i) => {
+    const a = others[i];
+    c.style.display = a ? '' : 'none';
+    if (!a) return;
+    c.setAttribute('cx', mapU(a.pos.z));
+    c.setAttribute('cy', mapV(a.pos.x));
+  });
+}
+$('#btn-map').addEventListener('click', () => {
+  buildMap();
+  const list = $('#map-go');
+  if (!list.childElementCount) {
+    for (const p of PLACES) {
+      const b = document.createElement('button');
+      b.className = 'room';
+      b.innerHTML = '<b></b><small>Đi nhanh tới đây</small>';
+      b.querySelector('b').textContent = p.name;
+      b.addEventListener('click', () => quickTravel(p));
+      list.append(b);
+    }
+  }
+  mapOpen = true;
+  updateMap();
+  openModal('#modal-map');
+});
+$('#modal-map').addEventListener('transitionend', () => (mapOpen = $('#modal-map').classList.contains('show')));
 
 // ---------- Đi thuyền quanh hồ ----------
 // Thuyền chạy theo giờ chung nên mọi máy thấy thuyền ở cùng chỗ. Ai đang ngồi thuyền thì báo chỗ ngồi = 50 + số thuyền.
@@ -785,7 +886,7 @@ muteBtn.addEventListener('click', () => {
 
 // ---------- Vòng lặp ----------
 const clock = new THREE.Clock();
-let elapsed = 0;
+let elapsed = 0, lodT = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
   elapsed += dt;
@@ -797,6 +898,11 @@ renderer.setAnimationLoop(() => {
   }
   boatsTick(dt);
   readTick();
+  if (mapOpen) updateMap();
+  if ((lodT -= dt) < 0) {
+    lodT = 0.5;
+    world.updateLOD(player.pos.x, player.pos.z);
+  }
   world.setFocus(player.pos.x, player.pos.z);
   updateCamera(dt);
   renderer.render(scene, camera);

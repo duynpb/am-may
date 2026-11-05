@@ -89,7 +89,9 @@ Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam C
 - Đã có: đi lại (chạm đất / W A S D), chắp tay, lạy Phật, chat, gặp người cùng phòng.
 - Bến thuyền và đi thuyền: bến gỗ chìa ra hồ giữa bờ kè; ba thuyền gỗ có mái che cong, cô lái đội nón lá chèo ở đuôi. Thuyền chạy theo giờ chung (mỗi vòng 150 giây: đậu bến 24 giây rồi đi một vòng quanh các đảo) nên mọi người thấy thuyền ở cùng chỗ. Đứng trên bến bấm "Lên thuyền" (hoặc chạm vào thuyền); thuyền về bến thì tự lên bờ. Người khác thấy bạn ngồi trên thuyền nào.
 - Vườn kinh: phía tây sân lớn, qua cổng đá "VƯỜN KINH". 32 cột đá khắc chữ (16 cột Bát Nhã Tâm Kinh âm Hán-Việt, 16 cột lời dạy ngắn), đầu cột hoa sen; cuối vườn có phù điêu sáu cảnh đời Đức Phật. Chạm vào cột để đi tới đọc; đọc xong chắp tay hồi hướng được +1 phước (tối đa 16 lần/ngày).
-- Sẽ làm ở các đợt sau: ba điện trên sườn núi (Quan Âm, Pháp Chủ, Tam Thế), bản đồ, đi nhanh, khách mô phỏng.
+- Ba điện trên sườn núi: sau sân lớn có bậc thang đá lên ba nền đá cao dần (6 m, 14 m, 24 m). Điện Quan Âm (tượng Quan Âm dát vàng), điện Pháp Chủ (một tượng Phật lớn), điện Tam Thế (ba tượng Phật); mỗi điện mái chồng diêm có lưỡng long chầu nguyệt, bàn thờ, nến, đèn ấm. Lối lên nền trên đi vòng hai bên hông điện.
+- Bản đồ khu Tam Chúc (nút bản đồ góc phải) và đi nhanh tới: Bờ hồ, Bến thuyền, Sân lớn, Vườn kinh, Điện Quan Âm, Điện Pháp Chủ, Điện Tam Thế.
+- Sẽ làm ở đợt sau: cây cối, khách mô phỏng tham quan, tối ưu cho điện thoại.
 
 Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `public/js/arch.js` (mái cong, núi đá vôi dùng chung).
 

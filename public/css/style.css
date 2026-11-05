@@ -264,6 +264,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .map-svg .m-place text {
   font: 600 4.3px var(--font); fill: #fffaf0; paint-order: stroke; stroke: rgba(30, 24, 18, 0.75); stroke-width: 1px;
 }
+.map-svg.map-wide .m-place text { font-size: 7.5px; stroke-width: 1.6px; }
 .map-svg .m-place:hover text, .map-svg .m-place:focus text { fill: var(--accent); outline: none; }
 .map-svg .m-me { fill: #f2c04a; stroke: #fff; stroke-width: 0.5; }
 .map-svg .m-other { fill: #5a3d22; stroke: #f5f0e4; stroke-width: 0.25; }
