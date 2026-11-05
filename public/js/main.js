@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { Dog } from './dog.js';
+import { FIELD, PLOTS, plotRect, plotAt, RICE_STAGES, STAGE_NAMES } from './field.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
@@ -1036,6 +1037,14 @@ function wireNet(n) {
     if (a && !a.leaving) offerMerit(a);
   });
   n.on('karma', (m) => showGain(m.entry));
+  n.on('field', (m) => {
+    world.field.setPlot(m.i, m.age);
+    const a = avatars.get('n' + m.by);
+    if (a) {
+      a.act('stoop');
+      bubble(a, 'gặt lúa', 3000);
+    }
+  });
   n.on('leaves', (m) => {
     if (m.add) leaves.add(m.add);
     if (m.gone) {
@@ -1137,6 +1146,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     wireNet(n);
     n.welcome.peers.forEach(addRemote);
     leaves.reset(n.welcome.leaves || []);
+    world.field.setAges(n.welcome.field);
     resetDust(n.welcome.dust || []);
     onlineCount = n.welcome.peers.length + 1;
     if (n.welcome.merit) {
@@ -1151,6 +1161,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     botTarget = Math.floor(festival ? rnd(30, 42) : rnd(16, 30));
     earn('visit');
     leaves.reset(makeLeaves(45));
+    world.field.setAges(null);
     resetDust(pickDust(22));
   }
   for (let i = 0; i < botTarget; i++) makeBot({ seated: Math.random() < 0.85 });
@@ -1438,6 +1449,7 @@ const PLACES = [
   { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
   { id: 'bell', name: 'Gác chuông', x: BELLTOWER.x, z: BELLTOWER.z + BELLTOWER.r + 0.6, ry: Math.PI },
   { id: 'qahall', name: 'Điện Quan Âm', x: QAHALL.cx, z: 12, ry: Math.PI },
+  { id: 'field', name: 'Ruộng lúa', x: 34, z: 42.5, ry: 0 },
   { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
   { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: TAMTHE.z0 + 8.4, ry: Math.PI },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
@@ -1530,6 +1542,8 @@ function buildMap() {
     rect(s > 0 ? 15.5 : -21.5, s > 0 ? 21.5 : -15.5, 22.6, 24.4, 'm-stone'); // lối sang sân bên
   }
   rect(QAHALL.x0, QAHALL.x1, QAHALL.z0, QAHALL.z1, 'm-hall');
+  rect(30.5, 37.5, 39, FIELD.z0 + 1, 'm-stone'); // lối xuống ruộng
+  rect(FIELD.x0, FIELD.x1, FIELD.z0, FIELD.z1, 'm-field'); // ruộng lúa
   el('rect', { x: mapU(BELLTOWER.z + 4.5), y: mapV(BELLTOWER.x - 4.5), width: 9, height: 9, class: 'm-hall' });
   rect(-17, 17, 22.4, 39.5, 'm-stone'); // sân chùa
   rect(-3.5, 3.5, 39.4, GATE.z, 'm-stone'); // trục đường
@@ -1559,6 +1573,7 @@ function buildMap() {
     ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['stairs', 6.5, -40, 'Bậc thang'],
     ['qahall', QAHALL.cx, 11, 'Điện Quan Âm'],
+    ['field', (FIELD.x0 + FIELD.x1) / 2, (FIELD.z0 + FIELD.z1) / 2, 'Ruộng lúa'],
     ['lahan', 15.6, 62, 'La Hán'],
     ['lahan', -15.6, 62, 'La Hán'],
   ];
@@ -1702,6 +1717,60 @@ function dogsThink(t, dt) {
       if (Math.random() < 0.3 && player.pos.distanceTo(d.pos) < 14) sound.bark(0.1);
     }
   }
+}
+
+// ---------- Gặt lúa: chạm vào ô lúa chín, lội xuống ruộng cúi gặt ----------
+let harvestRun = null; // { i, x, z, started }
+function clickField(px, pz) {
+  sound.init();
+  const i = plotAt(px, pz);
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
+  if (i < 0) {
+    movePlayerTo(px, pz);
+    return;
+  }
+  const st = world.field.stageOf(i);
+  if (st < 3) {
+    const left = Math.max(1, Math.ceil((RICE_STAGES[2] - world.field.ageOf(i)) / 60));
+    toast(`Lúa ở ô này ${STAGE_NAMES[st]} — khoảng ${left} phút nữa mới chín`, 3200);
+    movePlayerTo(px, pz);
+    return;
+  }
+  const r = plotRect(i);
+  const x = clamp(px, r.minX + 0.6, r.maxX - 0.6), z = clamp(pz, r.minZ + 0.6, r.maxZ - 0.6);
+  harvestRun = { i, x, z, started: false };
+  movePlayerTo(x, z);
+  hideHint();
+}
+function harvestTick() {
+  if (!harvestRun || harvestRun.started || player.script) return;
+  const g = player.routeTo ?? player.goal;
+  if (g && Math.hypot(g.x - harvestRun.x, g.z - harvestRun.z) > 0.3) {
+    harvestRun = null;
+    return;
+  }
+  if (player.moving || player.routeTo) return;
+  const { i } = harvestRun;
+  if (player.pos.distanceTo(new THREE.Vector3(harvestRun.x, 0, harvestRun.z)) > 0.8) {
+    harvestRun = null;
+    return;
+  }
+  harvestRun.started = true;
+  // cúi gặt hai lượt rồi bó lúa
+  player.act('stoop');
+  sound.bead();
+  setTimeout(() => player.act('stoop'), 1700);
+  setTimeout(() => {
+    harvestRun = null;
+    if (world.field.stageOf(i) < 3) return toast('Ô lúa này vừa có người gặt rồi', 2600);
+    world.field.setPlot(i, 0);
+    if (net) net.send({ t: 'harvest', i });
+    else earn('harvest');
+    toast('Bạn đã gặt xong một ô lúa — hạt gạo nuôi người, công sức nuôi phước', 3600);
+  }, 3400);
 }
 
 // ---------- Lấy dép (đùa vui) ----------
@@ -2373,6 +2442,10 @@ function handleTap(x, y) {
     openMeritDialog();
     return;
   }
+  if (kind === 'field') {
+    clickField(firstHit.point.x, firstHit.point.z);
+    return;
+  }
   if (kind === 'broom') {
     clickBroom();
     return;
@@ -2526,7 +2599,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'tower' || k === 'greatbell' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'tower' || k === 'greatbell' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
 }
 
 // Bàn phím (máy tính)
@@ -2638,7 +2711,7 @@ function updateCamera(dt) {
   if (outside && player.pos.z < -21.4 && Math.abs(player.pos.x) < 16) cam.maxZ = -21.9;
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
-    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 46 : 14.5),
+    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 58 : 14.5),
     clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : 0.4, high ? TOWER.topY + 3.2 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );
@@ -2946,6 +3019,7 @@ function frame() {
   incenseRitual();
   meritRitual();
   broomRitual();
+  harvestTick();
   greatBellRitual();
   wipeRitual();
   sweepLeaves(dt);

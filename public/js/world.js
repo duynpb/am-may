@@ -8,6 +8,7 @@ import { makeQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
 import { lahanSpot, LAHAN_IDS } from './statues.js';
+import { FIELD, PLOTS, plotRect, riceStage } from './field.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -68,6 +69,8 @@ export const WALK_AREAS = [
     ];
   }),
   { minX: QAHALL.x0 + 1, maxX: QAHALL.x1 - 1, minZ: 8.6, maxZ: 18.3 }, // trong điện Quan Âm
+  { minX: 30.5, maxX: 37.5, minZ: 39, maxZ: FIELD.z0 + 1 }, // lối từ sân điện Quan Âm xuống ruộng
+  { minX: FIELD.x0 + 0.4, maxX: FIELD.x1 - 0.4, minZ: FIELD.z0 + 0.4, maxZ: FIELD.z1 - 0.4 }, // ruộng lúa
   ...[-1, 1].map((s) => ({ minX: s > 0 ? 16.2 : -20.8, maxX: s > 0 ? 20.8 : -16.2, minZ: -29, maxZ: 23.2 })), // lối dọc hai bên chánh điện
   { minX: -20.8, maxX: 20.8, minZ: -33.2, maxZ: -26 }, // sân sau chánh điện
   { minX: -3, maxX: 3, minZ: STAIRS.z0 - 0.2, maxZ: STAIRS.z1 + 0.3 }, // bậc thang
@@ -124,6 +127,7 @@ export function groundY(x, z) {
     if (d < TOWER.plinthR) return PORCH.courtY + TOWER_BASE;
   }
   if (x > QAHALL.x0 - 0.6 && x < QAHALL.x1 + 0.6 && z > QAHALL.z0 - 0.5 && z < QAHALL.z1 + 0.9) return PORCH.courtY + 0.21; // nền và sàn điện Quan Âm
+  if (x > FIELD.x0 && x < FIELD.x1 && z > FIELD.z0 && z < FIELD.z1) return PORCH.courtY - 0.1; // lội xuống ruộng
   if (ax > 15.6 || z < -21.6) return PORCH.courtY; // ngoài chánh điện và thềm
   if (z <= PORCH.z1 - 0.05) return 0;
   if (z >= PORCH.z1 + 0.6) return PORCH.courtY;
@@ -240,7 +244,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const spots = [];
     for (let i = 0; i < 110; i++) {
       const side = i % 2 ? 1 : -1;
-      spots.push(i < 60 ? [side * rnd(21.8, 27), rnd(-42, 3)] : [side * rnd(45, 58), rnd(-12, 46)]);
+      spots.push(i < 60 ? [side * rnd(21.8, 27), rnd(-42, 3)] : [side * rnd(45, 58), rnd(-12, 41)]);
     }
     for (let i = 0; i < 44; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(19.5, 26), rnd(48, 82)]);
     const stalkGeo = new THREE.CylinderGeometry(0.07, 0.1, 11, 6);
@@ -1896,6 +1900,113 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     scene.add(paddy);
   }
 
+  // ---------- Ruộng lúa phía đông nam sân điện Quan Âm: 20 ô, lúa lớn dần rồi chín, gặt xong cấy lại ----------
+  const field = (() => {
+    const F = FIELD, GY2 = PORCH.courtY;
+    // nền ruộng: mặt nước đục, bấm vào để gặt / lội xuống
+    const water = mesh(new THREE.PlaneGeometry(F.x1 - F.x0, F.z1 - F.z0), std('#6d7a52', { roughness: 0.25, metalness: 0.05 }), (F.x0 + F.x1) / 2, GY2 + 0.015, (F.z0 + F.z1) / 2, { cast: false });
+    water.rotation.x = -Math.PI / 2;
+    water.userData.kind = 'field';
+    pickables.push(water);
+    // bờ ruộng đắp đất giữa các ô và quanh ruộng
+    const dykeM = std('#7a6a4a', { roughness: 1 });
+    const w = (F.x1 - F.x0) / F.cols, d = (F.z1 - F.z0) / F.rows;
+    for (let c = 0; c <= F.cols; c++) box(0.6, 0.16, F.z1 - F.z0 + 0.6, dykeM, F.x0 + c * w, GY2 + 0.08, (F.z0 + F.z1) / 2, { cast: false });
+    for (let r = 0; r <= F.rows; r++) box(F.x1 - F.x0 + 0.6, 0.16, 0.6, dykeM, (F.x0 + F.x1) / 2, GY2 + 0.08, F.z0 + r * d, { cast: false });
+    // lối đất từ sân xuống ruộng
+    const lane = mesh(new THREE.PlaneGeometry(7, 5), std('#8a7a58', { roughness: 1 }), 34, GY2 + 0.006, 41.5, { cast: false });
+    lane.rotation.x = -Math.PI / 2;
+    lane.userData.kind = 'ground';
+    pickables.push(lane);
+    // khóm lúa: 6 × 6 khóm mỗi ô; cao dần, đổi màu, chín thì bông trĩu nghiêng
+    const per = 36;
+    const tuft = new THREE.ConeGeometry(0.16, 1, 5).translate(0, 0.5, 0);
+    const rice = new THREE.InstancedMesh(tuft, std('#ffffff', { roughness: 0.85, flatShading: true }), PLOTS * per);
+    const sheaf = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.22, 0.7, 7).translate(0, 0.35, 0), std('#c9a24a', { roughness: 0.9 }), PLOTS * 3);
+    rice.receiveShadow = true;
+    sheaf.castShadow = true;
+    scene.add(rice, sheaf);
+    const STAGE_LOOK = [
+      { h: 0.28, c: '#8fc45a', tilt: 0 }, // mạ
+      { h: 0.6, c: '#5f9e3a', tilt: 0.05 }, // xanh
+      { h: 0.85, c: '#9fae3c', tilt: 0.12 }, // trổ bông
+      { h: 0.9, c: '#e0b43c', tilt: 0.35 }, // chín vàng, bông trĩu
+    ];
+    const planted = new Float64Array(PLOTS); // thời điểm cấy theo đồng hồ máy này (ms)
+    const shown = new Int8Array(PLOTS).fill(-1);
+    const o = new THREE.Object3D(), col = new THREE.Color();
+    const jitter = Array.from({ length: PLOTS * per }, () => [Math.random() - 0.5, Math.random() - 0.5, Math.random() * 6.28, 0.8 + Math.random() * 0.4]);
+    const ageOf = (i) => (Date.now() - planted[i]) / 1000;
+    function drawPlot(i) {
+      const st = riceStage(ageOf(i));
+      shown[i] = st;
+      const r = plotRect(i), L = STAGE_LOOK[st];
+      // vừa gặt (đầu giai đoạn mạ) thì là rạ thấp màu rơm
+      const stubble = st === 0 && ageOf(i) < 45;
+      for (let k = 0; k < per; k++) {
+        const [jx, jz, rot, s] = jitter[i * per + k];
+        const gx = k % 6, gz = Math.floor(k / 6);
+        o.position.set(r.minX + ((gx + 0.5 + jx * 0.5) / 6) * (r.maxX - r.minX), GY2, r.minZ + ((gz + 0.5 + jz * 0.5) / 6) * (r.maxZ - r.minZ));
+        o.rotation.set(L.tilt * Math.cos(rot), rot, L.tilt * Math.sin(rot));
+        const h = (stubble ? 0.14 : L.h) * s;
+        o.scale.set(stubble ? 0.6 : 1, h, stubble ? 0.6 : 1);
+        o.updateMatrix();
+        rice.setMatrixAt(i * per + k, o.matrix);
+        rice.setColorAt(i * per + k, col.set(stubble ? '#b8a36a' : L.c));
+      }
+      // bó lúa dựng trong ô vừa gặt
+      for (let k = 0; k < 3; k++) {
+        o.position.set(r.minX + 1 + k * 1.6, GY2, (r.minZ + r.maxZ) / 2 + (k - 1) * 0.6);
+        o.rotation.set(0, k, 0);
+        o.scale.setScalar(stubble ? 1 : 0.0001);
+        o.updateMatrix();
+        sheaf.setMatrixAt(i * 3 + k, o.matrix);
+      }
+      rice.instanceMatrix.needsUpdate = sheaf.instanceMatrix.needsUpdate = true;
+      if (rice.instanceColor) rice.instanceColor.needsUpdate = true;
+    }
+    // bù nhìn đội nón lá giữa ruộng, chòi canh ở góc ruộng
+    {
+      const cx = F.x0 + 2 * w, cz = F.z0 + 2.5 * d;
+      const wood = std('#6b4a2e', { roughness: 0.9 });
+      cyl(0.05, 0.06, 2.2, wood, cx, GY2 + 1.1, cz, {}, 6);
+      box(1.5, 0.08, 0.08, wood, cx, GY2 + 1.7, cz);
+      box(0.6, 0.7, 0.3, std('#5a6e8a', { roughness: 0.9 }), cx, GY2 + 1.45, cz);
+      mesh(new THREE.SphereGeometry(0.2, 10, 8), std('#d9c48a', { roughness: 0.9 }), cx, GY2 + 2.0, cz);
+      mesh(new THREE.ConeGeometry(0.45, 0.28, 16), std('#d9c48a', { roughness: 0.9 }), cx, GY2 + 2.25, cz);
+      const hx = F.x1 - 2, hz = F.z1 + 3;
+      for (const [dx, dz] of [[-1.3, -1.1], [1.3, -1.1], [-1.3, 1.1], [1.3, 1.1]]) cyl(0.08, 0.09, 2.6, wood, hx + dx, GY2 + 1.3, hz + dz, {}, 6);
+      box(3.0, 0.1, 2.6, wood, hx, GY2 + 1.1, hz);
+      const roof = mesh(new THREE.ConeGeometry(2.4, 1.4, 4), std('#b49a5e', { roughness: 1 }), hx, GY2 + 3.2, hz);
+      roof.rotation.y = Math.PI / 4;
+      obstacles.push({ x: hx, z: hz, r: 1.8 });
+    }
+    let nextCheck = 0;
+    updaters.push((t) => {
+      if (t < nextCheck) return;
+      nextCheck = t + 1.5;
+      for (let i = 0; i < PLOTS; i++) {
+        const st = riceStage(ageOf(i));
+        if (st !== shown[i] || (st === 0 && ageOf(i) < 47)) drawPlot(i);
+      }
+    });
+    return {
+      // tuổi các ô (giây) từ máy chủ, hoặc tự tạo khi ngoại tuyến
+      setAges(ages) {
+        for (let i = 0; i < PLOTS; i++) {
+          planted[i] = Date.now() - (ages?.[i] ?? Math.random() * 600) * 1000;
+          drawPlot(i);
+        }
+      },
+      setPlot(i, age = 0) {
+        planted[i] = Date.now() - age * 1000;
+        drawPlot(i);
+      },
+      stageOf: (i) => riceStage(ageOf(i)),
+      ageOf,
+    };
+  })();
+
   // ---------- Cổng Tam Quan: cửa giữa hai tầng mái, hai cửa bên một tầng mái ----------
   {
     const wallM = std('#e6dcc6', { roughness: 0.9 });
@@ -2674,6 +2785,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     tamThe: { head: TT_HEAD },
     falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
     incenseTT,
+    field,
     greatBell,
     merit,
     tower: { ...TOWER, relic: TOP_RELIC },

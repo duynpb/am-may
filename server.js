@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { applyEvent, newProfile, publicProfile, vnDate, CLIENT_KINDS } from './public/js/karma.js';
 import { openStorage } from './storage.js';
 import { DUST_IDS, lahanSpot } from './public/js/statues.js';
+import { PLOTS, RIPE_AGE, plotRect } from './public/js/field.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -211,6 +212,11 @@ setInterval(() => {
   }
 }, 10000);
 
+// ---------- Ruộng lúa (khu Am Mây): mỗi chánh điện một ruộng, mọi người cùng thấy ----------
+// Mỗi ô lưu thời điểm cấy (ms); lúc mở máy chủ cho tuổi ngẫu nhiên để có sẵn vài ô chín.
+const fieldRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: PLOTS }, () => Date.now() - Math.random() * RIPE_AGE * 1.6 * 1000)]));
+const fieldAges = (roomId) => fieldRooms.get(roomId)?.map((t) => Math.round((Date.now() - t) / 1000));
+
 // ---------- Tượng La Hán bám bụi: mỗi chánh điện một hành lang, mọi người cùng thấy ----------
 const DUST_MAX = 40;
 const dustRooms = new Map(ROOMS.map((r) => [r.id, new Set()]));
@@ -273,6 +279,7 @@ wss.on('connection', (ws, req) => {
         merit: { ...meritPublic(), used },
         leaves: [...leafRooms.get(roomId).list.values()],
         dust: [...dustRooms.get(roomId)],
+        field: fieldAges(roomId),
       }));
       broadcast(roomId, { t: 'join', p: me });
       members.set(me.id, { ws, p: me, uid });
@@ -286,7 +293,7 @@ wss.on('connection', (ws, req) => {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
       const wide = siteOf(roomId) === 'tamchuc';
-      me.x = clamp(m.x, wide ? -260 : -45, wide ? 260 : 45);
+      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 60);
       me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 100);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
@@ -350,6 +357,15 @@ wss.on('connection', (ws, req) => {
       // cầm / trả chổi quét sân
       me.broom = !!m.on;
       broadcast(roomId, { t: 'broom', id: me.id, on: me.broom }, me.id);
+    } else if (m.t === 'harvest' && Number.isInteger(m.i) && m.i >= 0 && m.i < PLOTS) {
+      // gặt một ô lúa đã chín; phải đang đứng (hoặc vừa đi tới) trong ô đó
+      const F = fieldRooms.get(roomId);
+      if (!F || (Date.now() - F[m.i]) / 1000 < RIPE_AGE) return;
+      const r = plotRect(m.i);
+      if (me.x < r.minX - 2 || me.x > r.maxX + 2 || me.z < r.minZ - 2 || me.z > r.maxZ + 2) return;
+      F[m.i] = Date.now();
+      broadcast(roomId, { t: 'field', i: m.i, age: 0, by: me.id });
+      award(ws, uid, 'harvest');
     } else if (m.t === 'sweep' && Array.isArray(m.ids)) {
       if (!me.broom) return;
       const L = leafRooms.get(roomId);

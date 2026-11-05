@@ -256,6 +256,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .map-svg .m-porch { fill: #cbc6ba; }
 .map-svg .m-wall { fill: #6a3426; }
 .map-svg .m-corridor { fill: #9c2a1c; }
+.map-svg .m-field { fill: #c9b24a; }
 .map-svg .m-terrace { fill: #8f897d; }
 .map-svg .m-stairs { fill: #cbc6ba; }
 .map-svg .m-tree { fill: #3f6a34; }
