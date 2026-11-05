@@ -533,3 +533,47 @@ export function makeBuddha({ quality = 'high', style = 'thien' } = {}) {
   g.add(big);
   return g;
 }
+
+// ---------- Tượng mẫu chạm khắc (file .glb) thay cho thân tượng dựng bằng mã ----------
+// Mẫu tượng Phật ngồi thiền trên tòa sen (nguồn: mẫu khắc miễn phí maufree.vn, số 7021), đã giảm còn ~120 nghìn mặt.
+// File chuẩn hóa: cao 1, đáy ở y = 0, mặt tượng nhìn về +z. Nạp xong thì thay thân tượng cũ, giữ hai vầng hào quang.
+// Lỗi mạng / máy không đọc được thì giữ nguyên tượng cũ.
+export async function swapToCarvedBuddha(group, { height = 2.75 } = {}) {
+  const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
+    import('three/addons/loaders/GLTFLoader.js'),
+    import('three/addons/loaders/DRACOLoader.js'),
+  ]);
+  const draco = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/gltf/');
+  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync('/models/buddha-thien.glb');
+  draco.dispose();
+  let src = null;
+  gltf.scene.traverse((o) => {
+    if (o.isMesh && !src) src = o;
+  });
+  if (!src) return false;
+  const geo = src.geometry;
+  if (!geo.attributes.normal) geo.computeVertexNormals();
+  // màu đỉnh: chỗ lõm (nếp áo, kẽ cánh sen) sẫm hơn, chỗ nhô sáng hơn — giả bóng kẽ cho tượng thếp vàng
+  const pos = geo.attributes.position, nor = geo.attributes.normal, n = pos.count;
+  const col = new Float32Array(n * 3), lo = new THREE.Color('#9a6a24'), hi = new THREE.Color('#ffe7a0'), c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const up = nor.getY(i) * 0.5 + 0.5; // mặt hướng lên đón sáng
+    const r = Math.hypot(pos.getX(i), pos.getZ(i)); // phần nhô ra xa trục
+    const t = Math.min(1, Math.max(0, 0.35 + up * 0.35 + r * 0.6));
+    c.copy(lo).lerp(hi, t);
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const gold = new THREE.MeshStandardMaterial({ color: '#f2c45a', vertexColors: true, metalness: 0.92, roughness: 0.3, envMapIntensity: 1.8 });
+  const statue = new THREE.Mesh(geo, gold);
+  statue.scale.setScalar(height);
+  statue.castShadow = statue.receiveShadow = true;
+  // bỏ thân tượng cũ, chỉ giữ hai tấm hào quang (hai phần cuối cùng) và lùi chúng ra sau lưng tượng mới
+  const keep = group.children.slice(-2);
+  for (const o of group.children.slice(0, -2)) group.remove(o);
+  const [halo, big] = keep;
+  halo.position.set(0, height * 0.86, -height * 0.36);
+  big.position.set(0, height * 0.6, -height * 0.4);
+  group.add(statue);
+  return true;
+}

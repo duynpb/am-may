@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from './textures.js';
-import { makeBuddha } from './buddha.js';
+import { makeBuddha, swapToCarvedBuddha } from './buddha.js';
 import { makeQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
@@ -551,6 +551,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   buddha.position.set(0, 2.06, -18.8);
   buddha.scale.setScalar(1.7);
   scene.add(buddha);
+  // thay bằng tượng mẫu chạm khắc khi tải xong (giữ tượng dựng bằng mã nếu lỗi)
+  swapToCarvedBuddha(buddha).catch((e) => console.warn('Không nạp được tượng mẫu, giữ tượng cũ', e));
 
   // Hoành phi & câu đối
   const boardMat = (lines, o) => std('#ffffff', { map: T.boardTexture(lines, o), roughness: 0.45 });

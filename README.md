@@ -29,7 +29,8 @@ public/
   css/style.css      Kiểu dáng, responsive cho điện thoại (safe-area, bottom sheet)
   js/main.js         Khởi động, camera, điều khiển chạm/chuột/phím, mạng, giao diện
   js/world.js        Dựng chánh điện, tượng Phật, bàn thờ, chuông trống, cảnh tre núi, ánh sáng
-  js/buddha.js       Tượng Phật trong chánh điện (tạc bằng SDF), công cụ tạc dùng chung
+  js/buddha.js       Tượng Phật tạc bằng SDF (dùng cho điện Tam Thế, tháp) và nạp tượng mẫu chạm khắc cho chánh điện
+  models/buddha-thien.glb  Tượng Phật ngồi thiền trên tòa sen trong chánh điện (mẫu khắc maufree.vn số 7021, giảm còn 120 nghìn mặt, nén Draco)
   js/quanam.js       Tượng Quan Âm đứng trên tòa sen (dát vàng, trong điện Quan Âm)
   js/lahan.js        Tượng La Hán đá (ba tư thế, vẽ hàng loạt)
   js/dog.js          Chó nhỏ của nhà chùa (dáng, đi, ngồi, vẫy đuôi)
