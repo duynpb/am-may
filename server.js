@@ -301,7 +301,7 @@ wss.on('connection', (ws, req) => {
       const wide = siteOf(roomId) === 'tamchuc';
       me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 72);
       me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 100);
-      me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
+      me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 96 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat, w: m.w ? 1 : undefined }, me.id);
     } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense', 'greatbell', 'wipe'].includes(m.a)) {

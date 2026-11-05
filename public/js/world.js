@@ -52,35 +52,29 @@ export const STAIRS = { x: 3.6, z0: -48, z1: -32.9 };
 export const TAMTHE = { x0: -12, x1: 12, z0: -78, z1: -66 };
 // Hai thác hai bên điện Tam Thế: đổ từ vách núi xuống hồ trên nền đồi (x = ±FALLS.x)
 export const FALLS = { x: 21, z: -83.8, poolZ: -81.5, poolR: 2.8 };
-// Các vùng đi lại được ngoài chánh điện (hình chữ nhật). Hai vùng chồng lên nhau là đi qua lại được.
+// Các vùng đi lại được ngoài chánh điện (hình chữ nhật). Hai vùng chồng lên nhau là đi qua lại được;
+// phủ toàn bộ khuôn viên chùa để Phật tử tự do dạo bước trên sân, bãi cỏ, quanh hồ sen, vườn cây, ruộng lúa.
 export const WALK_AREAS = [
-  GARDEN,
-  { minX: -3.4, maxX: 3.4, minZ: 38, maxZ: GATE.z - 1.4 }, // trục đường chính
-  { minX: -1.6, maxX: 1.6, minZ: GATE.z - 2, maxZ: GATE.z + 2 }, // lối qua cửa giữa cổng Tam Quan
-  { minX: -12, maxX: 12, minZ: GATE.z + 1.6, maxZ: 99 }, // sân trước cổng
-  { minX: -5, maxX: 5, minZ: WELL.z - 5, maxZ: WELL.z + 5 }, // sân giếng Ngọc
-  ...[-1, 1].flatMap((s) => {
-    const xr = (a, b) => (s > 0 ? { minX: a, maxX: b } : { minX: -b, maxX: -a });
-    return [
-      { ...xr(13.6, 15.4), minZ: 38.5, maxZ: 80.6 }, // lối đi trong hành lang La Hán
-      { ...xr(3.2, 13.8), minZ: 79, maxZ: 81 }, // lối ngang nối trục đường với cuối hành lang
-      { ...xr(15.5, 21.5), minZ: 22.6, maxZ: 24.4 }, // lối từ sân chùa sang sân bên
-      { ...xr(21, 43), minZ: 18, maxZ: 40 }, // sân bên
-    ];
-  }),
-  { minX: QAHALL.x0 + 1, maxX: QAHALL.x1 - 1, minZ: 8.6, maxZ: 18.3 }, // trong điện Quan Âm
-  { minX: ORCHARD.x0, maxX: ORCHARD.x1, minZ: ORCHARD.z0, maxZ: ORCHARD.z1 }, // vườn cây ăn trái kế bên điện Quan Âm
-  { minX: 30.5, maxX: 37.5, minZ: 39, maxZ: FIELD.z0 + 1 }, // lối từ sân điện Quan Âm xuống ruộng
-  { minX: 36.5, maxX: 64, minZ: 38, maxZ: 44.6 }, // lối đất nối vườn cây ăn trái, ruộng lúa và vườn rau
-  { minX: FIELD.x0 + 0.4, maxX: FIELD.x1 - 0.4, minZ: FIELD.z0 + 0.4, maxZ: FIELD.z1 - 0.4 }, // ruộng lúa
-  { minX: 55.2, maxX: VEG.x1 + 0.4, minZ: VEG.z0 - 0.4, maxZ: VEG.z1 + 0.4 }, // vườn rau kế bên ruộng lúa
-  ...[-1, 1].map((s) => ({ minX: s > 0 ? 16.2 : -20.8, maxX: s > 0 ? 20.8 : -16.2, minZ: -29, maxZ: 23.2 })), // lối dọc hai bên chánh điện
-  { minX: -20.8, maxX: 20.8, minZ: -33.2, maxZ: -26 }, // sân sau chánh điện
-  { minX: -3, maxX: 3, minZ: STAIRS.z0 - 0.2, maxZ: STAIRS.z1 + 0.3 }, // bậc thang
-  { minX: -25, maxX: 25, minZ: TAMTHE.z1 + 0.4, maxZ: TERRACE.z1 }, // sân trước điện Tam Thế
-  ...[-1, 1].map((s) => ({ minX: s > 0 ? 12.8 : -25, maxX: s > 0 ? 25 : -12.8, minZ: TERRACE.z0 + 1.5, maxZ: TAMTHE.z1 + 0.6 })), // hai bên điện, ra tới hồ thác
+  { minX: -44, maxX: 64, minZ: 22.2, maxZ: 82.6 }, // toàn bộ sân trước, bãi cỏ, quanh hồ sen, hành lang La Hán, hai sân bên, ruộng lúa, vườn rau
+  { minX: -1.7, maxX: 1.7, minZ: GATE.z - 2.2, maxZ: GATE.z + 2.2 }, // lối qua cửa giữa cổng Tam Quan
+  { minX: -44, maxX: -20.2, minZ: 82.0, maxZ: 86.0 }, // vòng qua đầu tường cổng phía tây
+  { minX: 20.2, maxX: 64, minZ: 82.0, maxZ: 86.0 }, // vòng qua đầu tường cổng phía đông
+  { minX: -44, maxX: 64, minZ: GATE.z + 1.6, maxZ: 102 }, // toàn bộ sân và bãi cỏ trước cổng Tam Quan
+  { minX: 16.0, maxX: 64, minZ: 17.2, maxZ: 23.2 }, // khoảng sân nối trước điện Quan Âm và vườn cây ăn trái
+  { minX: QAHALL.x0 + 0.8, maxX: QAHALL.x1 - 0.8, minZ: 8.5, maxZ: 18.0 }, // trong điện Quan Âm
+  { minX: 39.6, maxX: 64, minZ: -33.2, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm
+  { minX: 16.0, maxX: 24.4, minZ: -33.2, maxZ: 18.0 }, // khoảng sân dọc giữa chánh điện và điện Quan Âm
+  { minX: 23.6, maxX: 40.4, minZ: -33.2, maxZ: 4.4 }, // bãi cỏ phía sau điện Quan Âm
+  { minX: -44, maxX: -16.0, minZ: -33.2, maxZ: 23.2 }, // toàn bộ khuôn viên phía tây chánh điện
+  { minX: -44, maxX: 44, minZ: -33.2, maxZ: -25.4 }, // sân sau chánh điện
+  { minX: -44, maxX: -4.2, minZ: -44.0, maxZ: -32.5 }, // bãi cỏ sau chùa phía tây bậc thang (ra chân thác dưới)
+  { minX: 4.2, maxX: 44, minZ: -44.0, maxZ: -32.5 }, // bãi cỏ sau chùa phía đông bậc thang (ra chân thác dưới)
+  { minX: -3.2, maxX: 3.2, minZ: STAIRS.z0 - 0.3, maxZ: STAIRS.z1 + 0.4 }, // bậc thang đá lên đồi
+  { minX: -25.2, maxX: 25.2, minZ: TAMTHE.z1 + 0.3, maxZ: TERRACE.z1 }, // sân trước điện Tam Thế trên đồi
+  ...[-1, 1].map((s) => ({ minX: s > 0 ? 12.6 : -25.2, maxX: s > 0 ? 25.2 : -12.6, minZ: TERRACE.z0 + 1.2, maxZ: TAMTHE.z1 + 0.8 })), // hai bên điện Tam Thế, ra tới hồ thác
+  { minX: -25.2, maxX: 25.2, minZ: TERRACE.z0 + 1.2, maxZ: TAMTHE.z0 - 0.6 }, // lối sau lưng điện Tam Thế trên nền đồi
   { minX: -4, maxX: 4, minZ: TAMTHE.z1 - 1.2, maxZ: TAMTHE.z1 + 0.8 }, // cửa giữa điện Tam Thế
-  { minX: TAMTHE.x0 + 1, maxX: TAMTHE.x1 - 1, minZ: TAMTHE.z0 + 3.6, maxZ: TAMTHE.z1 - 0.8 }, // trong điện Tam Thế
+  { minX: TAMTHE.x0 + 0.8, maxX: TAMTHE.x1 - 0.8, minZ: TAMTHE.z0 + 3.6, maxZ: TAMTHE.z1 - 0.6 }, // trong điện Tam Thế
 ];
 // Tháp 13 tầng phía bên kia sân, đối diện tượng Quan Âm. Mỗi tầng nhỏ và thấp dần lên trên.
 const TOWER_LEVELS = Array.from({ length: 13 }, (_, i) => ({ r: 3.3 - i * 0.08, h: 2.0 - i * 0.03 }));
@@ -1247,6 +1241,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       }
     }
     scene.add(leaves, flowers);
+    obstacles.push({ x: cx, z: cz, rx: rx + 0.55, rz: rz + 0.55 });
   }
 
   // ---------- Giếng Ngọc: giếng tròn lớn, thành đá có lan can, nước xanh ngọc ----------
@@ -1308,6 +1303,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       // bậc tượng: hàng trước thấp, hàng sau cao
       box(0.9, 0.3, len - 1, stoneM, xFront, GY + C.floor + 0.15, cz);
       box(0.9, 0.75, len - 1, stoneM, xBack, GY + C.floor + 0.375, cz);
+      obstacles.push(s > 0
+        ? { minX: 15.4, maxX: 18.3, minZ: C.z0 - 0.2, maxZ: C.z1 + 0.2 }
+        : { minX: -18.3, maxX: -15.4, minZ: C.z0 - 0.2, maxZ: C.z1 + 0.2 });
       // biển hành lang ở đầu phía sân chùa
       const bz = C.z0 - 0.05;
       box(3.0, 0.8, 0.06, M.gold, s * (C.x0 + C.x1) / 2, GY + 3.0, bz, { cast: false });
@@ -1371,8 +1369,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   }
 
   // mái chữ nhật bốn mái (chóp cụt 4 cạnh: đáy w × d, đỉnh còn top, cao h), có bờ nóc và đầu đao vểnh
-  function rectRoof(x, y, z, w, d, h, mat, { top = 0.45, ridge = true, tips = true } = {}) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(Math.SQRT1_2 * top, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4), mat);
+  function rectRoof(x, y, z, w, d, h, mat, { top = 0.45, ridge = true, tips = true, hollow = false } = {}) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(Math.SQRT1_2 * top, Math.SQRT1_2, 1, 4, 1, hollow).rotateY(Math.PI / 4), mat);
     m.scale.set(w, h, d);
     m.position.set(x, y + h / 2, z);
     m.castShadow = m.receiveShadow = true;
@@ -1458,6 +1456,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       mesh(new THREE.CylinderGeometry(0.18, 0.26, 2.6, 8), trunkM, tx, H + 1.3, tz);
       mesh(new THREE.SphereGeometry(1.6, 14, 10), leafM, tx, H + 3.4, tz).scale.set(1, 0.85, 1);
       mesh(new THREE.SphereGeometry(1.1, 12, 9), leafD, tx + 0.5, H + 4.1, tz - 0.4);
+      obstacles.push({ x: tx, z: tz, r: 0.55 });
     }
   }
 
@@ -1514,9 +1513,11 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       smoke: 26,
       min: 3,
     });
-    for (const x of [-7, -5, -3, 3, 5, 7]) for (const z of [TT.z0 + 7.6, TT.z0 + 9.4]) {
-      cyl(0.36, 0.38, 0.1, std('#c9a23e', { roughness: 0.8 }), x, H + 0.26, z, {}, 18);
-    }
+    obstacles.push(
+      { minX: TT.x0 - 0.4, maxX: TT.x1 + 0.4, minZ: TT.z0 - 0.4, maxZ: TT.z0 + 3.4 },
+      { minX: TT.x0 - 0.4, maxX: TT.x0 + 0.5, minZ: TT.z0 + 3.4, maxZ: TT.z1 + 0.2 },
+      { minX: TT.x1 - 0.5, maxX: TT.x1 + 0.4, minZ: TT.z0 + 3.4, maxZ: TT.z1 + 0.2 },
+    );
     const ttLight = new THREE.PointLight('#ffc27a', 8, 16, 2);
     ttLight.position.set(0, H + 4.6, TT.z0 + 6);
     scene.add(ttLight);
@@ -1619,8 +1620,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       knot.position.copy(b);
       strikerG.add(knot);
     }
-    // hai tầng mái
-    rectRoof(BT.x, GY + 3.7, BT.z, 10.6, 10.6, 0.7, sideTile, { top: 0.72, ridge: false });
+    // hai tầng mái (mái tầng dưới rỗng lòng và thấp hơn mặt sàn gỗ GY + 4.11 để không che sàn thỉnh chuông)
+    rectRoof(BT.x, GY + 3.35, BT.z, 10.6, 10.6, 0.67, sideTile, { top: 0.76, ridge: false, hollow: true });
     rectRoof(BT.x, GY + 7.8, BT.z, 10.2, 10.2, 1.5, sideTile, { top: 0.32 });
     mesh(new THREE.SphereGeometry(0.28, 14, 10), M.gold, BT.x, GY + 9.6, BT.z);
     obstacles.push({ x: BT.x, z: BT.z, r: BT.r });
@@ -1714,10 +1715,11 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       smoke: 26,
       min: 2,
     });
-    // bồ đoàn cho người lễ
-    for (const dx of [-3, -1.5, 1.5, 3]) for (const z of [11, 13]) {
-      cyl(0.36, 0.38, 0.1, std('#c9a23e', { roughness: 0.8 }), QH.cx + dx, GY + 0.26, z, {}, 18);
-    }
+    obstacles.push(
+      { minX: QH.x0 - 0.4, maxX: QH.x1 + 0.4, minZ: QH.z0 - 0.4, maxZ: 8.3 },
+      { minX: QH.x0 - 0.4, maxX: QH.x0 + 0.5, minZ: 8.3, maxZ: QH.z1 + 0.2 },
+      { minX: QH.x1 - 0.5, maxX: QH.x1 + 0.4, minZ: 8.3, maxZ: QH.z1 + 0.2 },
+    );
     // đèn ấm trong điện
     const qhLight = new THREE.PointLight('#ffc27a', 6, 12, 2);
     qhLight.position.set(QH.cx, GY + 3.6, 9);
@@ -2459,6 +2461,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       box(0.9, 0.2, 0.9, tileM, sx * 3.7, GY + 3.34, GZ, o);
       box(12, 2.4, 0.6, wallM, sx * 13.7, GY + 1.44, GZ, o);
       box(12.2, 0.18, 0.9, tileM, sx * 13.7, GY + 2.72, GZ, o);
+      obstacles.push(sx > 0
+        ? { minX: 1.75, maxX: 20.1, minZ: GZ - 1.9, maxZ: GZ + 1.9 }
+        : { minX: -20.1, maxX: -1.75, minZ: GZ - 1.9, maxZ: GZ + 1.9 });
     }
     // hai sư tử đá giữ cửa, phía sân trước
     for (const sx of [-1, 1]) {
@@ -2707,10 +2712,20 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     for (const g of lampGlows) g.material.opacity = 0.7 * night;
   });
 
-  // Đẩy điểm đến ra khỏi bệ tượng, hồ, cây… (đi lại ngoài sân)
+  // Đẩy điểm đến ra khỏi bệ tượng, hồ, cây, tường bao… (đi lại ngoài sân)
+  obstacles.push({ minX: -15.9, maxX: 15.9, minZ: -25.3, maxZ: 22.1 }); // khối kiến trúc chánh điện khi đi ngoài sân
   function pushOut(x, z) {
     for (const o of obstacles) {
-      if (o.rx) {
+      if (o.minX != null) {
+        if (x > o.minX && x < o.maxX && z > o.minZ && z < o.maxZ) {
+          const dl = x - o.minX, dr = o.maxX - x, db = z - o.minZ, dt = o.maxZ - z;
+          const m = Math.min(dl, dr, db, dt);
+          if (m === dl) x = o.minX - 0.05;
+          else if (m === dr) x = o.maxX + 0.05;
+          else if (m === db) z = o.minZ - 0.05;
+          else z = o.maxZ + 0.05;
+        }
+      } else if (o.rx) {
         const nx = (x - o.x) / o.rx, nz = (z - o.z) / o.rz;
         const d = Math.hypot(nx, nz);
         if (d < 1) {
@@ -2922,16 +2937,26 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
 
   // ---------- Chiếu & bồ đoàn ----------
   const seats = [];
-  for (const z of SEAT_Z) for (const x of SEAT_X) seats.push({ index: seats.length, x, z });
-  const matMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 0.05, 1.9), M.mat, seats.length);
+  for (const z of SEAT_Z) for (const x of SEAT_X) seats.push({ index: seats.length, x, z, y: 0, zone: 'in' });
+  const hallSeatCount = seats.length;
+  // Bồ đoàn trong điện Quan Âm (8 chỗ) và điện Tam Thế (12 chỗ) — đều bấm ngồi được
+  for (const z of [11, 13]) for (const dx of [-3, -1.5, 1.5, 3]) {
+    seats.push({ index: seats.length, x: QH.cx + dx, z, y: GY + 0.21, zone: 'out', out: true, place: 'qahall' });
+  }
+  for (const z of [TT.z0 + 7.6, TT.z0 + 9.4]) for (const x of [-7, -5, -3, 3, 5, 7]) {
+    seats.push({ index: seats.length, x, z, y: H + 0.21, zone: 'out', out: true, place: 'tamthe' });
+  }
+  const matMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 0.05, 1.9), M.mat, hallSeatCount);
   const cushionMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.42, 0.45, 0.16, 24), M.cushion, seats.length);
   {
     const o = new THREE.Object3D();
     for (const s of seats) {
-      o.position.set(s.x, 0.025, s.z);
-      o.updateMatrix();
-      matMesh.setMatrixAt(s.index, o.matrix);
-      o.position.set(s.x, 0.11, s.z + 0.05);
+      if (!s.out) {
+        o.position.set(s.x, s.y + 0.025, s.z);
+        o.updateMatrix();
+        matMesh.setMatrixAt(s.index, o.matrix);
+      }
+      o.position.set(s.x, s.y + (s.out ? 0.08 : 0.11), s.z + (s.out ? 0 : 0.05));
       o.updateMatrix();
       cushionMesh.setMatrixAt(s.index, o.matrix);
     }

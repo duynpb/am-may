@@ -227,7 +227,7 @@ function seatTaken(index, except) {
   }
   return false;
 }
-const freeSeats = (except) => seats.filter((s) => !seatTaken(s.index, except));
+const freeSeats = (except) => seats.filter((s) => !s.out && !seatTaken(s.index, except));
 
 // Trong / ngoài chánh điện: ranh giới là thềm
 const zoneOf = (z, x) => (z > 19.3 || z < -21.4 || Math.abs(x) > HALL.maxX + 1.5 ? 'out' : 'in');
@@ -272,6 +272,11 @@ function areaOf(x, z) {
 const ROUND_OBSTACLES = [
   { x: WELL.x, z: WELL.z, r: WELL.r + 0.9 },
   { x: 10.6, z: 29.4, r: 3.0 }, // gốc cây đa
+  { x: 10.9, z: 35.6, rx: 3.0, rz: 2.1 }, // hồ sen nhỏ cạnh cây đa
+  { x: -9.2, z: 61, rx: 4.15, rz: 16.55 }, // hồ sen lớn phía tây trục đường
+  { x: 9.2, z: 61, rx: 4.15, rz: 16.55 }, // hồ sen lớn phía đông trục đường
+  { x: -16.85, z: 62, rx: 1.5, rz: 18.7 }, // bệ tượng và tường hậu hành lang La Hán tây
+  { x: 16.85, z: 62, rx: 1.5, rz: 18.7 }, // bệ tượng và tường hậu hành lang La Hán đông
   { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
   { x: 29.4, z: QAHALL.z1 - 0.2, r: 0.75 }, // cột mặt tiền điện Quan Âm
@@ -283,20 +288,40 @@ const ROUND_OBSTACLES = [
   { x: 51.8, z: 22.0, r: 1.55 }, // bàn đá giữa vườn cây ăn trái
   ...ORCHARD_TREES.map((t) => ({ x: t.x, z: t.z, r: 0.9 })),
 ];
-// Đoạn thẳng a → b cắt qua chướng ngại tròn thì chèn điểm vòng qua bên cạnh
+// Đoạn thẳng a → b cắt qua chướng ngại tròn / elip thì chèn điểm vòng qua bên cạnh
 function detour(ax, az, bx, bz, depth = 0, obs = ROUND_OBSTACLES) {
   if (depth > 2) return [];
   for (const o of obs) {
-    if (Math.hypot(ax - o.x, az - o.z) < o.r || Math.hypot(bx - o.x, bz - o.z) < o.r) continue;
-    const dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz || 1;
-    const t = clamp(((o.x - ax) * dx + (o.z - az) * dz) / L, 0, 1);
-    const cx = ax + dx * t, cz = az + dz * t;
-    let nx = cx - o.x, nz = cz - o.z;
-    const d = Math.hypot(nx, nz);
-    if (d >= o.r) continue;
-    if (d < 1e-3) [nx, nz] = [-dz, dx];
-    const n = Math.hypot(nx, nz);
-    const w = [o.x + (nx / n) * (o.r + 0.3), o.z + (nz / n) * (o.r + 0.3)];
+    const rx = o.rx ?? o.r, rz = o.rz ?? o.r;
+    const au = (ax - o.x) / rx, av = (az - o.z) / rz;
+    const bu = (bx - o.x) / rx, bv = (bz - o.z) / rz;
+    if (Math.hypot(au, av) < 1 || Math.hypot(bu, bv) < 1) continue;
+    const du = bu - au, dv = bv - av, L = du * du + dv * dv || 1;
+    const t = clamp((-au * du - av * dv) / L, 0, 1);
+    let cu = au + du * t, cv = av + dv * t;
+    const d = Math.hypot(cu, cv);
+    if (d >= 1) continue;
+    if (d < 1e-3) [cu, cv] = [-dv, du];
+    const n = Math.hypot(cu, cv) || 1;
+    const rad = [o.x + (cu / n) * (rx + 0.35), o.z + (cv / n) * (rz + 0.35)];
+    let w = rad;
+    if (o.rx) {
+      const cands = [
+        rad,
+        [o.x, o.z - rz - 0.45],
+        [o.x, o.z + rz + 0.45],
+        [o.x - rx - 0.45, o.z],
+        [o.x + rx + 0.45, o.z],
+      ];
+      let bestCost = Infinity;
+      for (const c of cands) {
+        const cost = Math.hypot(c[0] - ax, c[1] - az) + Math.hypot(bx - c[0], bz - c[1]);
+        if (cost < bestCost) {
+          bestCost = cost;
+          w = c;
+        }
+      }
+    }
     return [...detour(ax, az, w[0], w[1], depth + 1, obs), w, ...detour(w[0], w[1], bx, bz, depth + 1, obs)];
   }
   return [];
@@ -318,13 +343,18 @@ function routeOut(fx, fz, tx, tz) {
   }
   const chain = [];
   for (let i = t; prev[i] >= 0 && i !== s; i = prev[i]) chain.unshift(i);
-  // qua chỗ nối giữa hai khu liên tiếp, thu vào trong 0,3 m cho khỏi sát mép
+  // qua chỗ nối giữa hai khu liên tiếp, hướng thẳng về đích và thu vào trong 0,3 m cho khỏi sát mép
   const pts = [];
   let cx = fx, cz = fz, from = s;
   for (const to of chain) {
     const p = PORTALS[from][to];
-    const px = clamp(cx, Math.min(p.minX + 0.3, (p.minX + p.maxX) / 2), Math.max(p.maxX - 0.3, (p.minX + p.maxX) / 2));
-    const pz = clamp(cz, Math.min(p.minZ + 0.3, (p.minZ + p.maxZ) / 2), Math.max(p.maxZ - 0.3, (p.minZ + p.maxZ) / 2));
+    const mx = (p.minX + p.maxX) / 2, mz = (p.minZ + p.maxZ) / 2;
+    const ux = Math.abs(tx - cx) > 0.1 ? clamp((mx - cx) / (tx - cx), 0, 1) : 0.5;
+    const uz = Math.abs(tz - cz) > 0.1 ? clamp((mz - cz) / (tz - cz), 0, 1) : 0.5;
+    const u = (p.maxX - p.minX) < (p.maxZ - p.minZ) ? ux : uz;
+    const wx = cx + (tx - cx) * u, wz = cz + (tz - cz) * u;
+    const px = clamp(wx, Math.min(p.minX + 0.3, mx), Math.max(p.maxX - 0.3, mx));
+    const pz = clamp(wz, Math.min(p.minZ + 0.3, mz), Math.max(p.maxZ - 0.3, mz));
     pts.push(...detour(cx, cz, px, pz), [px, pz]);
     [cx, cz, from] = [px, pz, to];
   }
@@ -463,7 +493,7 @@ async function exitTemple(a, dest = null) {
     await a.walk(rnd(-1.5, 1.5), STEP_Z);
   }
   if (!alive(a, token)) return false;
-  await walkRoute(a, dest ? dest.x : rnd(-1.5, 1.5), dest ? dest.z : COURTYARD.z + 2);
+  await walkRoute(a, dest ? dest.x : rnd(-1.5, 1.5), dest ? dest.z : COURTYARD.z + 2, dest?.seat ?? null);
   if (!alive(a, token)) return false;
   a.script = null;
   return true;
@@ -555,7 +585,7 @@ async function towerDown(a) {
 // ---------- Gác chuông: cầu thang gỗ trong tầng dưới dẫn lên sàn treo đại hồng chung ----------
 const BL = BELL_LOFT;
 const inBox = (r, x, z) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
-const onBellXZ = (x, z) => inBox(BL.floor, x, z) || inBox(BL.landing, x, z);
+const onBellXZ = (x, z) => inBox(BL.floor, x, z) || inBox(BL.landing, x, z) || (Math.abs(x - BL.x) <= 4.15 && Math.abs(z - BL.z) <= 4.15 && !(x >= BL.stair.x0 - 0.1 && x <= BL.stair.x1 + 0.05 && z > BL.stair.zTop));
 // Giữ điểm đến trên sàn gác: trong lan can, không đứng dưới vành chuông hay dưới chày
 function clampBell(x, z) {
   const F = BL.floor, Ld = BL.landing, S = BL.striker;
@@ -669,15 +699,15 @@ async function crossZone(a, x, z, seat = null) {
   const target = zoneOf(z, x);
   if (target === zoneOfA(a)) {
     // cùng vùng (vd. vừa xuống tháp, điểm đến vẫn ở ngoài sân)
-    [x, z] = clampZone(target, x, z);
+    [x, z] = seat ? [seat.x, seat.z] : clampZone(target, x, z);
     if (target === 'in') a.walkTo(x, z, seat);
     else walkRoute(a, x, z, seat);
     return true;
   }
-  [x, z] = clampZone(target, x, z);
+  [x, z] = seat ? [seat.x, seat.z] : clampZone(target, x, z);
   if (target === 'out') {
     a.seat = null;
-    if (!(await exitTemple(a, { x, z }))) return false;
+    if (!(await exitTemple(a, { x, z, seat }))) return false;
     a.zone = 'out';
   } else {
     if (!(await enterTemple(a))) return false;
@@ -998,7 +1028,9 @@ function addRemote(p, { entering = false } = {}) {
     // đang ở ngoài sân: mang dép, không có dép trên thềm
     a.zone = 'out';
     a.wearSandals(true);
-    a.placeAt(p.x, p.z, Math.PI);
+    const seat = p.seat != null ? seats[p.seat] : null;
+    if (seat) a.sitAt(seat);
+    else a.placeAt(p.x, p.z, Math.PI);
     return;
   }
   const seat = p.seat != null ? seats[p.seat] : null;
@@ -1260,7 +1292,7 @@ function skipIntro() {
 function sendMove() {
   if (!net || intro || player.script) return;
   const g = player.routeTo ?? player.goal ?? player.pos;
-  net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: player.goalSeat?.index ?? player.seat ?? null });
+  net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: player.routeTo?.seat?.index ?? player.goalSeat?.index ?? player.seat ?? null });
 }
 
 // ---------- Hành động ----------
@@ -1307,8 +1339,8 @@ function movePlayerTo(x, z, seat = null) {
   }
   if (zoneOfA(player) !== target) {
     // đi qua thềm: báo đích đến trước để người khác thấy mình ra / vào
-    [x, z] = clampZone(target, x, z);
-    world.showMarker(x, z, groundY(x, z) + 0.04);
+    [x, z] = seat ? [seat.x, seat.z] : clampZone(target, x, z);
+    world.showMarker(x, z, groundY(x, z) + (seat ? 0.18 : 0.04));
     net?.send({ t: 'move', x: +x.toFixed(2), z: +z.toFixed(2), seat: seat?.index ?? null });
     toast(target === 'out' ? 'Mang dép vào rồi ra sân…' : 'Để dép ngay ngắn trên thềm rồi vào chánh điện…', 2600);
     if (target === 'in' && player.hasBroom) {
@@ -1322,10 +1354,10 @@ function movePlayerTo(x, z, seat = null) {
     });
     return;
   }
-  [x, z] = clampZone(target, x, z);
-  if (target === 'out') walkRoute(player, x, z);
+  [x, z] = seat ? [seat.x, seat.z] : clampZone(target, x, z);
+  if (target === 'out') walkRoute(player, x, z, seat);
   else player.walkTo(x, z, seat);
-  world.showMarker(x, z, groundY(x, z) + (seat ? 0.21 : 0.04));
+  world.showMarker(x, z, groundY(x, z) + (seat ? 0.18 : 0.04));
   sendMove();
 }
 
@@ -2795,9 +2827,9 @@ function handleTap(x, y) {
   }
   let seat = null;
   if (kind === 'seat') seat = seats[firstHit.instanceId];
-  else if (kind === 'floor') {
+  else if (kind === 'floor' || kind === 'ground') {
     const p = firstHit.point;
-    seat = seats.find((s) => Math.abs(s.x - p.x) < 0.7 && Math.abs(s.z - p.z) < 0.9) ?? null;
+    seat = seats.find((s) => Math.abs(s.x - p.x) < 0.65 && Math.abs(s.z - p.z) < 0.75) ?? null;
   }
   if (seat) {
     if (player.seat === seat.index) return;
