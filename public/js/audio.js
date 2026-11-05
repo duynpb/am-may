@@ -44,6 +44,8 @@ export class Sound {
     this.s = settings;
     this.ctx = null;
     this.chanting = false;
+    this.zenMusic = false;
+    this.zenOnly = false;
     this.hidden = false;
     this.hasRecording = false;
     this.beatMarks = [];
@@ -402,7 +404,148 @@ export class Sound {
     vib.stop(t + dur + 0.05);
   }
 
+  stopZenMusic() {
+    clearInterval(this.zenTimer);
+    if (this.zenPadGain && this.ctx) {
+      const g = this.zenPadGain;
+      const oscs = this.zenPadOscs || [];
+      this.zenPadGain = null;
+      this.zenPadOscs = null;
+      try {
+        g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.25);
+        setTimeout(() => {
+          for (const o of oscs) {
+            try { o.stop(); } catch { /* ignore */ }
+          }
+          try { g.disconnect(); } catch { /* ignore */ }
+        }, 900);
+      } catch { /* ignore */ }
+    }
+  }
+
+  // Nhạc thiền không lời trên Đài Thiền Hành: chuông xoay Tây Tạng, đàn tranh ngũ cung & sáo trúc tĩnh lặng
+  setZenMusic(on) {
+    this.init();
+    if (!this.ctx) return;
+    if (on && this.chanting) {
+      this.chanting = false;
+      this.stopVoices();
+    }
+    this.zenMusic = !!on;
+    this.stopZenMusic();
+    if (!on) return;
+    const ctx = this.ctx, out = this.bus.chant;
+    // Âm nền thiền trầm ấm (drone ngũ cung D3 - A3 - D4)
+    const padG = (this.zenPadGain = ctx.createGain());
+    padG.gain.setValueAtTime(0.0001, ctx.currentTime);
+    padG.gain.setTargetAtTime(0.055, ctx.currentTime + 0.05, 1.2);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 380;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoG = ctx.createGain();
+    lfoG.gain.value = 95;
+    lfo.connect(lfoG).connect(lp.frequency);
+    lp.connect(padG).connect(out);
+    const oscs = [lfo];
+    for (const [f, amp] of [[146.83, 0.45], [220.0, 0.3], [293.66, 0.22]]) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f;
+      const og = ctx.createGain();
+      og.gain.value = amp;
+      o.connect(og).connect(lp);
+      o.start();
+      oscs.push(o);
+    }
+    lfo.start();
+    this.zenPadOscs = oscs;
+    this.zenStep = 0;
+    this.zenNextT = ctx.currentTime + 0.15;
+    this.zenTimer = setInterval(() => this.scheduleZen(), 80);
+  }
+
+  // Chuông xoay thiền định (Singing Bowl): ngân dài, êm và sâu
+  singingBowl(t, freq = 220, gain = 0.12) {
+    this.tone(freq, t, {
+      dur: 7.5, gain, out: this.bus.chant, beat: 0.9,
+      partials: [[1, 1], [2.756, 0.42], [5.404, 0.16], [8.93, 0.06]],
+    });
+  }
+
+  // Tiếng đàn tranh / cổ cầm ngũ cung gảy nhẹ
+  zenPluck(t, freq, dur = 3.2, gain = 0.11) {
+    this.tone(freq, t, {
+      dur, gain, out: this.bus.chant, type: 'triangle',
+      partials: [[1, 1], [2, 0.38], [3, 0.14], [4, 0.05]],
+    });
+  }
+
+  // Tiếng sáo trúc / tiêu ngân nhẹ không lời
+  zenFlute(t, freq, dur = 2.6, gain = 0.075) {
+    const ctx = this.ctx, out = this.bus.chant;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.linearRampToValueAtTime(gain, t + 0.35);
+    env.gain.setValueAtTime(gain * 0.85, t + dur * 0.65);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = freq * 2.6;
+    env.connect(lp).connect(out);
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq * 0.992, t);
+    o.frequency.exponentialRampToValueAtTime(freq, t + 0.18);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 4.5;
+    const vibG = ctx.createGain();
+    vibG.gain.value = freq * 0.006;
+    vib.connect(vibG).connect(o.frequency);
+    o.connect(env);
+    o.start(t);
+    vib.start(t);
+    o.stop(t + dur + 0.05);
+    vib.stop(t + dur + 0.05);
+  }
+
+  scheduleZen() {
+    const ctx = this.ctx;
+    if (!this.zenMusic || ctx.state !== 'running') {
+      if (ctx) this.zenNextT = ctx.currentTime + 0.2;
+      return;
+    }
+    // Giai điệu ngũ cung thanh tịnh (D4, E4, F#4, A4, B4, D5, E5, F#5)
+    const NOTES = [293.66, 329.63, 369.99, 440.0, 493.88, 587.33, 659.25, 739.99];
+    const PATTERN = [0, 2, 3, 4, 3, 5, 4, 2, 1, 3, 4, 6, 5, 3, 2, 0];
+    while (this.zenNextT < ctx.currentTime + 0.3) {
+      const s = this.zenStep, t = this.zenNextT;
+      if (s % 8 === 0) {
+        this.singingBowl(t, s % 16 === 0 ? 220.0 : 293.66, 0.11);
+      }
+      const nIdx = PATTERN[s % PATTERN.length];
+      const f = NOTES[nIdx];
+      this.zenPluck(t, f, 3.4, 0.1);
+      if (s % 3 === 1) {
+        this.zenPluck(t + 0.45, NOTES[(nIdx + 2) % NOTES.length], 2.8, 0.075);
+      }
+      if (s % 4 === 2) {
+        this.zenFlute(t + 0.25, NOTES[Math.min(nIdx + 1, NOTES.length - 1)], 2.5, 0.07);
+      }
+      this.zenNextT += 1.45 + (s % 3) * 0.35;
+      this.zenStep++;
+    }
+  }
+
   setChant(on) {
+    if (on && this.zenOnly) {
+      this.chanting = false;
+      this.stopVoices();
+      this.setZenMusic(true);
+      return;
+    }
+    if (on && this.zenMusic) this.setZenMusic(false);
     this.init();
     if (!this.ctx) return;
     this.chanting = on;

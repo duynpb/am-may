@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { Dog } from './dog.js';
 import {
@@ -664,7 +664,120 @@ async function bellDown(a) {
   return true;
 }
 
-// Những chỗ trên cao: tầng 13 của tháp và sàn gác chuông
+// ---------- Đài Thiền Hành cao phía trước gác chuông: leo cầu thang đá lên mặt đài cao 9,6 m để thiền hành & ngắm toàn cảnh chùa ----------
+const ZL = ZEN_LOFT;
+const onZenXZ = (x, z) => Math.abs(x - ZL.x) <= 6.2 && Math.abs(z - ZL.z) <= 6.2;
+const onZen = (a) => onZenXZ(a.pos.x, a.pos.z);
+function clampZen(x, z) {
+  const F = ZL.floor;
+  x = clamp(x, F.x0, F.x1);
+  z = clamp(z, F.z0, F.z1);
+  let dx = x - ZL.x, dz = z - ZL.z;
+  const d = Math.hypot(dx, dz);
+  if (d < ZL.centerR) {
+    if (d < 1e-3) [dx, dz] = [0, -1];
+    const n = Math.hypot(dx, dz);
+    x = ZL.x + (dx / n) * ZL.centerR;
+    z = ZL.z + (dz / n) * ZL.centerR;
+  }
+  return [x, z];
+}
+function zenPath(ax, az, bx, bz) {
+  return detour(ax, az, bx, bz, 0, [{ x: ZL.x, z: ZL.z, r: ZL.centerR }]).map(([px, pz]) => clampZen(px, pz));
+}
+let zenWalking = false, zenWalkToken = null, zenPendingWalk = false;
+function stopZenWalk(notify = false) {
+  if (!zenWalking && !zenPendingWalk) return;
+  zenWalking = false;
+  zenPendingWalk = false;
+  zenWalkToken = null;
+  player.speed = 2.6;
+  if (notify) toast('Đã dừng bước thiền hành — bạn có thể dạo quanh đài ngắm toàn cảnh chùa', 2800);
+}
+async function startZenWalk() {
+  if (!onZen(player)) return;
+  const token = (zenWalkToken = {});
+  zenWalking = true;
+  player.speed = 1.25; // bước chân thiền hành chậm rãi, chánh niệm
+  if (!sound.zenMusic && !settings.muted) {
+    sound.setZenMusic(true);
+    syncZenAudio();
+  }
+  toast('Bắt đầu thiền hành quanh Đài Thiền — bước chân thong thả, lắng nghe nhạc thiền không lời', 4200);
+  let angle = Math.atan2(player.pos.z - ZL.z, player.pos.x - ZL.x);
+  let stepCount = 0;
+  while (zenWalking && zenWalkToken === token && onZen(player) && !player.script) {
+    angle += Math.PI / 8;
+    const nx = ZL.x + Math.cos(angle) * ZL.orbitR;
+    const nz = ZL.z + Math.sin(angle) * ZL.orbitR;
+    player.walkTo(nx, nz);
+    sendMove();
+    const ok = await new Promise((res) => {
+      player.onArrive = () => res(zenWalking && zenWalkToken === token);
+    });
+    if (!ok || !zenWalking || zenWalkToken !== token) break;
+    stepCount++;
+    if (stepCount % 6 === 0) {
+      player.act('gassho');
+      await wait(1400);
+    }
+  }
+  if (zenWalkToken === token) {
+    zenWalking = false;
+    player.speed = 2.6;
+  }
+}
+async function walkZen(a, x, z) {
+  if (a === player && !zenPendingWalk) stopZenWalk();
+  [x, z] = clampZen(x, z);
+  const token = (a.route = {});
+  a.routeTo = { x, z, seat: null };
+  for (const [px, pz] of zenPath(a.pos.x, a.pos.z, x, z)) {
+    await a.walk(px, pz);
+    if (a.route !== token) return false;
+  }
+  a.routeTo = null;
+  a.walkTo(x, z);
+  return new Promise((res) => (a.onArrive = () => res(a.route === token)));
+}
+async function zenUp(a) {
+  const token = (a.script = {});
+  await walkRoute(a, ZL.foot.x, ZL.foot.z);
+  if (!alive(a, token)) return false;
+  for (const p of [ZL.entry, ZL.top, ZL.arrive]) {
+    await a.walk(p.x, p.z);
+    if (!alive(a, token)) return false;
+  }
+  a.script = null;
+  if (a === player) {
+    // hướng góc nhìn về phía toàn cảnh khuôn viên chùa
+    cam.yaw = -1.15;
+    cam.dist = Math.max(cam.dist, 12.5);
+    syncZenAudio(true);
+    if (zenPendingWalk) {
+      zenPendingWalk = false;
+      setTimeout(() => onZen(player) && startZenWalk(), 300);
+    }
+  }
+  return true;
+}
+async function zenDown(a) {
+  if (a === player) stopZenWalk();
+  const token = (a.script = {});
+  for (const [px, pz] of [...zenPath(a.pos.x, a.pos.z, ZL.arrive.x, ZL.arrive.z), [ZL.arrive.x, ZL.arrive.z]]) {
+    await a.walk(px, pz);
+    if (!alive(a, token)) return false;
+  }
+  for (const p of [ZL.top, ZL.entry, ZL.foot]) {
+    await a.walk(p.x, p.z);
+    if (!alive(a, token)) return false;
+  }
+  a.script = null;
+  if (a === player) syncZenAudio(false);
+  return true;
+}
+
+// Những chỗ trên cao: tầng 13 của tháp, sàn gác chuông và Đài Thiền Hành
 const LOFTS = {
   tower: {
     clamp: clampTower, up: towerUp, down: towerDown, door: TOWER.door, y: TOWER.topY,
@@ -678,8 +791,14 @@ const LOFTS = {
     upMsg: 'Lên cầu thang gác chuông…', downMsg: 'Xuống gác chuông…',
     arrived: 'Bạn đang ở trên gác chuông — chạm vào chuông để nắm dây kéo chày thỉnh đại hồng chung',
   },
+  zen: {
+    clamp: clampZen, up: zenUp, down: zenDown, door: ZL.foot, y: ZL.y,
+    go: walkZen,
+    upMsg: 'Lên bậc thang Đài Thiền Hành…', downMsg: 'Xuống Đài Thiền Hành…',
+    arrived: 'Bạn đang ở trên Đài Thiền Hành — ngắm toàn cảnh chùa, chạm đài sen giữa sàn để đi thiền hành',
+  },
 };
-const loftAt = (x, z) => (onTowerXZ(x, z) ? 'tower' : onBellXZ(x, z) ? 'bell' : null);
+const loftAt = (x, z) => (onTowerXZ(x, z) ? 'tower' : onBellXZ(x, z) ? 'bell' : onZenXZ(x, z) ? 'zen' : null);
 const loftOf = (a) => loftAt(a.pos.x, a.pos.z);
 
 // Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn.
@@ -943,6 +1062,20 @@ const TOUR = [
     a.act('stoop');
     bubble(a, pick(['chăm luống rau chùa', 'rau chùa xanh tốt quá']), 3000);
     await wait(rnd(4500, 9000));
+  },
+  // Đài Thiền Hành trước gác chuông: lên đài cao đi thiền hành & ngắm toàn cảnh chùa
+  async (a) => {
+    if (!(await botGo(a, ZL.arrive.x, ZL.arrive.z))) return;
+    a.speed = 1.25;
+    bubble(a, pick(['thiền hành trên đài cao', 'bước chân chánh niệm', 'ngắm toàn cảnh chùa từ đài thiền']), 3800);
+    let ang = rnd(0, Math.PI * 2);
+    for (let k = 0; k < 4; k++) {
+      ang += Math.PI / 3;
+      await a.walk(ZL.x + Math.cos(ang) * ZL.orbitR, ZL.z + Math.sin(ang) * ZL.orbitR);
+      if (!avatars.has(a.id) || a.leaving) break;
+      await wait(rnd(900, 1800));
+    }
+    a.speed = 2.6;
   },
 ];
 // ngày lễ: ra bờ hồ sen ngắm hoa đăng
@@ -1525,6 +1658,7 @@ const PLACES = [
   { id: 'lahan', name: 'Hành lang La Hán', x: 14.5, z: 46, ry: Math.PI / 2 },
   { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
   { id: 'bell', name: 'Gác chuông', x: BELLTOWER.x, z: BELLTOWER.z + BELLTOWER.r + 0.6, ry: Math.PI },
+  { id: 'zen', name: 'Đài Thiền Hành', x: ZEN_LOFT.arrive.x, z: ZEN_LOFT.arrive.z, ry: -1.15 },
   { id: 'qahall', name: 'Điện Quan Âm', x: QAHALL.cx, z: 12, ry: Math.PI },
   { id: 'orchard', name: 'Vườn cây ăn trái', x: 46.5, z: 25.5, ry: Math.PI / 2 },
   { id: 'field', name: 'Ruộng lúa', x: 34, z: 42.5, ry: 0 },
@@ -1627,6 +1761,8 @@ function buildMap() {
   rect(FIELD.x0, FIELD.x1, FIELD.z0, FIELD.z1, 'm-field'); // ruộng lúa
   rect(VEG.x0, VEG.x1, VEG.z0, VEG.z1, 'm-veg'); // vườn rau kế bên ruộng lúa
   el('rect', { x: mapU(BELLTOWER.z + 4.5), y: mapV(BELLTOWER.x - 4.5), width: 9, height: 9, class: 'm-hall' });
+  rect(ZEN_LOFT.x - 6.2, ZEN_LOFT.x + 6.2, ZEN_LOFT.z - 6.2, ZEN_LOFT.z + 6.2, 'm-hall'); // Đài Thiền Hành trước gác chuông
+  el('circle', { cx: mapU(ZEN_LOFT.z), cy: mapV(ZEN_LOFT.x), r: ZEN_LOFT.orbitR, class: 'm-porch' });
   rect(-17, 17, 22.4, 39.5, 'm-stone'); // sân chùa
   rect(-3.5, 3.5, 39.4, GATE.z, 'm-stone'); // trục đường
   rect(-13, 13, GATE.z + 1, 99, 'm-stone'); // sân trước cổng
@@ -1652,6 +1788,7 @@ function buildMap() {
     ['gate', 0, GATE.z + 5.5, 'Tam Quan'],
     ['well', 0, WELL.z, 'Giếng Ngọc'],
     ['bell', BELLTOWER.x, BELLTOWER.z, 'Gác chuông'],
+    ['zen', ZEN_LOFT.x, ZEN_LOFT.z, 'Đài thiền'],
     ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['stairs', 6.5, -40, 'Bậc thang'],
     ['qahall', QAHALL.cx, 11, 'Điện Quan Âm'],
@@ -2793,7 +2930,7 @@ beads.onRound = () => earn('beads');
 let chantSec = 0, chantTick = Date.now();
 setInterval(() => {
   const now = Date.now();
-  if (sound.chanting && sound.ctx?.state === 'running' && !settings.muted) chantSec += Math.min(60, (now - chantTick) / 1000);
+  if ((sound.chanting || sound.zenMusic) && sound.ctx?.state === 'running' && !settings.muted) chantSec += Math.min(60, (now - chantTick) / 1000);
   chantTick = now;
   if (chantSec >= 60) {
     chantSec -= 60;
@@ -2897,6 +3034,24 @@ function handleTap(x, y) {
     hideHint();
     return;
   }
+  if (kind === 'zen') {
+    // chạm vào đài sen tâm Đài Thiền Hành: đang ở dưới thì lên đài và bắt đầu thiền hành; đang ở trên thì bật/tắt đi thiền hành
+    if (onZen(player)) {
+      if (zenWalking) stopZenWalk(true);
+      else startZenWalk();
+    } else {
+      zenPendingWalk = true;
+      movePlayerTo(ZL.arrive.x, ZL.arrive.z);
+    }
+    hideHint();
+    return;
+  }
+  if (kind === 'zen-stair') {
+    if (onZen(player)) movePlayerTo(ZL.foot.x, ZL.foot.z);
+    else movePlayerTo(ZL.arrive.x, ZL.arrive.z);
+    hideHint();
+    return;
+  }
   let seat = null;
   if (kind === 'seat') seat = seats[firstHit.instanceId];
   else if (kind === 'floor' || kind === 'ground') {
@@ -2954,7 +3109,8 @@ canvas.addEventListener('pointermove', (e) => {
   } else if (pointers.size === 2 && pinch) {
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y);
-    cam.dist = ov.on ? clamp((pinch.dist * pinch.d) / Math.max(d, 1), OV.distMin, OV.distMax) : clamp((pinch.dist * pinch.d) / Math.max(d, 1), 2.8, 18);
+    const maxD = onZen(player) ? 38 : 18;
+    cam.dist = ov.on ? clamp((pinch.dist * pinch.d) / Math.max(d, 1), OV.distMin, OV.distMax) : clamp((pinch.dist * pinch.d) / Math.max(d, 1), 2.8, maxD);
   }
 });
 const endPointer = (e) => {
@@ -2968,7 +3124,8 @@ canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const k = 1 + Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 120) * 0.0012;
-  cam.dist = ov.on ? clamp(cam.dist * k, OV.distMin, OV.distMax) : clamp(cam.dist * k, 2.8, 18);
+  const maxD = onZen(player) ? 38 : 18;
+  cam.dist = ov.on ? clamp(cam.dist * k, OV.distMin, OV.distMax) : clamp(cam.dist * k, 2.8, maxD);
 }, { passive: false });
 
 // ---------- Nhìn toàn cảnh chùa từ trên cao ----------
@@ -3030,7 +3187,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'veg' || k === 'orchard' || k === 'tower' || k === 'greatbell' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'veg' || k === 'orchard' || k === 'tower' || k === 'greatbell' || k === 'zen' || k === 'zen-stair' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
 }
 
 // Bàn phím (máy tính)
@@ -3095,6 +3252,7 @@ function keyMove(t) {
   const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
   const len = Math.hypot(f, s);
   if (player.script) return;
+  stopZenWalk();
   const nx = player.pos.x + ((fx * f + rx * s) / len) * 0.7, nz = player.pos.z + ((fz * f + rz * s) / len) * 0.7;
   const loft = loftOf(player);
   const [x, z] = loft ? LOFTS[loft].clamp(nx, nz) : clampZone(zoneOfA(player), nx, nz);
@@ -3130,6 +3288,12 @@ function updateCamera(dt) {
   const want = new THREE.Vector3(player.root.position.x, player.root.position.y + 1.1 - 0.15 * player.p.sit, player.root.position.z);
   cam.target.lerp(want, k);
   const high = onTower(player);
+  const zenHigh = onZen(player);
+  // trên Đài Thiền Hành: đẩy xa màn sương để nhìn rõ toàn cảnh khuôn viên chùa
+  if (!ov.on) {
+    scene.fog.near = zenHigh ? 140 : 60;
+    scene.fog.far = zenHigh ? 480 : 230;
+  }
   // trong gác chuông: trên cầu thang thì camera thấp dưới mái tầng dưới, trên gác thì giữa lan can và mái trên
   const inBell = Math.abs(player.pos.x - BL.x) < 4.8 && Math.abs(player.pos.z - BL.z) < 4.8;
   const bellLoft = inBell && loftOf(player) === 'bell';
@@ -3137,13 +3301,13 @@ function updateCamera(dt) {
   cam.curPitch += (cam.pitch - cam.curPitch) * (1 - Math.exp(-4 * dt));
   // ở ngoài sân / trên thềm thì camera được lùi ra ngoài chánh điện
   const outside = zoneOfA(player) === 'out' || player.pos.z > HALL.maxZ;
-  cam.maxZ += ((outside ? 106 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
+  cam.maxZ += ((outside ? 112 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
   // sau chánh điện (sân sau, bậc thang, nền đồi): camera không lọt qua tường hậu vào trong
   if (outside && player.pos.z < -21.4 && Math.abs(player.pos.x) < 16) cam.maxZ = -21.9;
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
-    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 76 : 14.5),
-    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : 0.4, high ? TOWER.topY + 3.2 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
+    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : zenHigh ? -72 : outside ? -46 : -14.5, outside ? 76 : 14.5),
+    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : zenHigh ? ZL.y + 0.5 : 0.4, high ? TOWER.topY + 3.2 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : zenHigh ? ZL.y + 24 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);
@@ -3298,8 +3462,49 @@ function updateCaption() {
     s.classList.toggle('on', !!pos && !pos.all && k === pos.i);
   });
 }
+let wasOnZen = false;
+function syncZenAudio(forceOnZen = onZen(player)) {
+  const isZen = !!forceOnZen;
+  sound.zenOnly = isZen;
+  if (isZen) {
+    if (sound.chanting) {
+      sound.setChant(false);
+      sound.setZenMusic(true);
+      toast('Trên Đài Thiền Hành giữ tĩnh lặng — đã chuyển từ tụng kinh sang nhạc thiền không lời', 4000);
+    } else if (!wasOnZen && !sound.zenMusic && !settings.muted) {
+      sound.setZenMusic(true);
+    }
+    const on = sound.zenMusic;
+    chantBtn.setAttribute('aria-pressed', on);
+    chantBtn.querySelector('.txt').textContent = on ? 'Dừng nhạc thiền' : 'Mở nhạc thiền không lời';
+    caption.hidden = true;
+  } else {
+    if (wasOnZen && sound.zenMusic) {
+      sound.setZenMusic(false);
+    }
+    const on = sound.chanting;
+    chantBtn.setAttribute('aria-pressed', on);
+    chantBtn.querySelector('.txt').textContent = on ? 'Dừng tụng kinh' : 'Nghe tụng kinh';
+    caption.hidden = !on;
+  }
+  wasOnZen = isZen;
+}
 chantBtn.addEventListener('click', () => {
   const on = chantBtn.getAttribute('aria-pressed') !== 'true';
+  if (onZen(player)) {
+    sound.setZenMusic(on);
+    if (on && settings.muted) {
+      settings.muted = false;
+      sound.apply();
+      syncMute();
+    }
+    chantBtn.setAttribute('aria-pressed', on);
+    chantBtn.querySelector('.txt').textContent = on ? 'Dừng nhạc thiền' : 'Mở nhạc thiền không lời';
+    caption.hidden = true;
+    hintEl.classList.add('hide');
+    if (on) toast('Đang phát nhạc thiền không lời trên Đài Thiền Hành', 2800);
+    return;
+  }
   sound.setChant(on);
   if (on && settings.muted) {
     settings.muted = false;
@@ -3311,7 +3516,7 @@ chantBtn.addEventListener('click', () => {
   caption.hidden = !on;
   hintEl.classList.add('hide');
 });
-const chanting = () => chantBtn.getAttribute('aria-pressed') === 'true';
+const chanting = () => chantBtn.getAttribute('aria-pressed') === 'true' && !onZen(player);
 
 $('#btn-shot').addEventListener('click', () => {
   renderer.render(scene, camera);
@@ -3466,6 +3671,7 @@ function frame() {
     const d = Math.min(...world.falls.map((f) => player.root.position.distanceTo(f)));
     sound.setWaterfall(clamp(1 - d / 55, 0, 1));
   }
+  if (onZen(player) !== wasOnZen) syncZenAudio();
   if (mapOpen) updateMap();
   world.update(elapsed, dt);
   updateCamera(dt);

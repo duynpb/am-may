@@ -45,6 +45,22 @@ export const BELL_LOFT = (() => {
     pull: { x: x + 2.9, z: z + 0.95 }, // chỗ đứng nắm dây kéo chày (quay mặt vào chày)
   };
 })();
+// Đài Thiền Hành cao phía trước gác chuông: ba tầng đài đá cổ kính vươn cao ngắm toàn cảnh chùa, mặt trên rộng để thiền hành
+export const ZEN_LOFT = (() => {
+  const x = -32, z = 54;
+  const base = PORCH.courtY, y = PORCH.courtY + 9.6;
+  return {
+    x, z, y, base,
+    stair: { x0: x - 1.4, x1: x + 1.4, zFoot: 41.6, zTop: 48.2 },
+    floor: { x0: x - 5.6, x1: x + 5.6, z0: z - 5.6, z1: z + 5.6 },
+    centerR: 1.35, // đài sen đá & lư trầm ở tâm đài
+    orbitR: 4.1,   // đường kinh hành (thiền hành) lát đá quanh tâm đài
+    foot: { x, z: 40.8 },   // ngoài sân, trước chân cầu thang đài thiền (đối diện gác chuông)
+    entry: { x, z: 41.8 },  // bậc đầu tiên
+    top: { x, z: 48.3 },    // đầu cầu thang
+    arrive: { x, z: 49.6 }, // bước lên mặt đài thiền
+  };
+})();
 export const QAHALL = { x0: 25, x1: 39, z0: 5, z1: 17, cx: 32 };
 // Sau chánh điện: sân sau, bậc thang đá lên nền đồi cao 8 m, trên đó là điện Tam Thế
 export const TERRACE = { x: 26, z0: -86, z1: -47.6, y: PORCH.courtY + 8 };
@@ -117,6 +133,14 @@ export function groundY(x, z) {
       if (dz > 3.9) return dz < 4.3 ? B.base : PORCH.courtY + 0.4;
       return B.y;
     }
+  }
+  {
+    // đài thiền cao phía trước gác chuông: bậc thang đá dốc đều từ sân lên mặt đài cao 9,6 m
+    const Z = ZEN_LOFT, S = Z.stair;
+    if (x >= S.x0 - 0.15 && x <= S.x1 + 0.15 && z >= S.zFoot && z <= S.zTop) {
+      return Z.base + ((Z.y - Z.base) * (z - S.zFoot)) / (S.zTop - S.zFoot);
+    }
+    if (Math.abs(x - Z.x) <= 6.2 && Math.abs(z - Z.z) <= 6.2) return Z.y;
   }
   if (z > 24 && z < 36) {
     const d = Math.hypot(x - TOWER.x, z - TOWER.z);
@@ -1645,6 +1669,154 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         return 1.05;
       },
     };
+  }
+
+  // ---------- Đài Thiền Hành cao phía trước gác chuông: 3 tầng đài đá vươn cao ngắm toàn cảnh chùa ----------
+  {
+    const Z = ZEN_LOFT, S = Z.stair;
+    const g = new THREE.Group();
+    g.position.set(Z.x, GY, Z.z);
+    scene.add(g);
+    const o = { parent: g };
+    const retainM = std('#8c8578', { roughness: 0.95 });
+    const deckWoodM = std('#6a452b', { roughness: 0.72 });
+    const railM = std('#7a4a2c', { roughness: 0.7 });
+    const stepM = std('#b8b1a3', { roughness: 0.95 });
+
+    // lối đá nối từ sân gác chuông đến chân cầu thang Đài Thiền Hành
+    const zenLane = mesh(new THREE.PlaneGeometry(5.2, 3.6), pave, Z.x, GY + 0.006, 41.2, { cast: false });
+    zenLane.rotation.x = -Math.PI / 2;
+    zenLane.userData.kind = 'ground';
+    pickables.push(zenLane);
+    stoneLantern(Z.x - 2.6, 41.2);
+    stoneLantern(Z.x + 2.6, 41.2);
+
+    // 3 tầng thân đài đá & cột gỗ cổ kính nâng sàn thiền hành lên độ cao 9,6 m
+    const tiers = [
+      { w: 15.0, h: 3.2, y0: 0, roofW: 16.2 },
+      { w: 13.6, h: 3.2, y0: 3.2, roofW: 14.8 },
+      { w: 12.4, h: 3.2, y0: 6.4, roofW: 13.8 },
+    ];
+    for (const t of tiers) {
+      // khối đài đá vững chãi ở giữa
+      box(t.w - 0.6, t.h, t.w - 0.6, retainM, 0, t.y0 + t.h / 2, 0, o);
+      box(t.w, 0.26, t.w, stoneL, 0, t.y0 + 0.13, 0, o);
+      box(t.w + 0.2, 0.22, t.w + 0.2, stoneM, 0, t.y0 + t.h - 0.11, 0, o);
+      // cột son quanh 4 mặt tầng đài
+      const cOff = t.w / 2 - 0.15;
+      for (const u of [-cOff, -cOff * 0.35, cOff * 0.35, cOff]) {
+        for (const s of [-1, 1]) {
+          cyl(0.18, 0.21, t.h - 0.2, sideCol, u, t.y0 + t.h / 2, s * cOff, o, 10);
+          cyl(0.18, 0.21, t.h - 0.2, sideCol, s * cOff, t.y0 + t.h / 2, u, o, 10);
+        }
+      }
+      // diềm mái ngói cổ truyền ở ranh giới mỗi tầng (thấp hơn mặt sàn trên cùng để không che tầm nhìn)
+      const ry = t.y0 + t.h - 0.55;
+      rectRoof(Z.x, GY + ry, Z.z, t.roofW, t.roofW, 0.52, sideTile, { top: 0.82, ridge: false, hollow: true });
+    }
+
+    // mặt sàn rộng trên đỉnh Đài Thiền Hành (cao 9,6 m so với mặt sân, nhìn toàn cảnh khuôn viên chùa)
+    const deckW = 12.4;
+    const deckFloor = box(deckW, 0.24, deckW, deckWoodM, 0, 9.6 - 0.12, 0, o);
+    deckFloor.userData.kind = 'ground';
+    pickables.push(deckFloor);
+
+    // đường kinh hành (lối thiền hành) tròn lát đá sáng và 16 dấu hoa sen chánh niệm quanh mặt đài
+    const pathRing = mesh(new THREE.RingGeometry(Z.orbitR - 0.55, Z.orbitR + 0.55, 48).rotateX(-Math.PI / 2), stoneL, 0, 9.608, 0, { parent: g, cast: false });
+    pathRing.userData.kind = 'ground';
+    pickables.push(pathRing);
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      const lx = Math.cos(a) * Z.orbitR, lz = Math.sin(a) * Z.orbitR;
+      const stepLotus = mesh(new THREE.CircleGeometry(0.22, 12).rotateX(-Math.PI / 2), M.gold, lx, 9.614, lz, { parent: g, cast: false });
+      stepLotus.userData.kind = 'ground';
+      pickables.push(stepLotus);
+    }
+
+    // đài sen đá thanh tịnh, lư trầm và chuông xoay thiền định ở tâm đài (thấp gọn để không chắn tầm nhìn 360°)
+    const centerG = new THREE.Group();
+    centerG.position.set(0, 9.6, 0);
+    centerG.userData.kind = 'zen';
+    g.add(centerG);
+    pickables.push(centerG);
+    cyl(1.15, 1.28, 0.22, stoneL, 0, 0.11, 0, { parent: centerG }, 24);
+    cyl(0.85, 0.98, 0.24, stoneM, 0, 0.34, 0, { parent: centerG }, 20);
+    // cánh sen đá quanh bệ tâm đài
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      const p = mesh(new THREE.ConeGeometry(0.18, 0.36, 6), stoneL, Math.cos(a) * 0.82, 0.52, Math.sin(a) * 0.82, { parent: centerG });
+      p.rotation.set(Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35);
+    }
+    cyl(0.46, 0.54, 0.38, M.lacquer, 0, 0.65, 0, { parent: centerG }, 16);
+    cyl(0.5, 0.5, 0.05, M.gold, 0, 0.86, 0, { parent: centerG }, 16);
+    // lư trầm đồng và chuông xoay Tây Tạng trên bàn thiền
+    cyl(0.18, 0.15, 0.18, M.bronze, 0, 0.97, -0.1, { parent: centerG }, 14);
+    mesh(new THREE.SphereGeometry(0.16, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.65), M.gold, 0.24, 0.98, 0.14, { parent: centerG }).rotation.x = Math.PI;
+
+    // lan can gỗ trầm quanh 4 cạnh mặt đài (chừa lối cầu thang ở cạnh phía bắc z = -6.0)
+    const rOff = deckW / 2 - 0.2;
+    const gateHalf = (S.x1 - S.x0) / 2 + 0.08;
+    // cạnh nam, đông, tây nguyên vẹn
+    box(deckW - 0.4, 0.08, 0.08, railM, 0, 9.6 + 0.82, rOff, o);
+    box(deckW - 0.4, 0.06, 0.06, railM, 0, 9.6 + 0.42, rOff, o);
+    for (const sx of [-1, 1]) {
+      box(0.08, 0.08, deckW - 0.4, railM, sx * rOff, 9.6 + 0.82, 0, o);
+      box(0.06, 0.06, deckW - 0.4, railM, sx * rOff, 9.6 + 0.42, 0, o);
+      // hai đoạn lan can cạnh bắc hai bên đầu cầu thang
+      const segW = rOff - gateHalf;
+      const segCx = sx * (gateHalf + segW / 2);
+      box(segW, 0.08, 0.08, railM, segCx, 9.6 + 0.82, -rOff, o);
+      box(segW, 0.06, 0.06, railM, segCx, 9.6 + 0.42, -rOff, o);
+    }
+    // con tiện lan can và 4 trụ đèn góc đài
+    for (let u = -rOff; u <= rOff + 0.01; u += 0.95) {
+      cyl(0.04, 0.04, 0.84, railM, u, 9.6 + 0.42, rOff, o, 6);
+      if (Math.abs(u) >= gateHalf) cyl(0.04, 0.04, 0.84, railM, u, 9.6 + 0.42, -rOff, o, 6);
+      cyl(0.04, 0.04, 0.84, railM, -rOff, 9.6 + 0.42, u, o, 6);
+      cyl(0.04, 0.04, 0.84, railM, rOff, 9.6 + 0.42, u, o, 6);
+    }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      cyl(0.09, 0.1, 1.08, sideCol, sx * rOff, 9.6 + 0.54, sz * rOff, o, 8);
+      mesh(new THREE.SphereGeometry(0.11, 10, 8), M.gold, sx * rOff, 9.6 + 1.12, sz * rOff, o);
+    }
+
+    // cầu thang đá 32 bậc từ sân trước gác chuông (zFoot = 41.6) lên mặt đài (zTop = 48.2)
+    const nSteps = 32, run = S.zTop - S.zFoot, rise = Z.y - Z.base, sw = S.x1 - S.x0;
+    const stairsG = new THREE.Group();
+    stairsG.userData.kind = 'zen-stair';
+    g.add(stairsG);
+    pickables.push(stairsG);
+    for (let i = 0; i < nSteps; i++) {
+      const h = ((i + 1) / nSteps) * rise;
+      const sz = S.zFoot - Z.z + ((i + 0.5) / nSteps) * run;
+      box(sw, h, run / nSteps + 0.03, stepM, 0, h / 2, sz, { parent: stairsG });
+    }
+    const slope = Math.atan2(rise, run), sLen = Math.hypot(rise, run), sMidZ = (S.zFoot + S.zTop) / 2 - Z.z;
+    for (const sx of [-1, 1]) {
+      const bal = box(0.28, 0.85, sLen, stoneM, sx * (sw / 2 + 0.14), rise / 2 + 0.35, sMidZ, o);
+      bal.rotation.x = -slope;
+      // trụ đá ở chân cầu thang
+      box(0.42, 1.15, 0.42, stoneL, sx * (sw / 2 + 0.14), 0.575, S.zFoot - Z.z - 0.15, o);
+      mesh(new THREE.SphereGeometry(0.16, 10, 8), M.gold, sx * (sw / 2 + 0.14), 1.22, S.zFoot - Z.z - 0.15, o);
+    }
+
+    // cổng chào và biển gỗ ĐÀI THIỀN HÀNH ở chân cầu thang (nhìn về phía gác chuông)
+    const gateZ = S.zFoot - Z.z - 0.05;
+    for (const sx of [-1, 1]) cyl(0.13, 0.15, 3.6, sideCol, sx * (sw / 2 + 0.14), 1.8, gateZ, o, 10);
+    box(sw + 1.1, 0.22, 0.22, sideCol, 0, 3.55, gateZ, o);
+    box(2.9, 0.68, 0.07, M.gold, 0, 3.25, gateZ - 0.08, o);
+    const signF = mesh(new THREE.PlaneGeometry(2.74, 0.54), boardMat(['ĐÀI THIỀN HÀNH'], { w: 1024, h: 220, size: 106 }), 0, 3.25, gateZ - 0.125, o);
+    signF.rotation.y = Math.PI;
+    const signB = mesh(new THREE.PlaneGeometry(2.74, 0.54), boardMat(['ĐÀI THIỀN HÀNH'], { w: 1024, h: 220, size: 106 }), 0, 3.25, gateZ - 0.035, o);
+    signB.userData.kind = signF.userData.kind = 'zen-stair';
+    pickables.push(signF, signB);
+
+    // vật cản dưới mặt đất quanh chân đài (chừa lối vào cầu thang ở phía bắc)
+    obstacles.push(
+      { minX: Z.x - 7.7, maxX: Z.x + 7.7, minZ: Z.z - 6.0, maxZ: Z.z + 7.7 },
+      { minX: Z.x - 2.0, maxX: Z.x - 1.35, minZ: S.zFoot - 0.2, maxZ: Z.z - 5.8 },
+      { minX: Z.x + 1.35, maxX: Z.x + 2.0, minZ: S.zFoot - 0.2, maxZ: Z.z - 5.8 },
+    );
   }
 
   // ---------- Điện Quan Âm: hai tầng mái, tượng Quan Âm dát vàng, lư hương, nến ----------
