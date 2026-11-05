@@ -1101,6 +1101,7 @@ function wireNet(n) {
   });
   n.on('veg', (m) => {
     world.veg.setBed(m.i, m.age);
+    if (m.age === 0) sendNoviceForVeg(m.i);
     const a = avatars.get('n' + m.by);
     if (a) {
       a.act('stoop');
@@ -1823,7 +1824,7 @@ function clickField(px, pz) {
     return;
   }
   const r = plotRect(i);
-  const x = clamp(px, r.minX + 0.6, r.maxX - 0.6), z = clamp(pz, r.minZ + 0.6, r.maxZ - 0.6);
+  const [x, z] = clampZone('out', clamp(px, r.minX + 0.6, r.maxX - 0.6), clamp(pz, r.minZ + 0.6, r.maxZ - 0.6));
   harvestRun = { kind: 'rice', i, x, z, started: false };
   movePlayerTo(x, z);
   hideHint();
@@ -1841,15 +1842,15 @@ function clickVeg(hit, obj) {
     return;
   }
   const r = vegRect(i);
-  const x = clamp(px, r.minX + 0.35, r.maxX - 0.35), z = clamp(pz, r.minZ + 0.35, r.maxZ - 0.35);
+  const [x, z] = clampZone('out', clamp(px, r.minX + 0.35, r.maxX - 0.35), clamp(pz, r.minZ + 0.35, r.maxZ - 0.35));
   const st = world.veg.stageOf(i);
   if (st < 3) {
-    const left = Math.max(1, Math.ceil((VEG_STAGES[2] - world.veg.ageOf(i)) / 60));
-    toast(`Luống ${VEG_KINDS[i]} này ${VEG_STAGE_NAMES[st]} — khoảng ${left} phút nữa mới hái được`, 3200);
+    const left = Math.max(1, Math.ceil(VEG_STAGES[2] - world.veg.ageOf(i)));
+    toast(`Luống ${VEG_KINDS[i]} này ${VEG_STAGE_NAMES[st]} — khoảng ${left} giây nữa mới hái được`, 3200);
     movePlayerTo(x, z);
     return;
   }
-  harvestRun = { kind: 'veg', i, x, z, started: false };
+  harvestRun = { kind: 'veg', i, x, z, faceX: (r.minX + r.maxX) / 2, faceZ: (r.minZ + r.maxZ) / 2, started: false };
   movePlayerTo(x, z);
   hideHint();
 }
@@ -1868,8 +1869,11 @@ function clickOrchard(hit, obj) {
   const tr = ORCHARD_TREES[i];
   let dx = player.pos.x - tr.x, dz = player.pos.z - tr.z;
   const d = Math.hypot(dx, dz) || 1;
-  const x = clamp(tr.x + (dx / d) * 1.25, ORCHARD.x0 + 0.4, ORCHARD.x1 - 0.4);
-  const z = clamp(tr.z + (dz / d) * 1.25, ORCHARD.z0 + 0.4, ORCHARD.z1 - 0.4);
+  const [x, z] = clampZone(
+    'out',
+    clamp(tr.x + (dx / d) * 1.25, ORCHARD.x0 + 0.4, ORCHARD.x1 - 0.4),
+    clamp(tr.z + (dz / d) * 1.25, ORCHARD.z0 + 0.4, ORCHARD.z1 - 0.4),
+  );
   const st = world.orchard.stageOf(i);
   const title = tr.name[0].toUpperCase() + tr.name.slice(1);
   if (st < 3) {
@@ -1913,7 +1917,8 @@ function harvestTick() {
       world.veg.setBed(i, 0);
       if (net) net.send({ t: 'pick-veg', i });
       else earn('veg');
-      toast(`Bạn đã hái xong một rổ ${VEG_KINDS[i]} tươi — rau sạch cúng dường nhà bếp chùa`, 3600);
+      toast(`Bạn đã hái xong một rổ ${VEG_KINDS[i]} tươi — chú tiểu đang ra mang rổ rau vào chùa`, 4200);
+      sendNoviceForVeg(i);
     } else if (kind === 'fruit') {
       if (world.orchard.stageOf(i) < 3) return toast('Cây này vừa có người hái quả rồi', 2600);
       const tr = ORCHARD_TREES[i];
@@ -2075,9 +2080,57 @@ async function noviceCarryFruit(a, i) {
   }
 }
 
+async function noviceCarryVeg(a, i) {
+  const kindName = VEG_KINDS[i];
+  if (!kindName) return;
+  const r = vegRect(i);
+  const bx = (r.minX + r.maxX) / 2, bz = r.minZ + 0.45;
+  const token = (a.noviceTask = {});
+  a.carryingFruit = true;
+  a.holdBroom(false);
+  a.holdCloth(false);
+  try {
+    bubble(a, `đi nhận rổ ${kindName} vừa hái`, 3800);
+    if (!(await noviceGo(a, bx, r.minZ - 0.25, token))) return;
+    a.faceRy = Math.atan2(bx - a.pos.x, bz - a.pos.z);
+    a.act('stoop');
+    await wait(1100);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    const color = world.veg.takeBasket(i);
+    a.holdBasket(color);
+    bubble(a, `bưng rổ ${kindName} tươi vào chùa`, 4500);
+    await wait(450);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    if (!(await noviceGo(a, QAHALL.cx + 1.1, 8.6, token))) return;
+    a.faceRy = Math.PI;
+    a.act('stoop');
+    await wait(1000);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    a.holdBasket(null);
+    world.veg.placeOffering(i);
+    sound.bow();
+    await a.walk(QAHALL.cx + 1.1, 9.6);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    a.act('bow', Math.PI);
+    bubble(a, `dâng ${kindName} tươi thanh tịnh cúng Phật`, 4200);
+    await wait(3400);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    // lễ xong đi ra sân tiếp tục công việc hằng ngày
+    await noviceGo(a, QAHALL.cx + rnd(-3, 5), 23.5, token);
+  } finally {
+    a.holdBasket(null);
+    a.carryingFruit = false;
+  }
+}
+
 async function noviceLoop(a, startIdx = 0) {
   let step = startIdx;
   while (avatars.has(a.id)) {
+    if (a.vegQueue?.length) {
+      const bedIdx = a.vegQueue.shift();
+      await noviceCarryVeg(a, bedIdx);
+      continue;
+    }
     if (a.fruitQueue?.length) {
       const treeIdx = a.fruitQueue.shift();
       await noviceCarryFruit(a, treeIdx);
@@ -2089,7 +2142,7 @@ async function noviceLoop(a, startIdx = 0) {
     await chore(a, token);
     a.holdBroom(false);
     a.holdCloth(false);
-    if (!a.fruitQueue?.length) await wait(rnd(600, 1600));
+    if (!a.vegQueue?.length && !a.fruitQueue?.length) await wait(rnd(600, 1600));
   }
 }
 
@@ -2102,16 +2155,35 @@ function makeNovices() {
     a.wearSandals(true);
     a.placeAt(def.x, def.z, rnd(-Math.PI, Math.PI));
     a.fruitQueue = [];
+    a.vegQueue = [];
     novices.push(a);
     noviceLoop(a, idx * 2);
   });
+}
+
+function sendNoviceForVeg(i) {
+  if (!VEG_KINDS[i] || !novices.length) return;
+  const r = vegRect(i);
+  const bx = (r.minX + r.maxX) / 2, bz = r.minZ + 0.45;
+  // chọn chú tiểu đang rảnh và đứng gần luống rau vừa hái nhất
+  const free = novices.filter((n) => avatars.has(n.id) && !n.carryingFruit && !n.fruitQueue?.length && !n.vegQueue?.length);
+  const pool = free.length ? free : novices.filter((n) => avatars.has(n.id));
+  if (!pool.length) return;
+  pool.sort((a, b) => Math.hypot(a.pos.x - bx, a.pos.z - bz) - Math.hypot(b.pos.x - bx, b.pos.z - bz));
+  const chosen = pool[0];
+  chosen.vegQueue.push(i);
+  if (!chosen.carryingFruit) {
+    // ngắt việc đang làm để ra vườn nhận rổ rau ngay
+    chosen.noviceTask = {};
+    chosen.stop();
+  }
 }
 
 function sendNoviceForFruit(i) {
   const tr = ORCHARD_TREES[i];
   if (!tr || !novices.length) return;
   // chọn chú tiểu đang rảnh và đứng gần cây vừa hái nhất
-  const free = novices.filter((n) => avatars.has(n.id) && !n.carryingFruit && !n.fruitQueue?.length);
+  const free = novices.filter((n) => avatars.has(n.id) && !n.carryingFruit && !n.fruitQueue?.length && !n.vegQueue?.length);
   const pool = free.length ? free : novices.filter((n) => avatars.has(n.id));
   if (!pool.length) return;
   pool.sort((a, b) => Math.hypot(a.pos.x - tr.x, a.pos.z - tr.z) - Math.hypot(b.pos.x - tr.x, b.pos.z - tr.z));

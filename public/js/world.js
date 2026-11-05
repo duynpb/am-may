@@ -55,14 +55,14 @@ export const FALLS = { x: 21, z: -83.8, poolZ: -81.5, poolR: 2.8 };
 // Các vùng đi lại được ngoài chánh điện (hình chữ nhật). Hai vùng chồng lên nhau là đi qua lại được;
 // phủ toàn bộ khuôn viên chùa để Phật tử tự do dạo bước trên sân, bãi cỏ, quanh hồ sen, vườn cây, ruộng lúa.
 export const WALK_AREAS = [
-  { minX: -44, maxX: 64, minZ: 22.2, maxZ: 82.6 }, // toàn bộ sân trước, bãi cỏ, quanh hồ sen, hành lang La Hán, hai sân bên, ruộng lúa, vườn rau
+  { minX: -44, maxX: 70, minZ: 22.2, maxZ: 82.6 }, // toàn bộ sân trước, bãi cỏ, quanh hồ sen, hành lang La Hán, hai sân bên, ruộng lúa, vườn rau
   { minX: -1.7, maxX: 1.7, minZ: GATE.z - 2.2, maxZ: GATE.z + 2.2 }, // lối qua cửa giữa cổng Tam Quan
   { minX: -44, maxX: -20.2, minZ: 82.0, maxZ: 86.0 }, // vòng qua đầu tường cổng phía tây
-  { minX: 20.2, maxX: 64, minZ: 82.0, maxZ: 86.0 }, // vòng qua đầu tường cổng phía đông
-  { minX: -44, maxX: 64, minZ: GATE.z + 1.6, maxZ: 102 }, // toàn bộ sân và bãi cỏ trước cổng Tam Quan
-  { minX: 16.0, maxX: 64, minZ: 17.2, maxZ: 23.2 }, // khoảng sân nối trước điện Quan Âm và vườn cây ăn trái
+  { minX: 20.2, maxX: 70, minZ: 82.0, maxZ: 86.0 }, // vòng qua đầu tường cổng phía đông
+  { minX: -44, maxX: 70, minZ: GATE.z + 1.6, maxZ: 102 }, // toàn bộ sân và bãi cỏ trước cổng Tam Quan
+  { minX: 16.0, maxX: 70, minZ: 17.2, maxZ: 23.2 }, // khoảng sân nối trước điện Quan Âm và vườn cây ăn trái
   { minX: QAHALL.x0 + 0.8, maxX: QAHALL.x1 - 0.8, minZ: 8.5, maxZ: 18.0 }, // trong điện Quan Âm
-  { minX: 39.6, maxX: 64, minZ: -33.2, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm
+  { minX: 39.6, maxX: 70, minZ: -33.2, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm
   { minX: 16.0, maxX: 24.4, minZ: -33.2, maxZ: 18.0 }, // khoảng sân dọc giữa chánh điện và điện Quan Âm
   { minX: 23.6, maxX: 40.4, minZ: -33.2, maxZ: 4.4 }, // bãi cỏ phía sau điện Quan Âm
   { minX: -44, maxX: -16.0, minZ: -33.2, maxZ: 23.2 }, // toàn bộ khuôn viên phía tây chánh điện
@@ -2067,7 +2067,25 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const basketFull = new THREE.InstancedMesh(new THREE.SphereGeometry(0.23, 10, 7).scale(1, 0.55, 1).translate(0, 0.22, 0), std('#ffffff', { roughness: 0.8 }), VEG_PLOTS);
     leaves.receiveShadow = true;
     produce.castShadow = basketRim.castShadow = true;
+    leaves.userData.kind = produce.userData.kind = 'veg';
+    pickables.push(leaves, produce);
     scene.add(leaves, produce, basketRim, basketFull);
+
+    // mâm rau củ tươi dâng cúng trên bàn thờ điện Quan Âm và bàn thờ Chánh điện (hiện lên khi chú tiểu mang rau vào)
+    const vegOfferPlates = [];
+    for (const [ox, oy, oz] of [[QH.cx + 1.25, GY2 + 1.26, QH.z0 + 1.65], [2.1, 1.66, -15.3]]) {
+      const pg = new THREE.Group();
+      pg.position.set(ox, oy, oz);
+      pg.visible = false;
+      scene.add(pg);
+      cyl(0.1, 0.16, 0.12, M.gold, 0, 0.06, 0, { parent: pg }, 12);
+      cyl(0.28, 0.12, 0.06, M.lacquer, 0, 0.14, 0, { parent: pg }, 16);
+      const vm = std('#78cf52', { roughness: 0.55 });
+      for (const [dx, dy, dz, r] of [[0, 0.24, 0, 0.095], [-0.1, 0.2, 0.06, 0.075], [0.1, 0.2, 0.06, 0.075], [0, 0.2, -0.1, 0.075], [-0.08, 0.2, -0.07, 0.07], [0.08, 0.2, -0.07, 0.07]]) {
+        mesh(new THREE.SphereGeometry(r, 10, 8), vm, dx, dy, dz, { parent: pg });
+      }
+      vegOfferPlates.push({ pg, vm });
+    }
 
     // Màu lá, màu củ/quả/bắp và tỉ lệ riêng cho 8 loại rau
     const BED_LOOK = [
@@ -2083,6 +2101,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const STAGE_SCALE = [0.28, 0.55, 0.82, 1.08];
     const planted = new Float64Array(VEG_PLOTS);
     const shown = new Int8Array(VEG_PLOTS).fill(-1);
+    const basketTaken = new Uint8Array(VEG_PLOTS);
     const o = new THREE.Object3D(), col = new THREE.Color();
     const jitter = Array.from({ length: VEG_PLOTS * per }, () => [Math.random() - 0.5, Math.random() - 0.5, Math.random() * 6.28, 0.88 + Math.random() * 0.24]);
     const ageOf = (i) => (Date.now() - planted[i]) / 1000;
@@ -2091,8 +2110,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const st = vegStage(ageOf(i));
       shown[i] = st;
       const r = vegRect(i), B = BED_LOOK[i % BED_LOOK.length];
-      const freshPick = st === 0 && ageOf(i) < 35;
-      const sc = freshPick ? 0.18 : STAGE_SCALE[st];
+      const regrow = st === 0 && ageOf(i) < 35;
+      const freshPick = st === 0 && ageOf(i) < 40 && !basketTaken[i];
+      const sc = regrow ? 0.18 : STAGE_SCALE[st];
       for (let k = 0; k < per; k++) {
         const [jx, jz, rot, s] = jitter[i * per + k];
         const gx = k % 3, gz = Math.floor(k / 3);
@@ -2159,19 +2179,33 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       nextCheck = t + 1.5;
       for (let i = 0; i < VEG_PLOTS; i++) {
         const st = vegStage(ageOf(i));
-        if (st !== shown[i] || (st === 0 && ageOf(i) < 37)) drawBed(i);
+        if (st !== shown[i] || (st === 0 && ageOf(i) < 42)) drawBed(i);
       }
     });
     return {
       setAges(ages) {
         for (let i = 0; i < VEG_PLOTS; i++) {
-          planted[i] = Date.now() - (ages?.[i] ?? Math.random() * 420) * 1000;
+          planted[i] = Date.now() - (ages?.[i] ?? (VEG_RIPE_AGE + 10 + Math.random() * 60)) * 1000;
+          basketTaken[i] = 1;
           drawBed(i);
         }
       },
       setBed(i, age = 0) {
         planted[i] = Date.now() - age * 1000;
+        basketTaken[i] = age === 0 ? 0 : 1;
         drawBed(i);
+      },
+      takeBasket(i) {
+        basketTaken[i] = 1;
+        drawBed(i);
+        return BED_LOOK[i % BED_LOOK.length]?.fruit || '#78cf52';
+      },
+      placeOffering(i) {
+        const c = BED_LOOK[i % BED_LOOK.length]?.fruit || '#78cf52';
+        for (const { pg, vm } of vegOfferPlates) {
+          vm.color.set(c);
+          pg.visible = true;
+        }
       },
       stageOf: (i) => vegStage(ageOf(i)),
       ageOf,

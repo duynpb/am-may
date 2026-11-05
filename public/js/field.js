@@ -27,7 +27,7 @@ export function plotAt(x, z) {
 // ---------- Vườn rau kế bên ruộng lúa (8 luống rau: 2 cột × 4 hàng) ----------
 export const VEG = { x0: 57.6, x1: 68.8, z0: 44, z1: 72, cols: 2, rows: 4 };
 export const VEG_PLOTS = VEG.cols * VEG.rows;
-export const VEG_STAGES = [60, 150, 260];
+export const VEG_STAGES = [20, 45, 75];
 export const VEG_RIPE_AGE = VEG_STAGES[2];
 export const VEG_STAGE_NAMES = ['mới gieo hạt, vừa nảy mầm', 'đang lên lá non', 'đang xanh tốt', 'đã tươi tốt, có thể hái'];
 export const VEG_KINDS = [

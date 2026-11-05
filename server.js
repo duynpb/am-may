@@ -216,7 +216,7 @@ setInterval(() => {
 // Mỗi ô lưu thời điểm trồng (ms); lúc mở máy chủ cho tuổi ngẫu nhiên để có sẵn vài ô chín.
 const fieldRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: PLOTS }, () => Date.now() - Math.random() * RIPE_AGE * 1.6 * 1000)]));
 const fieldAges = (roomId) => fieldRooms.get(roomId)?.map((t) => Math.round((Date.now() - t) / 1000));
-const vegRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: VEG_PLOTS }, () => Date.now() - Math.random() * VEG_RIPE_AGE * 1.6 * 1000)]));
+const vegRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: VEG_PLOTS }, () => Date.now() - (VEG_RIPE_AGE + 10 + Math.random() * 60) * 1000)]));
 const vegAges = (roomId) => vegRooms.get(roomId)?.map((t) => Math.round((Date.now() - t) / 1000));
 const orchardRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: ORCHARD_COUNT }, () => Date.now() - Math.random() * FRUIT_RIPE_AGE * 1.6 * 1000)]));
 const orchardAges = (roomId) => orchardRooms.get(roomId)?.map((t) => Math.round((Date.now() - t) / 1000));
@@ -299,7 +299,7 @@ wss.on('connection', (ws, req) => {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
       const wide = siteOf(roomId) === 'tamchuc';
-      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 72);
+      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 75);
       me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 100);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 96 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
