@@ -2,7 +2,11 @@ import * as THREE from 'three';
 import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { Dog } from './dog.js';
-import { FIELD, PLOTS, plotRect, plotAt, RICE_STAGES, STAGE_NAMES } from './field.js';
+import {
+  FIELD, PLOTS, plotRect, plotAt, RICE_STAGES, STAGE_NAMES,
+  VEG, VEG_PLOTS, vegRect, vegAt, VEG_STAGES, VEG_STAGE_NAMES, VEG_KINDS,
+  ORCHARD, ORCHARD_TREES, ORCHARD_COUNT, orchardTreeAt, FRUIT_STAGES, FRUIT_STAGE_NAMES,
+} from './field.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
@@ -276,6 +280,8 @@ const ROUND_OBSTACLES = [
   { x: 4.4, z: TAMTHE.z1 - 0.2, r: 0.8 },
   { x: -FALLS.x, z: FALLS.poolZ, r: FALLS.poolR + 0.8 }, // hồ dưới hai thác
   { x: FALLS.x, z: FALLS.poolZ, r: FALLS.poolR + 0.8 },
+  { x: 51.8, z: 22.0, r: 1.55 }, // bàn đá giữa vườn cây ăn trái
+  ...ORCHARD_TREES.map((t) => ({ x: t.x, z: t.z, r: 0.9 })),
 ];
 // Đoạn thẳng a → b cắt qua chướng ngại tròn thì chèn điểm vòng qua bên cạnh
 function detour(ax, az, bx, bz, depth = 0, obs = ROUND_OBSTACLES) {
@@ -892,6 +898,22 @@ const TOUR = [
     if (!(await botGo(a, rnd(-9, 9), rnd(GATE.z + 4, 97)))) return;
     await wait(rnd(5000, 10000));
   },
+  // vườn cây ăn trái kế bên điện Quan Âm: dạo mát ngắm cây hoặc hái quả
+  async (a) => {
+    const tr = pick(ORCHARD_TREES);
+    if (!(await botGo(a, tr.x - 1.3, tr.z))) return;
+    a.faceRy = Math.atan2(tr.x - a.pos.x, tr.z - a.pos.z);
+    bubble(a, pick(['vườn cây sai quả quá', 'hương quả chín thơm dịu', `ngắm ${tr.name}`]), 3000);
+    await wait(rnd(5000, 10000));
+  },
+  // vườn rau kế bên ruộng lúa: thăm luống rau chùa
+  async (a) => {
+    const r = vegRect((Math.random() * VEG_PLOTS) | 0);
+    if (!(await botGo(a, r.minX - 0.3, (r.minZ + r.maxZ) / 2))) return;
+    a.act('stoop');
+    bubble(a, pick(['chăm luống rau chùa', 'rau chùa xanh tốt quá']), 3000);
+    await wait(rnd(4500, 9000));
+  },
 ];
 // ngày lễ: ra bờ hồ sen ngắm hoa đăng
 const FEST_TOUR = async (a) => {
@@ -1045,6 +1067,22 @@ function wireNet(n) {
       bubble(a, 'gặt lúa', 3000);
     }
   });
+  n.on('veg', (m) => {
+    world.veg.setBed(m.i, m.age);
+    const a = avatars.get('n' + m.by);
+    if (a) {
+      a.act('stoop');
+      bubble(a, 'hái rau', 3000);
+    }
+  });
+  n.on('orchard', (m) => {
+    world.orchard.setTree(m.i, m.age);
+    const a = avatars.get('n' + m.by);
+    if (a) {
+      a.act('stoop');
+      bubble(a, 'hái trái cây', 3000);
+    }
+  });
   n.on('leaves', (m) => {
     if (m.add) leaves.add(m.add);
     if (m.gone) {
@@ -1147,6 +1185,8 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     n.welcome.peers.forEach(addRemote);
     leaves.reset(n.welcome.leaves || []);
     world.field.setAges(n.welcome.field);
+    world.veg.setAges(n.welcome.veg);
+    world.orchard.setAges(n.welcome.orchard);
     resetDust(n.welcome.dust || []);
     onlineCount = n.welcome.peers.length + 1;
     if (n.welcome.merit) {
@@ -1162,6 +1202,8 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     earn('visit');
     leaves.reset(makeLeaves(45));
     world.field.setAges(null);
+    world.veg.setAges(null);
+    world.orchard.setAges(null);
     resetDust(pickDust(22));
   }
   for (let i = 0; i < botTarget; i++) makeBot({ seated: Math.random() < 0.85 });
@@ -1449,7 +1491,9 @@ const PLACES = [
   { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
   { id: 'bell', name: 'Gác chuông', x: BELLTOWER.x, z: BELLTOWER.z + BELLTOWER.r + 0.6, ry: Math.PI },
   { id: 'qahall', name: 'Điện Quan Âm', x: QAHALL.cx, z: 12, ry: Math.PI },
+  { id: 'orchard', name: 'Vườn cây ăn trái', x: 46.5, z: 25.5, ry: Math.PI / 2 },
   { id: 'field', name: 'Ruộng lúa', x: 34, z: 42.5, ry: 0 },
+  { id: 'veg', name: 'Vườn rau', x: 56.8, z: 54, ry: Math.PI / 2 },
   { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
   { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: TAMTHE.z0 + 8.4, ry: Math.PI },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
@@ -1527,7 +1571,7 @@ function buildMap() {
     return e;
   };
   const rect = (x0, x1, z0, z1, cls) => el('rect', { x: mapU(z1), y: mapV(x0), width: z1 - z0, height: x1 - x0, class: cls });
-  el('rect', { x: -2, y: -45, width: 194, height: 90, class: 'm-bg' });
+  el('rect', { x: -2, y: -45, width: 194, height: 116, class: 'm-bg' });
   for (const s of [-1, 1]) rect(s > 0 ? 16.2 : -20.8, s > 0 ? 20.8 : -16.2, -29, 23.2, 'm-stone'); // lối hai bên
   rect(-20.8, 20.8, -33.2, -26, 'm-stone'); // sân sau
   rect(-TERRACE.x, TERRACE.x, TERRACE.z0, TERRACE.z1, 'm-terrace'); // nền đồi
@@ -1542,8 +1586,11 @@ function buildMap() {
     rect(s > 0 ? 15.5 : -21.5, s > 0 ? 21.5 : -15.5, 22.6, 24.4, 'm-stone'); // lối sang sân bên
   }
   rect(QAHALL.x0, QAHALL.x1, QAHALL.z0, QAHALL.z1, 'm-hall');
-  rect(30.5, 37.5, 39, FIELD.z0 + 1, 'm-stone'); // lối xuống ruộng
+  rect(ORCHARD.x0, ORCHARD.x1, ORCHARD.z0, ORCHARD.z1, 'm-grass'); // vườn cây ăn trái kế bên điện Quan Âm
+  for (const tr of ORCHARD_TREES) el('circle', { cx: mapU(tr.z), cy: mapV(tr.x), r: 1.1, class: 'm-tree' });
+  rect(30.5, 64, 39, FIELD.z0 + 1, 'm-stone'); // lối xuống ruộng và sang vườn rau
   rect(FIELD.x0, FIELD.x1, FIELD.z0, FIELD.z1, 'm-field'); // ruộng lúa
+  rect(VEG.x0, VEG.x1, VEG.z0, VEG.z1, 'm-veg'); // vườn rau kế bên ruộng lúa
   el('rect', { x: mapU(BELLTOWER.z + 4.5), y: mapV(BELLTOWER.x - 4.5), width: 9, height: 9, class: 'm-hall' });
   rect(-17, 17, 22.4, 39.5, 'm-stone'); // sân chùa
   rect(-3.5, 3.5, 39.4, GATE.z, 'm-stone'); // trục đường
@@ -1573,7 +1620,9 @@ function buildMap() {
     ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['stairs', 6.5, -40, 'Bậc thang'],
     ['qahall', QAHALL.cx, 11, 'Điện Quan Âm'],
+    ['orchard', (ORCHARD.x0 + ORCHARD.x1) / 2, (ORCHARD.z0 + ORCHARD.z1) / 2, 'Vườn quả'],
     ['field', (FIELD.x0 + FIELD.x1) / 2, (FIELD.z0 + FIELD.z1) / 2, 'Ruộng lúa'],
+    ['veg', (VEG.x0 + VEG.x1) / 2, (VEG.z0 + VEG.z1) / 2, 'Vườn rau'],
     ['lahan', 15.6, 62, 'La Hán'],
     ['lahan', -15.6, 62, 'La Hán'],
   ];
@@ -1719,8 +1768,8 @@ function dogsThink(t, dt) {
   }
 }
 
-// ---------- Gặt lúa: chạm vào ô lúa chín, lội xuống ruộng cúi gặt ----------
-let harvestRun = null; // { i, x, z, started }
+// ---------- Gặt lúa, hái rau, hái trái cây ----------
+let harvestRun = null; // { kind: 'rice'|'veg'|'fruit', i, x, z, faceX, faceZ, started }
 function clickField(px, pz) {
   sound.init();
   const i = plotAt(px, pz);
@@ -1741,35 +1790,104 @@ function clickField(px, pz) {
   }
   const r = plotRect(i);
   const x = clamp(px, r.minX + 0.6, r.maxX - 0.6), z = clamp(pz, r.minZ + 0.6, r.maxZ - 0.6);
-  harvestRun = { i, x, z, started: false };
+  harvestRun = { kind: 'rice', i, x, z, started: false };
+  movePlayerTo(x, z);
+  hideHint();
+}
+function clickVeg(hit, obj) {
+  sound.init();
+  const px = hit.point.x, pz = hit.point.z;
+  const i = Number.isInteger(obj.userData.i) ? obj.userData.i : vegAt(px, pz);
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
+  if (i < 0) {
+    movePlayerTo(px, pz);
+    return;
+  }
+  const r = vegRect(i);
+  const x = clamp(px, r.minX + 0.35, r.maxX - 0.35), z = clamp(pz, r.minZ + 0.35, r.maxZ - 0.35);
+  const st = world.veg.stageOf(i);
+  if (st < 3) {
+    const left = Math.max(1, Math.ceil((VEG_STAGES[2] - world.veg.ageOf(i)) / 60));
+    toast(`Luống ${VEG_KINDS[i]} này ${VEG_STAGE_NAMES[st]} — khoảng ${left} phút nữa mới hái được`, 3200);
+    movePlayerTo(x, z);
+    return;
+  }
+  harvestRun = { kind: 'veg', i, x, z, started: false };
+  movePlayerTo(x, z);
+  hideHint();
+}
+function clickOrchard(hit, obj) {
+  sound.init();
+  const px = hit.point.x, pz = hit.point.z;
+  const i = Number.isInteger(obj.userData.i) ? obj.userData.i : orchardTreeAt(px, pz);
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
+  if (i < 0) {
+    movePlayerTo(px, pz);
+    return;
+  }
+  const tr = ORCHARD_TREES[i];
+  let dx = player.pos.x - tr.x, dz = player.pos.z - tr.z;
+  const d = Math.hypot(dx, dz) || 1;
+  const x = clamp(tr.x + (dx / d) * 1.25, ORCHARD.x0 + 0.4, ORCHARD.x1 - 0.4);
+  const z = clamp(tr.z + (dz / d) * 1.25, ORCHARD.z0 + 0.4, ORCHARD.z1 - 0.4);
+  const st = world.orchard.stageOf(i);
+  const title = tr.name[0].toUpperCase() + tr.name.slice(1);
+  if (st < 3) {
+    const left = Math.max(1, Math.ceil((FRUIT_STAGES[2] - world.orchard.ageOf(i)) / 60));
+    toast(`${title} này ${FRUIT_STAGE_NAMES[st]} — khoảng ${left} phút nữa quả mới chín`, 3200);
+    movePlayerTo(x, z);
+    return;
+  }
+  harvestRun = { kind: 'fruit', i, x, z, faceX: tr.x, faceZ: tr.z, started: false };
   movePlayerTo(x, z);
   hideHint();
 }
 function harvestTick() {
   if (!harvestRun || harvestRun.started || player.script) return;
   const g = player.routeTo ?? player.goal;
-  if (g && Math.hypot(g.x - harvestRun.x, g.z - harvestRun.z) > 0.3) {
+  if (g && Math.hypot(g.x - harvestRun.x, g.z - harvestRun.z) > 0.35) {
     harvestRun = null;
     return;
   }
   if (player.moving || player.routeTo) return;
-  const { i } = harvestRun;
-  if (player.pos.distanceTo(new THREE.Vector3(harvestRun.x, 0, harvestRun.z)) > 0.8) {
+  const { kind, i, faceX, faceZ } = harvestRun;
+  if (player.pos.distanceTo(new THREE.Vector3(harvestRun.x, 0, harvestRun.z)) > 0.9) {
     harvestRun = null;
     return;
   }
   harvestRun.started = true;
-  // cúi gặt hai lượt rồi bó lúa
+  if (faceX != null) player.faceRy = Math.atan2(faceX - player.pos.x, faceZ - player.pos.z);
   player.act('stoop');
   sound.bead();
   setTimeout(() => player.act('stoop'), 1700);
   setTimeout(() => {
     harvestRun = null;
-    if (world.field.stageOf(i) < 3) return toast('Ô lúa này vừa có người gặt rồi', 2600);
-    world.field.setPlot(i, 0);
-    if (net) net.send({ t: 'harvest', i });
-    else earn('harvest');
-    toast('Bạn đã gặt xong một ô lúa — hạt gạo nuôi người, công sức nuôi phước', 3600);
+    if (kind === 'rice') {
+      if (world.field.stageOf(i) < 3) return toast('Ô lúa này vừa có người gặt rồi', 2600);
+      world.field.setPlot(i, 0);
+      if (net) net.send({ t: 'harvest', i });
+      else earn('harvest');
+      toast('Bạn đã gặt xong một ô lúa — hạt gạo nuôi người, công sức nuôi phước', 3600);
+    } else if (kind === 'veg') {
+      if (world.veg.stageOf(i) < 3) return toast('Luống rau này vừa có người hái rồi', 2600);
+      world.veg.setBed(i, 0);
+      if (net) net.send({ t: 'pick-veg', i });
+      else earn('veg');
+      toast(`Bạn đã hái xong một rổ ${VEG_KINDS[i]} tươi — rau sạch cúng dường nhà bếp chùa`, 3600);
+    } else if (kind === 'fruit') {
+      if (world.orchard.stageOf(i) < 3) return toast('Cây này vừa có người hái quả rồi', 2600);
+      const tr = ORCHARD_TREES[i];
+      world.orchard.setTree(i, 0);
+      if (net) net.send({ t: 'pick-fruit', i });
+      else earn('fruit');
+      toast(`Bạn đã hái ${tr.fruit} từ ${tr.name} — quả lành dâng cúng Phật, lộc vườn chia khắp chúng sinh`, 3600);
+    }
   }, 3400);
 }
 
@@ -2446,6 +2564,14 @@ function handleTap(x, y) {
     clickField(firstHit.point.x, firstHit.point.z);
     return;
   }
+  if (kind === 'veg') {
+    clickVeg(firstHit, o);
+    return;
+  }
+  if (kind === 'orchard') {
+    clickOrchard(firstHit, o);
+    return;
+  }
   if (kind === 'broom') {
     clickBroom();
     return;
@@ -2599,7 +2725,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'tower' || k === 'greatbell' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'veg' || k === 'orchard' || k === 'tower' || k === 'greatbell' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
 }
 
 // Bàn phím (máy tính)
@@ -2711,7 +2837,7 @@ function updateCamera(dt) {
   if (outside && player.pos.z < -21.4 && Math.abs(player.pos.x) < 16) cam.maxZ = -21.9;
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
-    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 58 : 14.5),
+    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : outside ? -46 : -14.5, outside ? 76 : 14.5),
     clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : 0.4, high ? TOWER.topY + 3.2 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );

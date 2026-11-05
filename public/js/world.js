@@ -8,7 +8,7 @@ import { makeQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
 import { lahanSpot, LAHAN_IDS } from './statues.js';
-import { FIELD, PLOTS, plotRect, riceStage } from './field.js';
+import { FIELD, PLOTS, plotRect, riceStage, VEG, VEG_PLOTS, vegRect, vegStage, ORCHARD, ORCHARD_TREES, ORCHARD_COUNT, fruitStage } from './field.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -69,8 +69,11 @@ export const WALK_AREAS = [
     ];
   }),
   { minX: QAHALL.x0 + 1, maxX: QAHALL.x1 - 1, minZ: 8.6, maxZ: 18.3 }, // trong điện Quan Âm
+  { minX: ORCHARD.x0, maxX: ORCHARD.x1, minZ: ORCHARD.z0, maxZ: ORCHARD.z1 }, // vườn cây ăn trái kế bên điện Quan Âm
   { minX: 30.5, maxX: 37.5, minZ: 39, maxZ: FIELD.z0 + 1 }, // lối từ sân điện Quan Âm xuống ruộng
+  { minX: 36.5, maxX: 64, minZ: 38, maxZ: 44.6 }, // lối đất nối vườn cây ăn trái, ruộng lúa và vườn rau
   { minX: FIELD.x0 + 0.4, maxX: FIELD.x1 - 0.4, minZ: FIELD.z0 + 0.4, maxZ: FIELD.z1 - 0.4 }, // ruộng lúa
+  { minX: 55.2, maxX: VEG.x1 + 0.4, minZ: VEG.z0 - 0.4, maxZ: VEG.z1 + 0.4 }, // vườn rau kế bên ruộng lúa
   ...[-1, 1].map((s) => ({ minX: s > 0 ? 16.2 : -20.8, maxX: s > 0 ? 20.8 : -16.2, minZ: -29, maxZ: 23.2 })), // lối dọc hai bên chánh điện
   { minX: -20.8, maxX: 20.8, minZ: -33.2, maxZ: -26 }, // sân sau chánh điện
   { minX: -3, maxX: 3, minZ: STAIRS.z0 - 0.2, maxZ: STAIRS.z1 + 0.3 }, // bậc thang
@@ -229,7 +232,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   ridgeColors.forEach((c, i) => {
     const mat = new THREE.MeshBasicMaterial({ map: T.ridge(c, i * 1.7 + 1), transparent: true, depthWrite: false });
     ridgeMats.push(mat);
-    const d = 60 + i * 28;
+    const d = 78 + i * 28;
     for (const [x, z, ry] of [[d, 0, -Math.PI / 2], [-d, 0, Math.PI / 2], [0, d + 85, Math.PI]]) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(320, 70), mat);
       p.position.set(x, 18 - i * 3, z);
@@ -239,12 +242,20 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     }
   });
 
-  // Rừng tre hai bên
+  // Rừng tre hai bên (bên đông chừa chỗ cho vườn cây ăn trái kế bên điện Quan Âm)
   {
     const spots = [];
     for (let i = 0; i < 110; i++) {
       const side = i % 2 ? 1 : -1;
-      spots.push(i < 60 ? [side * rnd(21.8, 27), rnd(-42, 3)] : [side * rnd(45, 58), rnd(-12, 41)]);
+      spots.push(
+        i < 60
+          ? [side * rnd(21.8, 27), rnd(-42, 3)]
+          : side < 0
+            ? [-rnd(45, 58), rnd(-12, 41)]
+            : Math.random() < 0.55
+              ? [rnd(43, 62), rnd(-22, 2.5)]
+              : [rnd(64.5, 72), rnd(4, 39)],
+      );
     }
     for (let i = 0; i < 44; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(19.5, 26), rnd(48, 82)]);
     const stalkGeo = new THREE.CylinderGeometry(0.07, 0.1, 11, 6);
@@ -2007,6 +2018,361 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     };
   })();
 
+  // ---------- Vườn rau kế bên ruộng lúa: 8 luống rau nhiều loại, phật tử chạm vào để hái ----------
+  const veg = (() => {
+    const V = VEG, GY2 = PORCH.courtY;
+    const groundV = mesh(new THREE.PlaneGeometry(V.x1 - V.x0 + 1.6, V.z1 - V.z0 + 1.4), std('#7a684b', { roughness: 1 }), (V.x0 + V.x1) / 2, GY2 + 0.008, (V.z0 + V.z1) / 2, { cast: false });
+    groundV.rotation.x = -Math.PI / 2;
+    groundV.userData.kind = 'veg';
+    pickables.push(groundV);
+    // lối đất nối từ lối xuống ruộng sang vườn rau và vườn cây ăn trái
+    const connLane = mesh(new THREE.PlaneGeometry(27, 4.2), std('#8a7a58', { roughness: 1 }), 50.5, GY2 + 0.006, 41.5, { cast: false });
+    connLane.rotation.x = -Math.PI / 2;
+    connLane.userData.kind = 'ground';
+    pickables.push(connLane);
+
+    const soilM = std('#59412c', { roughness: 0.98 });
+    const soilTopM = std('#4a3523', { roughness: 1 });
+    const stakeM = std('#9c8454', { roughness: 0.9 });
+    for (let i = 0; i < VEG_PLOTS; i++) {
+      const r = vegRect(i);
+      const cx = (r.minX + r.maxX) / 2, cz = (r.minZ + r.maxZ) / 2;
+      const bw = r.maxX - r.minX, bd = r.maxZ - r.minZ;
+      const b1 = box(bw, 0.16, bd, soilM, cx, GY2 + 0.08, cz, { cast: false });
+      const b2 = box(bw - 0.2, 0.05, bd - 0.2, soilTopM, cx, GY2 + 0.165, cz, { cast: false });
+      b1.userData = b2.userData = { kind: 'veg', i };
+      pickables.push(b1, b2);
+      // luống cà chua (i === 2) có giàn cọc tre đỡ cây
+      if (i === 2) {
+        for (let gz = 0; gz < 6; gz++) {
+          const pz = r.minZ + ((gz + 0.5) / 6) * bd;
+          for (const gx of [0.22, 0.78]) cyl(0.018, 0.022, 0.72, stakeM, r.minX + gx * bw, GY2 + 0.5, pz, {}, 5);
+          box(bw * 0.62, 0.025, 0.025, stakeM, cx, GY2 + 0.72, pz);
+        }
+      }
+    }
+
+    // khóm lá rau: 4 phiến lá xòe quanh tâm
+    const blade1 = new THREE.ConeGeometry(0.18, 0.42, 5).rotateX(0.42).translate(0, 0.18, 0.08);
+    const blade2 = blade1.clone().rotateY(Math.PI / 2);
+    const blade3 = blade1.clone().rotateY(Math.PI);
+    const blade4 = blade1.clone().rotateY(-Math.PI / 2);
+    const rosetteGeo = mergeGeometries([blade1, blade2, blade3, blade4]);
+    const per = 18; // 3 × 6 khóm mỗi luống
+    const leaves = new THREE.InstancedMesh(rosetteGeo, std('#ffffff', { roughness: 0.8, flatShading: true }), VEG_PLOTS * per);
+    const produce = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 10, 8).translate(0, 0.12, 0), std('#ffffff', { roughness: 0.65 }), VEG_PLOTS * per);
+    const basketRim = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.28, 0.2, 0.22, 10).translate(0, 0.11, 0), std('#bfa065', { roughness: 0.9 }), VEG_PLOTS);
+    const basketFull = new THREE.InstancedMesh(new THREE.SphereGeometry(0.23, 10, 7).scale(1, 0.55, 1).translate(0, 0.22, 0), std('#ffffff', { roughness: 0.8 }), VEG_PLOTS);
+    leaves.receiveShadow = true;
+    produce.castShadow = basketRim.castShadow = true;
+    scene.add(leaves, produce, basketRim, basketFull);
+
+    // Màu lá, màu củ/quả/bắp và tỉ lệ riêng cho 8 loại rau
+    const BED_LOOK = [
+      { leaf: '#49a835', fruit: '#78cf52', fs: [0.85, 0.9, 0.85], fy: 0.04, h: 1.0 },   // 0: rau cải xanh
+      { leaf: '#3d8734', fruit: '#98de7a', fs: [1.35, 1.15, 1.35], fy: 0.05, h: 0.9 },  // 1: bắp cải
+      { leaf: '#38782b', fruit: '#e63926', fs: [0.95, 0.9, 0.95], fy: 0.24, h: 1.45 },  // 2: cà chua
+      { leaf: '#4da336', fruit: '#6ac449', fs: [0.75, 0.75, 0.75], fy: 0.03, h: 0.95 }, // 3: rau muống
+      { leaf: '#3b7828', fruit: '#eb7d22', fs: [1.5, 1.0, 1.5], fy: 0.02, h: 0.85 },    // 4: bí đỏ
+      { leaf: '#54a63b', fruit: '#f5f2eb', fs: [0.7, 1.5, 0.7], fy: -0.02, h: 0.95 },   // 5: củ cải trắng
+      { leaf: '#8c2646', fruit: '#c43560', fs: [0.85, 0.95, 0.85], fy: 0.04, h: 1.05 }, // 6: rau dền đỏ
+      { leaf: '#58b03c', fruit: '#f2cc33', fs: [0.85, 0.65, 0.85], fy: 0.26, h: 1.2 },  // 7: cải ngọt
+    ];
+    const STAGE_SCALE = [0.28, 0.55, 0.82, 1.08];
+    const planted = new Float64Array(VEG_PLOTS);
+    const shown = new Int8Array(VEG_PLOTS).fill(-1);
+    const o = new THREE.Object3D(), col = new THREE.Color();
+    const jitter = Array.from({ length: VEG_PLOTS * per }, () => [Math.random() - 0.5, Math.random() - 0.5, Math.random() * 6.28, 0.88 + Math.random() * 0.24]);
+    const ageOf = (i) => (Date.now() - planted[i]) / 1000;
+
+    function drawBed(i) {
+      const st = vegStage(ageOf(i));
+      shown[i] = st;
+      const r = vegRect(i), B = BED_LOOK[i % BED_LOOK.length];
+      const freshPick = st === 0 && ageOf(i) < 35;
+      const sc = freshPick ? 0.18 : STAGE_SCALE[st];
+      for (let k = 0; k < per; k++) {
+        const [jx, jz, rot, s] = jitter[i * per + k];
+        const gx = k % 3, gz = Math.floor(k / 3);
+        const px = r.minX + ((gx + 0.5 + jx * 0.28) / 3) * (r.maxX - r.minX);
+        const pz = r.minZ + ((gz + 0.5 + jz * 0.28) / 6) * (r.maxZ - r.minZ);
+        o.position.set(px, GY2 + 0.17, pz);
+        o.rotation.set(0, rot, 0);
+        o.scale.set(sc * s, sc * B.h * s, sc * s);
+        o.updateMatrix();
+        leaves.setMatrixAt(i * per + k, o.matrix);
+        leaves.setColorAt(i * per + k, col.set(st === 0 ? '#7ab856' : B.leaf));
+
+        // củ / quả / bắp rõ dần khi sang giai đoạn 2–3
+        const fScale = st < 2 ? 0.0001 : (st === 2 ? 0.55 : 1.0) * s;
+        o.position.set(px, GY2 + 0.17 + B.fy * sc, pz);
+        o.scale.set(B.fs[0] * fScale, B.fs[1] * fScale, B.fs[2] * fScale);
+        o.updateMatrix();
+        produce.setMatrixAt(i * per + k, o.matrix);
+        produce.setColorAt(i * per + k, col.set(st === 2 && (i === 2 || i === 4) ? '#8ab83e' : B.fruit));
+      }
+      // rổ rau đan tre đặt ở đầu luống vừa hái
+      o.position.set((r.minX + r.maxX) / 2, GY2 + 0.17, r.minZ + 0.45);
+      o.rotation.set(0, i * 0.7, 0);
+      o.scale.setScalar(freshPick ? 1 : 0.0001);
+      o.updateMatrix();
+      basketRim.setMatrixAt(i, o.matrix);
+      basketFull.setMatrixAt(i, o.matrix);
+      basketFull.setColorAt(i, col.set(B.fruit));
+
+      leaves.instanceMatrix.needsUpdate = produce.instanceMatrix.needsUpdate = true;
+      basketRim.instanceMatrix.needsUpdate = basketFull.instanceMatrix.needsUpdate = true;
+      if (leaves.instanceColor) leaves.instanceColor.needsUpdate = true;
+      if (produce.instanceColor) produce.instanceColor.needsUpdate = true;
+      if (basketFull.instanceColor) basketFull.instanceColor.needsUpdate = true;
+    }
+
+    // hàng rào tre thấp, biển VƯỜN RAU và hai lu nước tưới rau ở góc vườn
+    {
+      const bambooM = std('#9e8b52', { roughness: 0.85 });
+      const woodM = std('#6b4a2e', { roughness: 0.9 });
+      const fx1 = V.x1 + 0.55, fz1 = V.z1 + 0.45;
+      for (let z = V.z0; z <= fz1; z += 2.4) cyl(0.04, 0.045, 0.75, bambooM, fx1, GY2 + 0.37, z, {}, 6);
+      for (const h of [0.28, 0.58]) box(0.05, 0.05, fz1 - V.z0, bambooM, fx1, GY2 + h, (V.z0 + fz1) / 2);
+      for (let x = V.x0; x <= fx1; x += 2.4) cyl(0.04, 0.045, 0.75, bambooM, x, GY2 + 0.37, fz1, {}, 6);
+      for (const h of [0.28, 0.58]) box(fx1 - V.x0, 0.05, 0.05, bambooM, (V.x0 + fx1) / 2, GY2 + h, fz1);
+      // hai lu nước sành tưới rau
+      const jarM = std('#8c432b', { roughness: 0.75 });
+      for (const [jx, jz, sc] of [[V.x1 - 0.8, V.z0 - 1.2, 1], [V.x1 - 1.85, V.z0 - 1.0, 0.82]]) {
+        lathe([[0, 0], [0.34 * sc, 0], [0.46 * sc, 0.38 * sc], [0.42 * sc, 0.72 * sc], [0.34 * sc, 0.86 * sc], [0.38 * sc, 0.92 * sc]], jarM, jx, GY2, jz);
+        mesh(new THREE.CircleGeometry(0.33 * sc, 14).rotateX(-Math.PI / 2), std('#4a7b82', { roughness: 0.2 }), jx, GY2 + 0.82 * sc, jz, { cast: false });
+      }
+      obstacles.push({ x: V.x1 - 1.3, z: V.z0 - 1.1, r: 1.1 });
+      // biển gỗ VƯỜN RAU
+      const sx = V.x0 + 2.2, sz = V.z0 - 0.6;
+      for (const dx of [-0.65, 0.65]) cyl(0.05, 0.06, 1.5, woodM, sx + dx, GY2 + 0.75, sz, {}, 6);
+      box(1.6, 0.46, 0.06, woodM, sx, GY2 + 1.28, sz);
+      mesh(new THREE.PlaneGeometry(1.48, 0.38), boardMat(['VƯỜN RAU'], { w: 512, h: 160, size: 92 }), sx, GY2 + 1.28, sz - 0.035, { cast: false }).rotation.y = Math.PI;
+      mesh(new THREE.PlaneGeometry(1.48, 0.38), boardMat(['VƯỜN RAU'], { w: 512, h: 160, size: 92 }), sx, GY2 + 1.28, sz + 0.035, { cast: false });
+    }
+
+    let nextCheck = 0;
+    updaters.push((t) => {
+      if (t < nextCheck) return;
+      nextCheck = t + 1.5;
+      for (let i = 0; i < VEG_PLOTS; i++) {
+        const st = vegStage(ageOf(i));
+        if (st !== shown[i] || (st === 0 && ageOf(i) < 37)) drawBed(i);
+      }
+    });
+    return {
+      setAges(ages) {
+        for (let i = 0; i < VEG_PLOTS; i++) {
+          planted[i] = Date.now() - (ages?.[i] ?? Math.random() * 420) * 1000;
+          drawBed(i);
+        }
+      },
+      setBed(i, age = 0) {
+        planted[i] = Date.now() - age * 1000;
+        drawBed(i);
+      },
+      stageOf: (i) => vegStage(ageOf(i)),
+      ageOf,
+    };
+  })();
+
+  // ---------- Vườn cây ăn trái kế bên điện Quan Âm: xoài, bưởi, mít, hồng, khế, ổi, nhãn, chuối ----------
+  const orchard = (() => {
+    const O = ORCHARD, GY2 = PORCH.courtY;
+    // thảm cỏ vườn quả xanh mát bên hông điện Quan Âm
+    const grass = mesh(new THREE.PlaneGeometry(O.x1 - O.x0, O.z1 - O.z0), std('#738a54', { roughness: 1 }), (O.x0 + O.x1) / 2, GY2 + 0.005, (O.z0 + O.z1) / 2, { cast: false });
+    grass.rotation.x = -Math.PI / 2;
+    grass.userData.kind = 'ground';
+    pickables.push(grass);
+
+    // lối đá dạo vườn nối từ sân điện Quan Âm vào giữa vườn và xuống ruộng lúa / vườn rau
+    const stepStoneM = std('#aba393', { roughness: 0.95 });
+    const stoneSpots = [
+      [42.6, 26.5], [44.2, 26.2], [45.8, 25.6], [47.4, 24.6], [49.0, 23.4], [50.4, 22.2],
+      [50.2, 19.6], [49.4, 17.4], [48.6, 15.0], [48.4, 12.4], [48.4, 9.8],
+      [53.4, 22.0], [55.2, 21.2], [56.2, 19.2],
+      [51.8, 24.4], [51.8, 26.8], [51.6, 29.4], [51.6, 32.0], [51.6, 34.6], [51.6, 37.2], [51.6, 39.4],
+    ];
+    for (const [sx, sz] of stoneSpots) {
+      const st = mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.04, 10), stepStoneM, sx, GY2 + 0.02, sz, { cast: false });
+      st.scale.set(1.1, 1, 0.85);
+      st.userData.kind = 'ground';
+      pickables.push(st);
+    }
+
+    // cổng gỗ nhỏ đề biển VƯỜN QUẢ ở lối từ sân điện Quan Âm bước vào
+    const woodM = std('#6b4429', { roughness: 0.85 });
+    const gx = 43.2, gz = 26.5;
+    for (const dz of [-1.35, 1.35]) cyl(0.09, 0.11, 2.7, woodM, gx, GY2 + 1.35, gz + dz, {}, 8);
+    box(0.18, 0.18, 3.2, woodM, gx, GY2 + 2.68, gz);
+    box(0.06, 0.52, 1.9, M.gold, gx - 0.08, GY2 + 2.42, gz);
+    mesh(new THREE.PlaneGeometry(1.76, 0.42), boardMat(['VƯỜN QUẢ'], { w: 512, h: 160, size: 92 }), gx - 0.12, GY2 + 2.42, gz, { cast: false }).rotation.y = -Math.PI / 2;
+
+    // bàn đá và 4 đôn đá dưới bóng mát giữa vườn
+    const tx = 51.8, tz = 22.0;
+    cyl(0.75, 0.75, 0.09, stepStoneM, tx, GY2 + 0.68, tz, {}, 18);
+    cyl(0.24, 0.34, 0.64, stoneM, tx, GY2 + 0.32, tz, {}, 12);
+    for (const [dx, dz] of [[-1.15, 0], [1.15, 0], [0, -1.15], [0, 1.15]]) {
+      cyl(0.24, 0.2, 0.42, stepStoneM, tx + dx, GY2 + 0.21, tz + dz, {}, 12);
+    }
+    // ấm trà gốm trên bàn đá
+    cyl(0.09, 0.11, 0.14, std('#8c4a32', { roughness: 0.5 }), tx, GY2 + 0.79, tz, {}, 10);
+    obstacles.push({ x: tx, z: tz, r: 1.45 });
+
+    // cấu hình từng loài cây ăn trái: màu vỏ cây, tán lá, hình dáng & màu sắc quả chín / xanh / hoa
+    const TREE_SPECIES = {
+      mango:     { bark: '#523a26', leaf1: '#336626', leaf2: '#3f7830', ripe: '#f5b82e', green: '#6ea33f', flower: '#f7f2c6', fScale: [0.11, 0.16, 0.1], crownH: 3.3, crownR: 1.85 },
+      pomelo:    { bark: '#5c4330', leaf1: '#427d2e', leaf2: '#51913a', ripe: '#d8e048', green: '#5b9636', flower: '#ffffff', fScale: [0.18, 0.18, 0.18], crownH: 3.0, crownR: 1.65 },
+      persimmon: { bark: '#422f22', leaf1: '#4c7330', leaf2: '#5c853a', ripe: '#f05522', green: '#82a83e', flower: '#f5e8b8', fScale: [0.13, 0.1, 0.13], crownH: 3.1, crownR: 1.6 },
+      jackfruit: { bark: '#594026', leaf1: '#2f5e22', leaf2: '#3b6e2c', ripe: '#b89e30', green: '#6e8c35', flower: '#d9cf7a', fScale: [0.22, 0.34, 0.22], crownH: 3.5, crownR: 1.75 },
+      starfruit: { bark: '#6b5037', leaf1: '#599436', leaf2: '#6ba844', ripe: '#f2c529', green: '#7eb33e', flower: '#e695cf', fScale: [0.1, 0.16, 0.1], crownH: 2.9, crownR: 1.55 },
+      guava:     { bark: '#7d563a', leaf1: '#4a8035', leaf2: '#589440', ripe: '#b5d656', green: '#689e3c', flower: '#ffffff', fScale: [0.11, 0.12, 0.11], crownH: 2.7, crownR: 1.45 },
+      longan:    { bark: '#4f3927', leaf1: '#2c5921', leaf2: '#386b2b', ripe: '#c9923e', green: '#6e8f38', flower: '#ede3a8', fScale: [0.14, 0.11, 0.14], crownH: 3.2, crownR: 1.75 },
+      banana:    { bark: '#658f35', leaf1: '#559432', leaf2: '#66a83e', ripe: '#f0c933', green: '#6ca138', flower: '#7a2438', fScale: [0.18, 0.26, 0.18], crownH: 2.4, crownR: 1.4 },
+    };
+
+    const fruitMeshes = []; // mảng các danh sách mesh quả của từng cây để cập nhật độ lớn / màu
+    const basketMeshes = [];
+    const bananaLeafMat = std('#559432', { roughness: 0.7, side: THREE.DoubleSide });
+    const basketMat = std('#bfa065', { roughness: 0.9 });
+
+    ORCHARD_TREES.forEach((tr, idx) => {
+      const sp = TREE_SPECIES[tr.kind] || TREE_SPECIES.mango;
+      const g = new THREE.Group();
+      g.position.set(tr.x, GY2, tr.z);
+      scene.add(g);
+      const o = { parent: g };
+      const barkM = std(sp.bark, { roughness: 0.9 });
+      const leafM1 = std(sp.leaf1, { roughness: 0.85 });
+      const leafM2 = std(sp.leaf2, { roughness: 0.85 });
+      const fruitM = std(sp.ripe, { roughness: 0.55 });
+      const fruits = [];
+
+      if (tr.kind === 'banana') {
+        // khóm chuối: thân chuối xanh, cây con bên cạnh, 8 tàu lá chuối vươn cong và buồng chuối + bắp chuối đỏ tím
+        cyl(0.14, 0.19, 2.35, barkM, 0, 1.17, 0, o, 10);
+        cyl(0.08, 0.11, 1.35, leafM1, 0.36, 0.67, 0.22, o, 8);
+        for (let k = 0; k < 8; k++) {
+          const a = (k / 8) * Math.PI * 2 + idx * 0.3;
+          const leafG = new THREE.Group();
+          leafG.position.set(0, 2.28, 0);
+          leafG.rotation.y = a;
+          g.add(leafG);
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.025, 1.65).translate(0, 0, 0.82), bananaLeafMat);
+          blade.rotation.x = 0.32 + (k % 2) * 0.18;
+          blade.castShadow = blade.receiveShadow = true;
+          leafG.add(blade);
+        }
+        // cuống buồng chuối và bắp chuối tím
+        cyl(0.03, 0.025, 0.65, barkM, 0.32, 1.95, 0, o, 6).rotation.z = -0.45;
+        mesh(new THREE.ConeGeometry(0.11, 0.32, 8), std('#7a2438', { roughness: 0.7 }), 0.48, 1.32, 0, o).rotation.x = Math.PI;
+        for (let tier = 0; tier < 4; tier++) {
+          for (let b = 0; b < 3; b++) {
+            const a = (b - 1) * 0.55;
+            const fm = mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.24, 7), fruitM, 0.44 + Math.cos(a) * 0.08, 1.88 - tier * 0.11, Math.sin(a) * 0.1, o);
+            fm.rotation.z = 0.4;
+            fruits.push({ m: fm, baseScale: [1, 1, 1] });
+          }
+        }
+      } else {
+        // thân gỗ chính và 3 nhánh lớn
+        const th = sp.crownH - 0.8;
+        cyl(0.18, 0.26, th, barkM, 0, th / 2, 0, o, 9);
+        for (let b = 0; b < 3; b++) {
+          const ba = (b * Math.PI * 2) / 3 + idx * 0.5;
+          const br = cyl(0.08, 0.13, 1.2, barkM, Math.cos(ba) * 0.38, th + 0.25, Math.sin(ba) * 0.38, o, 7);
+          br.rotation.set(Math.sin(ba) * 0.52, 0, -Math.cos(ba) * 0.52);
+        }
+        // tán lá nhiều khối cầu xếp tầng
+        const R = sp.crownR, Hc = sp.crownH;
+        mesh(new THREE.SphereGeometry(R, 14, 10), leafM1, 0, Hc, 0, o).scale.set(1, 0.78, 1);
+        for (let c = 0; c < 4; c++) {
+          const ca = (c * Math.PI) / 2 + idx * 0.4;
+          const sub = mesh(new THREE.SphereGeometry(R * 0.68, 12, 9), c % 2 ? leafM1 : leafM2, Math.cos(ca) * R * 0.52, Hc - 0.15 + (c % 2) * 0.35, Math.sin(ca) * R * 0.52, o);
+          sub.scale.set(1, 0.82, 1);
+        }
+        // vị trí quả: mít treo quanh thân và cành thấp; các cây khác treo quanh tán lá
+        const fCount = tr.kind === 'jackfruit' ? 7 : 12;
+        for (let f = 0; f < fCount; f++) {
+          const fa = (f / fCount) * Math.PI * 2 + f * 0.4;
+          let fx, fy, fz;
+          if (tr.kind === 'jackfruit') {
+            const cr = f < 4 ? 0.28 : 0.48;
+            fx = Math.cos(fa) * cr;
+            fz = Math.sin(fa) * cr;
+            fy = 1.05 + (f / fCount) * 1.15;
+          } else {
+            const cr = R * (0.62 + (f % 3) * 0.16);
+            fx = Math.cos(fa) * cr;
+            fz = Math.sin(fa) * cr;
+            fy = Hc - 0.55 + (f % 3) * 0.32;
+          }
+          const geo = tr.kind === 'starfruit' ? new THREE.OctahedronGeometry(1, 1) : new THREE.SphereGeometry(1, 10, 8);
+          const fm = mesh(geo, fruitM, fx, fy, fz, o);
+          fruits.push({ m: fm, baseScale: sp.fScale });
+        }
+      }
+
+      // rổ trái cây đan tre dưới gốc khi vừa hái xong
+      const bGroup = new THREE.Group();
+      bGroup.position.set(0.65, 0, 0.55);
+      g.add(bGroup);
+      mesh(new THREE.CylinderGeometry(0.28, 0.2, 0.22, 10), basketMat, 0, 0.11, 0, { parent: bGroup });
+      mesh(new THREE.SphereGeometry(0.22, 10, 7), std(sp.ripe, { roughness: 0.6 }), 0, 0.22, 0, { parent: bGroup }).scale.set(1, 0.55, 1);
+      basketMeshes.push(bGroup);
+      fruitMeshes.push({ fruits, mat: fruitM, sp });
+
+      // hộp vô hình để bấm chọn cây ăn trái
+      const hit = mesh(new THREE.CylinderGeometry(1.45, 1.45, 4.2, 8), new THREE.MeshBasicMaterial({ visible: false }), tr.x, GY2 + 2.1, tr.z, { cast: false, recv: false });
+      hit.userData = { kind: 'orchard', i: idx };
+      pickables.push(hit);
+      obstacles.push({ x: tr.x, z: tr.z, r: 0.65 });
+    });
+
+    const planted = new Float64Array(ORCHARD_COUNT);
+    const shown = new Int8Array(ORCHARD_COUNT).fill(-1);
+    const ageOf = (i) => (Date.now() - planted[i]) / 1000;
+
+    function drawTree(i) {
+      const st = fruitStage(ageOf(i));
+      shown[i] = st;
+      const { fruits, mat, sp } = fruitMeshes[i];
+      const freshPick = st === 0 && ageOf(i) < 40;
+      // st 0: hoa nhỏ; st 1: trái non xanh; st 2: quả lớn dần; st 3: quả chín rực rỡ
+      mat.color.set(st === 0 ? sp.flower : st === 1 ? sp.green : st === 2 ? sp.green : sp.ripe);
+      const mult = st === 0 ? 0.42 : st === 1 ? 0.58 : st === 2 ? 0.85 : 1.12;
+      for (const { m, baseScale } of fruits) {
+        m.scale.set(baseScale[0] * mult, baseScale[1] * mult, baseScale[2] * mult);
+      }
+      basketMeshes[i].visible = freshPick;
+    }
+
+    let nextCheck = 0;
+    updaters.push((t) => {
+      if (t < nextCheck) return;
+      nextCheck = t + 1.5;
+      for (let i = 0; i < ORCHARD_COUNT; i++) {
+        const st = fruitStage(ageOf(i));
+        if (st !== shown[i] || (st === 0 && ageOf(i) < 42)) drawTree(i);
+      }
+    });
+
+    return {
+      setAges(ages) {
+        for (let i = 0; i < ORCHARD_COUNT; i++) {
+          planted[i] = Date.now() - (ages?.[i] ?? Math.random() * 480) * 1000;
+          drawTree(i);
+        }
+      },
+      setTree(i, age = 0) {
+        planted[i] = Date.now() - age * 1000;
+        drawTree(i);
+      },
+      stageOf: (i) => fruitStage(ageOf(i)),
+      ageOf,
+    };
+  })();
+
   // ---------- Cổng Tam Quan: cửa giữa hai tầng mái, hai cửa bên một tầng mái ----------
   {
     const wallM = std('#e6dcc6', { roughness: 0.9 });
@@ -2786,6 +3152,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
     incenseTT,
     field,
+    veg,
+    orchard,
     greatBell,
     merit,
     tower: { ...TOWER, relic: TOP_RELIC },

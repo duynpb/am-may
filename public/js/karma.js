@@ -19,6 +19,8 @@ export const RULES = {
   sweep: { label: 'Quét lá sân chùa (15 lá)', phuoc: 2, cap: 10 },
   wipe: { label: 'Lau tượng La Hán', phuoc: 1, cap: 15, gap: 2e3 },
   harvest: { label: 'Gặt lúa', phuoc: 2, cap: 10, gap: 3e3 },
+  veg: { label: 'Hái rau vườn chùa', phuoc: 2, cap: 10, gap: 3e3 },
+  fruit: { label: 'Hái trái cây vườn chùa', phuoc: 2, cap: 10, gap: 3e3 },
   sutra: { label: 'Đọc kinh ở vườn kinh', phuoc: 1, cap: 16, gap: 15e3 },
 };
 export const LEAVES_PER_POINT = 15;

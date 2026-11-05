@@ -7,7 +7,7 @@ import { WebSocketServer } from 'ws';
 import { applyEvent, newProfile, publicProfile, vnDate, CLIENT_KINDS } from './public/js/karma.js';
 import { openStorage } from './storage.js';
 import { DUST_IDS, lahanSpot } from './public/js/statues.js';
-import { PLOTS, RIPE_AGE, plotRect } from './public/js/field.js';
+import { PLOTS, RIPE_AGE, plotRect, VEG_PLOTS, VEG_RIPE_AGE, vegRect, ORCHARD_COUNT, FRUIT_RIPE_AGE, ORCHARD_TREES } from './public/js/field.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -212,10 +212,14 @@ setInterval(() => {
   }
 }, 10000);
 
-// ---------- Ruộng lúa (khu Am Mây): mỗi chánh điện một ruộng, mọi người cùng thấy ----------
-// Mỗi ô lưu thời điểm cấy (ms); lúc mở máy chủ cho tuổi ngẫu nhiên để có sẵn vài ô chín.
+// ---------- Ruộng lúa, vườn rau, vườn cây ăn trái (khu Am Mây): mỗi chánh điện dùng chung ----------
+// Mỗi ô lưu thời điểm trồng (ms); lúc mở máy chủ cho tuổi ngẫu nhiên để có sẵn vài ô chín.
 const fieldRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: PLOTS }, () => Date.now() - Math.random() * RIPE_AGE * 1.6 * 1000)]));
 const fieldAges = (roomId) => fieldRooms.get(roomId)?.map((t) => Math.round((Date.now() - t) / 1000));
+const vegRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: VEG_PLOTS }, () => Date.now() - Math.random() * VEG_RIPE_AGE * 1.6 * 1000)]));
+const vegAges = (roomId) => vegRooms.get(roomId)?.map((t) => Math.round((Date.now() - t) / 1000));
+const orchardRooms = new Map(ROOMS.filter((r) => r.site === 'ammay').map((r) => [r.id, Array.from({ length: ORCHARD_COUNT }, () => Date.now() - Math.random() * FRUIT_RIPE_AGE * 1.6 * 1000)]));
+const orchardAges = (roomId) => orchardRooms.get(roomId)?.map((t) => Math.round((Date.now() - t) / 1000));
 
 // ---------- Tượng La Hán bám bụi: mỗi chánh điện một hành lang, mọi người cùng thấy ----------
 const DUST_MAX = 40;
@@ -280,6 +284,8 @@ wss.on('connection', (ws, req) => {
         leaves: [...leafRooms.get(roomId).list.values()],
         dust: [...dustRooms.get(roomId)],
         field: fieldAges(roomId),
+        veg: vegAges(roomId),
+        orchard: orchardAges(roomId),
       }));
       broadcast(roomId, { t: 'join', p: me });
       members.set(me.id, { ws, p: me, uid });
@@ -293,7 +299,7 @@ wss.on('connection', (ws, req) => {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
       const wide = siteOf(roomId) === 'tamchuc';
-      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 60);
+      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 72);
       me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 100);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
@@ -366,6 +372,24 @@ wss.on('connection', (ws, req) => {
       F[m.i] = Date.now();
       broadcast(roomId, { t: 'field', i: m.i, age: 0, by: me.id });
       award(ws, uid, 'harvest');
+    } else if (m.t === 'pick-veg' && Number.isInteger(m.i) && m.i >= 0 && m.i < VEG_PLOTS) {
+      // hái một luống rau đã tươi tốt; phải đang đứng gần luống đó
+      const V = vegRooms.get(roomId);
+      if (!V || (Date.now() - V[m.i]) / 1000 < VEG_RIPE_AGE) return;
+      const r = vegRect(m.i);
+      if (me.x < r.minX - 2.5 || me.x > r.maxX + 2.5 || me.z < r.minZ - 2.5 || me.z > r.maxZ + 2.5) return;
+      V[m.i] = Date.now();
+      broadcast(roomId, { t: 'veg', i: m.i, age: 0, by: me.id });
+      award(ws, uid, 'veg');
+    } else if (m.t === 'pick-fruit' && Number.isInteger(m.i) && m.i >= 0 && m.i < ORCHARD_COUNT) {
+      // hái trái cây chín ở vườn cạnh điện Quan Âm; phải đứng gần gốc cây
+      const O = orchardRooms.get(roomId);
+      if (!O || (Date.now() - O[m.i]) / 1000 < FRUIT_RIPE_AGE) return;
+      const tr = ORCHARD_TREES[m.i];
+      if (Math.hypot(me.x - tr.x, me.z - tr.z) > 3.5) return;
+      O[m.i] = Date.now();
+      broadcast(roomId, { t: 'orchard', i: m.i, age: 0, by: me.id });
+      award(ws, uid, 'fruit');
     } else if (m.t === 'sweep' && Array.isArray(m.ids)) {
       if (!me.broom) return;
       const L = leafRooms.get(roomId);

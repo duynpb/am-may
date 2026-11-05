@@ -69,6 +69,8 @@ public/
 | Tháp 13 tầng | Phía bên kia sân, đối diện cây đa, có tháp bát giác 13 tầng với thảm cỏ, đường đá, đèn đá, chậu cây cảnh, cây tùng. Chạm vào tháp để vào cửa và lên tầng 13: điện thờ mở bốn phía thờ xá lợi Phật — viên ngọc tròn phát sáng đặt trên đài sen vàng, có hào quang tỏa nhịp nhàng, vòng sáng xoay chậm và đốm sáng li ti, ban đêm sáng rực cả tầng tháp; cùng nến và lư hương. Có thể lễ xá lợi, thắp nhang và ngắm toàn cảnh chùa. Chạm xuống sân hoặc vào chánh điện để xuống tháp. Ban đêm cửa sổ các tầng sáng đèn |
 | Quét sân chùa | Lá đa rụng dần trên sân, mọi người trong cùng chánh điện thấy chung. Chạm vào giá chổi tre ở góc sân (cạnh thềm, gần đèn đá) để đến lấy chổi; cầm chổi đi tới đâu lá bay đi tới đó. Chạm lại vào giá để cất chổi; đi vào chánh điện thì chổi tự được cất |
 | Gặt lúa | Ruộng lúa 20 ô phía đông nam sân điện Quan Âm (có lối đất đi xuống, bù nhìn, chòi canh; có trong bản đồ và đi nhanh). Lúa lớn dần: mạ → xanh → trổ bông → chín vàng (khoảng 7 phút). Chạm vào ô lúa chín để lội xuống cúi gặt; gặt xong còn gốc rạ và bó lúa rồi cấy lại từ đầu. Mọi người trong cùng chánh điện thấy chung một ruộng. Chạm ô chưa chín thì báo còn bao lâu |
+| Hái rau | Kế bên ruộng lúa về phía đông là vườn rau 8 luống (cải xanh, bắp cải, cà chua có giàn tre, rau muống, bí đỏ, củ cải trắng, rau dền đỏ, cải ngọt) kèm lu nước sành và rổ tre. Rau lớn dần qua 4 giai đoạn; chạm vào luống rau đã tươi tốt để đi tới cúi hái vào rổ đan tre rồi gieo lại từ đầu. Mọi người trong cùng chánh điện thấy chung |
+| Vườn cây ăn trái | Kế bên điện Quan Âm và sân đông là khu vườn cây ăn trái có lối đá dạo vườn, cổng gỗ “VƯỜN QUẢ”, bàn đá uống trà dưới tán cây và 13 cây thuộc 8 loại quả (xoài, bưởi, nhãn, hồng, mít sai quả quanh thân, khế, ổi, khóm chuối có buồng và bắp chuối). Cây đơm hoa → kết trái non → quả lớn → chín rực rỡ; chạm vào cây có quả chín để hái quả dâng cúng Phật |
 | Lấy dép (đùa vui) | Bấm vào dép của người khác trên thềm để lấy đi một chiếc. Người bị mất dép vẫn đi lại trong chánh điện bình thường; khi muốn ra sân sẽ bị chặn với thông báo "Phật tử đã bị mất dép" và phải chờ 10 giây (chỉ bắt đầu đếm khi định ra ngoài) để dép được trả lại |
 | Thắp nhang | Nút “Thắp nhang”: chọn 1 hoặc 3 nén, viết lời nguyện riêng (không gửi đi). Nhân vật bước lên bàn thờ, vái lạy, cắm nhang; nhang cháy ngắn dần khoảng 3 phút, mọi người cùng thấy |
 | Công đức | Nút “Công đức” hoặc chạm vào thùng công đức cạnh bàn thờ: nhân vật bước tới, chắp tay, bỏ phong bì đỏ vào thùng. Mỗi người 3 lần/ngày (theo giờ Việt Nam), có thể ẩn danh, lời hồi hướng chỉ mình mình thấy. Sổ công đức và tổng lượt trong ngày dùng chung cả chùa. Mang ý nghĩa tượng trưng, không dùng tiền thật |
@@ -124,6 +126,8 @@ Quy tắc nằm trong `public/js/karma.js` (máy chủ và trình duyệt dùng 
 | Quét lá sân chùa (mỗi 15 lá) | +2 phước | 10 |
 | Lau sạch một tượng La Hán | +1 phước | 15 |
 | Gặt một ô lúa chín (khu Am Mây) | +2 phước | 10 |
+| Hái một luống rau (khu Am Mây) | +2 phước | 10 |
+| Hái trái cây chín ở vườn quả (khu Am Mây) | +2 phước | 10 |
 | Đọc một cột kinh ở vườn kinh (khu Tam Chúc) | +1 phước | 16 |
 | Lấy dép của người khác | +1 nghiệp | 20 |
 
