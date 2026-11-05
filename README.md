@@ -87,7 +87,8 @@ Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam C
 
 - Chọn khu trong hộp chọn phòng (nút tên chùa góc trái): 8 phòng Chánh điện của khu Am Mây và 4 phòng Tam Chúc. Pháp danh, áo, dép và điểm phước dùng chung ở mọi khu.
 - Đã có: đi lại (chạm đất / W A S D), chắp tay, lạy Phật, chat, gặp người cùng phòng.
-- Sẽ làm ở các đợt sau: bến thuyền và đi thuyền quanh hồ, vườn kinh (cột đá khắc kinh), ba điện trên sườn núi (Quan Âm, Pháp Chủ, Tam Thế), bản đồ, đi nhanh, khách mô phỏng.
+- Bến thuyền và đi thuyền: bến gỗ chìa ra hồ giữa bờ kè; ba thuyền gỗ có mái che cong, cô lái đội nón lá chèo ở đuôi. Thuyền chạy theo giờ chung (mỗi vòng 150 giây: đậu bến 24 giây rồi đi một vòng quanh các đảo) nên mọi người thấy thuyền ở cùng chỗ. Đứng trên bến bấm "Lên thuyền" (hoặc chạm vào thuyền); thuyền về bến thì tự lên bờ. Người khác thấy bạn ngồi trên thuyền nào.
+- Sẽ làm ở các đợt sau: vườn kinh (cột đá khắc kinh), ba điện trên sườn núi (Quan Âm, Pháp Chủ, Tam Thế), bản đồ, đi nhanh, khách mô phỏng.
 
 Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `public/js/arch.js` (mái cong, núi đá vôi dùng chung).
 

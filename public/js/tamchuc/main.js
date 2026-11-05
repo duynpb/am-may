@@ -1,7 +1,7 @@
 // Trang khu Tam Chúc: đi dạo bờ hồ, qua cổng Tam Quan vào sân lớn, gặp mọi người cùng phòng.
 // Dùng chung nhân vật, kết nối mạng, âm thanh, pháp danh và điểm phước với khu Am Mây.
 import * as THREE from 'three';
-import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND } from './world.js';
+import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND, BOARD, BOATS, PIER } from './world.js';
 import { Avatar, ROBES } from '../avatar.js';
 import { SANDAL_COLORS } from '../sandals.js';
 import { Sound } from '../audio.js';
@@ -274,10 +274,15 @@ async function walkRoute(a, x, z) {
 let net = null;
 function sendMove() {
   if (!net) return;
-  const g = player.routeTo ?? player.goal ?? player.pos;
-  net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: null });
+  const g = ride ? BOARD : player.routeTo ?? player.goal ?? player.pos;
+  net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: ride ? BOAT_SEAT + ride.i : null });
 }
 function movePlayerTo(x, z) {
+  if (ride) {
+    toast('Bạn đang ngồi thuyền — thuyền về bến sẽ lên bờ', 2600);
+    return;
+  }
+  pendingBoard = false;
   [x, z] = clampWalk(x, z);
   walkRoute(player, x, z);
   sendMove();
@@ -322,7 +327,107 @@ document.querySelectorAll('.actions button').forEach((b) => b.addEventListener('
     doGassho(near);
     if (!near) toast('Chưa có ai ở gần để chào — bạn lại gần một người nhé');
   } else if (b.dataset.act === 'bow') doBow();
+  else if (b.dataset.act === 'boat') goBoard();
 }));
+
+// ---------- Đi thuyền quanh hồ ----------
+// Thuyền chạy theo giờ chung nên mọi máy thấy thuyền ở cùng chỗ. Ai đang ngồi thuyền thì báo chỗ ngồi = 50 + số thuyền.
+const BOAT_SEAT = 50;
+const BOAT_SLOTS = [[-0.36, 1.0], [0.36, 1.0], [-0.36, -0.4], [0.36, -0.4]];
+let ride = null; // { i, departed }
+let pendingBoard = false;
+const onPier = (a) => Math.abs(a.pos.x) < PIER.halfW && a.pos.z > PIER.z0 + 2;
+function dockedBoat(minLeft = 3) {
+  for (let i = 0; i < BOATS; i++) {
+    const st = world.boatState(i);
+    if (st.docked && st.left > minLeft) return { i, st };
+  }
+  return null;
+}
+// bao lâu nữa có thuyền cập bến
+function nextBoatIn() {
+  let best = Infinity;
+  for (let i = 0; i < BOATS; i++) {
+    const st = world.boatState(i);
+    best = Math.min(best, st.docked ? 0 : st.left);
+  }
+  return Math.ceil(best);
+}
+function attachBoat(a, i) {
+  const used = [...avatars.values()].filter((b) => b !== a && b.onBoat === i).map((b) => b.boatSlot);
+  a.boatSlot = [0, 1, 2, 3].find((k) => !used.includes(k)) ?? 0;
+  a.onBoat = i;
+  a.seat = 'boat'; // tư thế ngồi
+  a.route = null;
+  a.routeTo = null;
+  a.goal = null;
+}
+function detachBoat(a, x, z) {
+  a.onBoat = null;
+  a.seat = null;
+  a.placeAt(x, z, Math.PI);
+}
+function goBoard() {
+  sound.init();
+  if (ride) return;
+  if (Math.hypot(player.pos.x - BOARD.x, player.pos.z - BOARD.z) > 1.2) {
+    // đi ra đầu bến trước, tới nơi có thuyền thì lên
+    movePlayerTo(BOARD.x, BOARD.z);
+    pendingBoard = true;
+    const n = nextBoatIn();
+    toast(n ? `Ra bến thuyền… thuyền kế tiếp cập bến sau khoảng ${n} giây` : 'Ra bến thuyền…', 3000);
+    return;
+  }
+  const d = dockedBoat();
+  if (!d) {
+    pendingBoard = true;
+    toast(`Thuyền đang đi quanh hồ — chiếc kế tiếp cập bến sau khoảng ${nextBoatIn()} giây`, 3200);
+    return;
+  }
+  pendingBoard = false;
+  attachBoat(player, d.i);
+  ride = { i: d.i, departed: false };
+  sendMove();
+  toast(`Đã lên thuyền — thuyền rời bến sau ${Math.ceil(d.st.left)} giây, đi một vòng quanh các đảo`, 4000);
+}
+const boatBtn = document.querySelector('[data-act=boat]');
+const slotV = new THREE.Vector3();
+let boatUiT = 0;
+function boatsTick(dt) {
+  // người đang ngồi thuyền: đặt vào chỗ ngồi trên thuyền
+  for (const a of avatars.values()) {
+    if (a.onBoat == null) continue;
+    const g = world.boats[a.onBoat];
+    g.updateMatrixWorld();
+    const [sx, sz] = BOAT_SLOTS[a.boatSlot % BOAT_SLOTS.length];
+    slotV.set(sx, 0.42, sz).applyMatrix4(g.matrixWorld);
+    a.pos.set(slotV.x, 0, slotV.z);
+    a.root.position.set(slotV.x, slotV.y - 0.04 * a.p.sit, slotV.z);
+    a.root.rotation.y = g.rotation.y;
+  }
+  if (ride) {
+    const st = world.boatState(ride.i);
+    if (!st.docked) ride.departed = true;
+    else if (ride.departed) {
+      // thuyền về bến: lên bờ
+      ride = null;
+      detachBoat(player, BOARD.x - 0.4, BOARD.z - 0.6);
+      sendMove();
+      toast('Thuyền đã về bến — mời bạn lên bờ', 3200);
+    }
+  } else if (pendingBoard && !player.moving && !player.routeTo && Math.hypot(player.pos.x - BOARD.x, player.pos.z - BOARD.z) < 1.2 && dockedBoat()) {
+    goBoard();
+  }
+  // nút Lên thuyền: hiện khi đứng trên bến
+  if ((boatUiT -= dt) > 0) return;
+  boatUiT = 0.5;
+  const show = !ride && onPier(player);
+  boatBtn.hidden = !show;
+  if (show) {
+    const d = dockedBoat();
+    boatBtn.querySelector('span').textContent = d ? `Lên thuyền (${Math.ceil(d.st.left)}s)` : `Thuyền về sau ${nextBoatIn()}s`;
+  }
+}
 
 // ---------- Chat ----------
 const chatInput = $('#chat-input');
@@ -370,6 +475,8 @@ function handleTap(x, y) {
   setRay(x, y);
   const who = pickAvatar();
   if (who) return doGassho(who);
+  const boatHit = ray.intersectObjects(world.boats, true)[0];
+  if (boatHit) return goBoard();
   const hit = ray.intersectObjects(world.pickables, false)[0];
   if (hit) movePlayerTo(hit.point.x, hit.point.z);
 }
@@ -437,7 +544,8 @@ window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => keys.clear());
 let keySendT = 0;
 function keyMove(t) {
-  if (!keys.size) return;
+  if (!keys.size || ride) return;
+  pendingBoard = false;
   let f = 0, s = 0;
   if (keys.has('w') || keys.has('arrowup')) f += 1;
   if (keys.has('s') || keys.has('arrowdown')) f -= 1;
@@ -516,6 +624,7 @@ function addRemote(p) {
   // người mới vào chưa kịp gửi chỗ đứng: đứng ở bờ hồ
   const [x, z] = p.z === 16 && p.x === 0 ? [SPAWN.x + rnd(-3, 3), SPAWN.z] : clampWalk(p.x, p.z);
   a.placeAt(x, z, SPAWN.ry);
+  if (p.seat >= BOAT_SEAT && p.seat < BOAT_SEAT + BOATS) attachBoat(a, p.seat - BOAT_SEAT);
 }
 function wireNet(n) {
   n.on('join', (m) => {
@@ -527,6 +636,14 @@ function wireNet(n) {
     const a = avatars.get('n' + m.id);
     if (!a) return;
     const [x, z] = clampWalk(m.x, m.z);
+    if (m.seat >= BOAT_SEAT && m.seat < BOAT_SEAT + BOATS) {
+      if (a.onBoat !== m.seat - BOAT_SEAT) {
+        attachBoat(a, m.seat - BOAT_SEAT);
+        bubble(a, 'đi thuyền ngắm hồ', 3000);
+      }
+      return;
+    }
+    if (a.onBoat != null) detachBoat(a, BOARD.x - 0.4, BOARD.z - 0.6);
     if (m.w) a.placeAt(x, z, a.ry);
     else walkRoute(a, x, z);
   });
@@ -629,12 +746,13 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
   elapsed += dt;
   keyMove(elapsed);
+  world.update(elapsed, dt);
   for (const a of avatars.values()) {
     const arrived = a.update(dt);
     if (arrived && a === player) sendMove();
   }
+  boatsTick(dt);
   world.setFocus(player.pos.x, player.pos.z);
-  world.update(elapsed, dt);
   updateCamera(dt);
   renderer.render(scene, camera);
   updateLabels(performance.now());

@@ -19,10 +19,22 @@ export const WALK_AREAS = [
   { minX: -10.9, maxX: -8.5, minZ: 32.5, maxZ: 39.8 },
   PLAZA, // sân lớn
 ];
+// Bến thuyền gỗ chìa ra hồ ở giữa bờ kè; thuyền đậu sát bên phải đầu bến
+export const PIER = { halfW: 1.7, z0: SHORE - 0.3, z1: 66, y: 0.45, ramp: 2 };
+export const BERTH = { x: 2.9, z: 62.5 };
+export const BOARD = { x: 1.0, z: 62.5 }; // chỗ đứng trên bến để bước xuống thuyền
+WALK_AREAS.push({ minX: -1.4, maxX: 1.4, minZ: 51.5, maxZ: 64.8 }); // bến thuyền
+// Thuyền chạy theo giờ chung: mỗi vòng BOAT_PERIOD giây, đậu bến BOAT_DOCK giây rồi đi một vòng quanh đảo
+export const BOAT_PERIOD = 150, BOAT_DOCK = 24, BOATS = 3;
 export const ROUND_OBSTACLES = [{ x: CAULDRON.x, z: CAULDRON.z, r: CAULDRON.r + 0.8 }];
 export const SPAWN = { x: 0, z: 47, ry: Math.PI };
 
 export function groundY(x, z) {
+  // bến thuyền: dốc gỗ từ bờ kè xuống mặt bến, rồi phẳng
+  if (Math.abs(x) < PIER.halfW && z > PIER.z0 && z < PIER.z1) {
+    const k = Math.min(1, Math.max(0, (z - SHORE) / PIER.ramp));
+    return LAND + (PIER.y - LAND) * k;
+  }
   if (z > SHORE + 0.2) return 0;
   if (Math.abs(x) < 17 && Math.abs(z - GATE.z) < 3.5) return LAND + GATE.plinth; // nền đá cổng
   return LAND;
@@ -122,8 +134,31 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       box(0.22, 0.8, 0.22, stone, x, LAND + 0.75, SHORE - 0.35);
     }
     for (const s of [-1, 1]) box(66.4, 0.14, 0.3, stone, s * 36, LAND + 1.2, SHORE - 0.35);
-    // bậc đá xuống mặt nước (bến thuyền sẽ làm ở đợt sau)
-    for (let i = 0; i < 4; i++) box(5, 0.2, 0.6, stone, 0, LAND - 0.2 - i * 0.2, SHORE + 0.3 + i * 0.6);
+    // bến thuyền gỗ: dốc xuống từ bờ kè, mặt bến lát ván, cọc gỗ cắm xuống nước, lan can thấp, đèn ở đầu bến
+    const plank = std('#8a6a44', { roughness: 0.8 });
+    const post = std('#5b3b22', { roughness: 0.9 });
+    const W = PIER.halfW * 2;
+    const ramp = box(W, 0.12, Math.hypot(PIER.ramp, LAND - PIER.y) + 0.1, plank, 0, (LAND + PIER.y) / 2 - 0.06, SHORE + PIER.ramp / 2);
+    ramp.rotation.x = -Math.atan2(PIER.y - LAND, PIER.ramp);
+    const deckLen = PIER.z1 - SHORE - PIER.ramp;
+    const deck = box(W, 0.14, deckLen, plank, 0, PIER.y - 0.07, SHORE + PIER.ramp + deckLen / 2);
+    deck.userData.kind = 'ground';
+    pickables.push(deck);
+    for (let z = SHORE + 2.4; z <= PIER.z1 - 0.2; z += 2.2) {
+      for (const s of [-1, 1]) {
+        cyl(0.11, 0.13, 1.4, post, s * (PIER.halfW - 0.05), PIER.y - 0.6, z, {}, 8);
+        // lan can thấp; phía thuyền đậu (bên phải) chừa trống đoạn đầu bến để bước xuống thuyền
+        if (z < PIER.z1 - 3 && (s < 0 || z < BERTH.z - 4)) box(0.08, 0.5, 2.2, post, s * (PIER.halfW - 0.05), PIER.y + 0.25, z + 1.1);
+      }
+    }
+    for (const s of [-1, 1]) {
+      const lg = new THREE.Group();
+      lg.position.set(s * (PIER.halfW - 0.2), PIER.y, PIER.z1 - 0.4);
+      scene.add(lg);
+      cyl(0.06, 0.07, 1.6, post, 0, 0.8, 0, { parent: lg }, 8);
+      box(0.3, 0.32, 0.3, lampMat, 0, 1.7, 0, { parent: lg });
+      mesh(new THREE.ConeGeometry(0.3, 0.2, 4), post, 0, 1.95, 0, { parent: lg }).rotation.y = Math.PI / 4;
+    }
     // đèn đá dọc bờ hồ
     for (let x = -60; x <= 60; x += 12) {
       if (Math.abs(x) < 6) continue;
@@ -171,6 +206,84 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       scene.add(m);
     });
   }
+
+  // ---------- Thuyền gỗ chở khách quanh hồ: mái che cong, cô lái đội nón lá chèo ở đuôi ----------
+  // Đường đi: lùi ra khỏi bến, vòng qua các đảo rồi cập bến lại, mũi thuyền hướng vào bờ.
+  const route = new THREE.CatmullRomCurve3([
+    [BERTH.x, BERTH.z], [3.4, 72], [16, 90], [52, 110], [66, 158], [52, 212], [8, 238], [-28, 205], [-30, 168], [-72, 150], [-70, 112], [-40, 92], [-6, 86], [4.5, 74], [BERTH.x, BERTH.z],
+  ].map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+  const boats = [];
+  {
+    const hullM = std('#5b3b22', { roughness: 0.75 });
+    const plankM = std('#8a6a44', { roughness: 0.8 });
+    const canopyM = std('#b48a52', { roughness: 0.85, side: THREE.DoubleSide });
+    const hatM = std('#d9c48a', { roughness: 0.9 });
+    const shirtM = std('#4b5d6e', { roughness: 0.9 });
+    const skinM = std('#e3b48c', { roughness: 0.8 });
+    // thân thuyền: khối hộp vuốt nhọn hai đầu, hai đầu cong vểnh lên
+    const hullGeo = new THREE.BoxGeometry(1.7, 0.55, 6.4, 2, 1, 14);
+    {
+      const p = hullGeo.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const z = p.getZ(i) / 3.2, k = z * z;
+        p.setX(i, p.getX(i) * (1 - 0.85 * k * (p.getY(i) < 0 ? 1.05 : 1)));
+        p.setY(i, p.getY(i) + 0.38 * k * k);
+      }
+      hullGeo.computeVertexNormals();
+    }
+    for (let i = 0; i < BOATS; i++) {
+      const g = new THREE.Group();
+      g.userData = { kind: 'boat', index: i };
+      scene.add(g);
+      mesh(hullGeo, hullM, 0, 0.02, 0, { parent: g });
+      box(1.3, 0.06, 4.4, plankM, 0, 0.27, 0, { parent: g, cast: false });
+      for (const z of [-1.4, 0.2, 1.6]) box(1.25, 0.06, 0.3, plankM, 0, 0.45, z, { parent: g });
+      // mái che cong bằng tre đan ở giữa thuyền
+      const canopy = mesh(new THREE.CylinderGeometry(0.85, 0.85, 2.4, 14, 1, true, -Math.PI / 2, Math.PI), canopyM, 0, 0.75, 0.3, { parent: g });
+      canopy.rotation.x = Math.PI / 2;
+      canopy.rotation.y = Math.PI / 2;
+      // cô lái đứng ở đuôi thuyền, đội nón lá, cầm mái chèo
+      const rower = new THREE.Group();
+      rower.position.set(0, 0.3, -2.5);
+      g.add(rower);
+      mesh(new THREE.CylinderGeometry(0.16, 0.26, 0.85, 10), shirtM, 0, 0.45, 0, { parent: rower });
+      mesh(new THREE.SphereGeometry(0.15, 12, 10), skinM, 0, 1.02, 0, { parent: rower });
+      mesh(new THREE.ConeGeometry(0.42, 0.26, 18), hatM, 0, 1.22, 0, { parent: rower });
+      const oar = new THREE.Group();
+      oar.position.set(0.35, 0.75, 0);
+      rower.add(oar);
+      const shaft = mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.6, 6), plankM, 0, -0.6, -0.5, { parent: oar });
+      shaft.rotation.x = 0.55;
+      mesh(new THREE.BoxGeometry(0.06, 0.6, 0.18), plankM, 0, -1.65, -1.25, { parent: oar }).rotation.x = 0.55;
+      g.userData.oar = oar;
+      boats.push(g);
+    }
+  }
+  // vị trí thuyền i lúc `now` (giây, đồng hồ chung): đậu bến hay đang đi, toạ độ, hướng, còn bao lâu
+  const bp = new THREE.Vector3(), bt = new THREE.Vector3();
+  route.getTangentAt(1, bt);
+  const dockRy = Math.atan2(bt.x, bt.z); // đậu bến: mũi hướng vào bờ như lúc cập bến
+  const turn = (a, b, k) => a + ((((b - a + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) - Math.PI) * k;
+  function boatState(i, now = Date.now() / 1000) {
+    const s = (((now + (i * BOAT_PERIOD) / BOATS) % BOAT_PERIOD) + BOAT_PERIOD) % BOAT_PERIOD;
+    if (s < BOAT_DOCK) return { docked: true, left: BOAT_DOCK - s, x: BERTH.x, z: BERTH.z, ry: dockRy, u: 0 };
+    const u0 = (s - BOAT_DOCK) / (BOAT_PERIOD - BOAT_DOCK), u = u0 * u0 * (3 - 2 * u0); // rời bến và cập bến chậm
+    route.getPointAt(u, bp);
+    route.getTangentAt(u, bt);
+    let ry = Math.atan2(bt.x, bt.z);
+    // lúc rời bến thuyền lùi ra, cách bến vài mét mới quay mũi ra hồ
+    if (u0 < 0.5) ry = turn(dockRy, ry, Math.min(1, Math.max(0, (bp.z - BERTH.z - 4) / 8)));
+    return { docked: false, left: BOAT_PERIOD - s, x: bp.x, z: bp.z, ry, u };
+  }
+  updaters.push((t) => {
+    const now = Date.now() / 1000;
+    boats.forEach((g, i) => {
+      const st = boatState(i, now);
+      g.position.set(st.x, Math.sin(t * 1.3 + i) * 0.05, st.z);
+      g.rotation.set(Math.sin(t * 0.9 + i) * 0.02, st.ry, Math.sin(t * 1.1 + i * 2) * 0.03);
+      g.userData.oar.rotation.y = st.docked ? 0.2 : Math.sin(t * 1.6 + i) * 0.5;
+    });
+  });
 
   // ---------- Cổng Tam Quan sát hồ: cửa giữa hai tầng mái, hai cửa bên, tường bao ----------
   {
@@ -293,6 +406,8 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   return {
     scene,
     pickables,
+    boats,
+    boatState,
     get night() {
       return night;
     },
