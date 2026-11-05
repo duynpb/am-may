@@ -6,7 +6,7 @@ import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
 import { Beads } from './beads.js';
-import { connect, fetchRooms, fetchMerit, ROOMS } from './net.js';
+import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } from './net.js';
 import { applyEvent, newProfile, publicProfile, RULES, CLIENT_KINDS } from './karma.js';
 import { festivalOf, FESTIVAL_PHUOC } from './lunar.js';
 import { DUST_IDS, lahanSpot } from './statues.js';
@@ -73,7 +73,13 @@ const myUid = store.get('uid', null) || Array.from(crypto.getRandomValues(new Ui
 store.set('uid', myUid);
 
 const params = new URLSearchParams(location.search);
-let roomId = ROOMS.some((r) => r.id === params.get('room')) ? params.get('room') : ROOMS[0].id;
+// phòng của khu khác (vd. Tam Chúc) thì chuyển sang trang của khu đó
+{
+  const other = ROOMS.find((r) => r.id === params.get('room') && r.site !== 'ammay');
+  if (other) location.replace(roomUrl(other));
+}
+const MY_ROOMS = siteRooms('ammay');
+let roomId = MY_ROOMS.some((r) => r.id === params.get('room')) ? params.get('room') : MY_ROOMS[0].id;
 
 // ---------- Renderer ----------
 const canvas = $('#scene');
@@ -1114,7 +1120,7 @@ function wireNet(n) {
 
 async function joinRoom(id, { keepPlayer = false } = {}) {
   roomId = id;
-  const room = ROOMS.find((r) => r.id === id);
+  const room = MY_ROOMS.find((r) => r.id === id);
   $('#room-name').textContent = room.name;
   const url = new URL(location.href);
   url.searchParams.set('room', id);
@@ -2731,14 +2737,22 @@ $('#btn-room').addEventListener('click', async () => {
   const render = (counts) => {
     list.innerHTML = '';
     for (const r of ROOMS) {
+      if (r.site !== 'ammay' && !list.querySelector('.site-head')) {
+        const h = document.createElement('p');
+        h.className = 'site-head';
+        h.textContent = `Khu ${SITES[r.site].name} — hồ lớn, cổng Tam Quan sát mặt nước`;
+        list.append(h);
+      }
       const b = document.createElement('button');
       b.className = 'room' + (r.id === roomId ? ' current' : '');
       const c = counts?.find((x) => x.id === r.id)?.count;
-      b.innerHTML = `<b></b><small>${r.id === roomId ? 'Bạn đang ở đây' : c != null ? `${c} người` : 'Vào chánh điện'}</small>`;
+      const idle = r.site === 'ammay' ? 'Vào chánh điện' : `Sang khu ${SITES[r.site].name}`;
+      b.innerHTML = `<b></b><small>${r.id === roomId ? 'Bạn đang ở đây' : c != null ? `${c} người` : idle}</small>`;
       b.querySelector('b').textContent = r.name;
       b.addEventListener('click', () => {
         closeModal($('#modal-room'));
-        if (r.id !== roomId) {
+        if (r.site !== 'ammay') location.href = roomUrl(r);
+        else if (r.id !== roomId) {
           joinRoom(r.id);
           toast(`Đã vào ${r.name}`);
         }

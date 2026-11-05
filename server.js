@@ -13,7 +13,12 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const MAX_PER_ROOM = 120;
-const ROOMS = Array.from({ length: 8 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}` }));
+// Phòng của hai khu: Am Mây (chánh điện) và Tam Chúc (hồ lớn) — giống public/js/net.js
+const ROOMS = [
+  ...Array.from({ length: 8 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
+  ...Array.from({ length: 4 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
+];
+const siteOf = (roomId) => ROOMS.find((r) => r.id === roomId)?.site || 'ammay';
 const rooms = new Map(ROOMS.map((r) => [r.id, new Map()]));
 
 const MIME = {
@@ -200,7 +205,7 @@ for (const r of ROOMS) spawnLeaves(r.id, 45);
 // lá rụng thêm dần khi có người trong chùa
 setInterval(() => {
   for (const r of ROOMS) {
-    if (!rooms.get(r.id).size) continue;
+    if (r.site !== 'ammay' || !rooms.get(r.id).size) continue;
     const add = spawnLeaves(r.id, 1 + ((Math.random() * 3) | 0));
     if (add.length) broadcast(r.id, { t: 'leaves', add });
   }
@@ -224,7 +229,7 @@ for (const r of ROOMS) dustSome(r.id, 24);
 // bụi bám thêm dần khi có người trong chùa
 setInterval(() => {
   for (const r of ROOMS) {
-    if (!rooms.get(r.id).size) continue;
+    if (r.site !== 'ammay' || !rooms.get(r.id).size) continue;
     const add = dustSome(r.id, 1);
     if (add.length) broadcast(r.id, { t: 'dust', add });
   }
@@ -279,8 +284,10 @@ wss.on('connection', (ws, req) => {
 
     if (m.t === 'move') {
       // trong chánh điện và ngoài sân (khu Quan Âm)
-      me.x = clamp(m.x, -45, 45);
-      me.z = clamp(m.z, -90, 100);
+      // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
+      const wide = siteOf(roomId) === 'tamchuc';
+      me.x = clamp(m.x, wide ? -260 : -45, wide ? 260 : 45);
+      me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 100);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 64 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat, w: m.w ? 1 : undefined }, me.id);

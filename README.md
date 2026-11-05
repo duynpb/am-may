@@ -81,6 +81,16 @@ public/
 | Chụp ảnh | Nút máy ảnh, tải về file PNG |
 | Cài đặt | Âm lượng từng loại, phát khi chuyển tab, đồ họa Nhẹ/Đẹp, đổi tên |
 
+## Khu Tam Chúc (đang làm, đợt 1)
+
+Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam Chúc: hồ nước lớn giữa núi đá vôi, đảo đá nhô lên mặt hồ, bờ kè lát đá có lan can và đèn đá, cổng Tam Quan sát mép hồ (mái hai tầng, lưỡng long chầu nguyệt, biển TAM CHÚC, sư tử đá, tường bao) mở ra một sân lớn lát đá có đỉnh đồng ở giữa. Trời sáng tối theo giờ Việt Nam (xem thử bằng `?gio=20`).
+
+- Chọn khu trong hộp chọn phòng (nút tên chùa góc trái): 8 phòng Chánh điện của khu Am Mây và 4 phòng Tam Chúc. Pháp danh, áo, dép và điểm phước dùng chung ở mọi khu.
+- Đã có: đi lại (chạm đất / W A S D), chắp tay, lạy Phật, chat, gặp người cùng phòng.
+- Sẽ làm ở các đợt sau: bến thuyền và đi thuyền quanh hồ, vườn kinh (cột đá khắc kinh), ba điện trên sườn núi (Quan Âm, Pháp Chủ, Tam Thế), bản đồ, đi nhanh, khách mô phỏng.
+
+Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `public/js/arch.js` (mái cong, núi đá vôi dùng chung).
+
 ## Giọng tụng kinh
 
 Khi bấm “Nghe tụng kinh”, website tự chọn giọng tốt nhất có sẵn (đổi được trong Cài đặt → Giọng tụng):

@@ -1,5 +1,16 @@
 // Kết nối nhiều người qua WebSocket. Nếu không có máy chủ, trang chạy ở chế độ ngoại tuyến.
-export const ROOMS = Array.from({ length: 8 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}` }));
+// Mỗi khu là một trang riêng: Am Mây (chánh điện, trục đường, tháp…) và Tam Chúc (hồ lớn, cổng sát hồ…)
+export const SITES = {
+  ammay: { name: 'Am Mây', page: './', roomLabel: 'Chánh điện' },
+  tamchuc: { name: 'Tam Chúc', page: 'tamchuc.html', roomLabel: 'Tam Chúc' },
+};
+export const ROOMS = [
+  ...Array.from({ length: 8 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
+  ...Array.from({ length: 4 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
+];
+export const siteRooms = (site) => ROOMS.filter((r) => r.site === site);
+// đường dẫn tới một phòng (sang trang của khu đó)
+export const roomUrl = (r) => `${SITES[r.site].page}?room=${r.id}`;
 
 export async function fetchMerit() {
   try {

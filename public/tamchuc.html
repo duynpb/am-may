@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#24251f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Am Mây">
+  <title>Tam Chúc — Am Mây</title>
+  <meta name="description" content="Khu Tam Chúc của Am Mây — hồ lớn giữa núi đá vôi, cổng Tam Quan sát mặt nước.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="vi_VN">
+  <meta property="og:title" content="Tam Chúc · Am Mây">
+  <meta property="og:description" content="Dạo bờ hồ, qua cổng Tam Quan vào sân lớn, gặp mọi người cùng phòng.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+<main id="app">
+  <canvas id="scene" aria-label="Khu Tam Chúc 3D"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
+  <header class="hud hud-tl">
+    <button class="pill brand" id="btn-room" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" class="logo"><path d="M12 3 3.5 8h17Z"/><path d="M6 8.5v1.2h12V8.5M7.5 10v9M16.5 10v9M4 19.5h16M10.5 19.5v-4h3v4"/></svg>
+      <strong>Am Mây</strong>
+      <span class="sep"></span>
+      <span id="room-name">Tam Chúc 1</span>
+      <svg viewBox="0 0 24 24" class="chev"><path d="m7 10 5 5 5-5"/></svg>
+    </button>
+  </header>
+
+  <div class="hud hud-tr">
+    <div class="pill group">
+      <span class="count" title="Số người đang ở đây">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.7 3 2.6 3 5.2"/></svg>
+        <b id="people">1</b>
+      </span>
+      <button class="icon-btn" id="btn-mute" aria-label="Tắt / bật âm thanh">
+        <svg viewBox="0 0 24 24" class="on"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+        <svg viewBox="0 0 24 24" class="off"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <p id="hint" class="hint"></p>
+
+  <form id="chat" class="chat-box pill" autocomplete="off">
+    <svg viewBox="0 0 24 24"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-8l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5Z"/></svg>
+    <input id="chat-input" type="text" maxlength="80" enterkeyhint="send" placeholder="Nhắn gì đó… (Enter)" aria-label="Chat">
+    <button type="submit" class="icon-btn" aria-label="Gửi">
+      <svg viewBox="0 0 24 24"><path d="M4 12 20 4.5 15.5 20l-3.5-6.5Z"/><path d="m12 13.5 8-9"/></svg>
+    </button>
+  </form>
+
+  <nav class="actions pill" aria-label="Hành động">
+    <button data-act="gassho">
+      <svg viewBox="0 0 24 24"><path d="M12 3.5c-1 1.6-1.5 4-1.5 7.2V20M12 3.5c1 1.6 1.5 4 1.5 7.2V20"/><path d="M10.5 12 7 15.5V20M13.5 12l3.5 3.5V20"/></svg>
+      <span>Chắp tay</span>
+    </button>
+    <button data-act="bow">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.4"/><path d="M5 20c0-4 2.2-8.5 7-8.5s7 4.5 7 8.5"/><path d="M9.5 15.5h5"/></svg>
+      <span>Lạy Phật</span>
+    </button>
+  </nav>
+
+  <div class="modal" id="modal-room" hidden role="dialog" aria-modal="true" aria-labelledby="room-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="room-title">Chọn khu và phòng</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p class="muted">Mỗi phòng là một nơi riêng. Pháp danh và điểm phước của bạn dùng chung ở mọi khu.</p>
+      <div id="room-list" class="room-grid"></div>
+    </div>
+  </div>
+
+  <div id="loader" class="loader">
+    <svg viewBox="0 0 24 24"><path d="M12 3 3.5 8h17Z"/><path d="M6 8.5v1.2h12V8.5M7.5 10v9M16.5 10v9M4 19.5h16M10.5 19.5v-4h3v4"/></svg>
+    <h1>Tam Chúc</h1>
+    <p id="loader-text">Đang mở cổng Tam Quan</p>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </div>
+</main>
+<script type="module" src="js/tamchuc/main.js"></script>
+</body>
+</html>
