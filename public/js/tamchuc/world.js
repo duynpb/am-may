@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as T from '../textures.js';
 import { curvedRoof, dragonsOnRidge, karstGeometry, karstMaterial, ARCH } from '../arch.js';
+import { PILLARS } from './sutras.js';
 
 // Mặt đất đi lại cao 0,8 m so với mặt hồ; bờ kè thẳng ở z = SHORE
 export const LAND = 0.8;
@@ -27,6 +28,12 @@ WALK_AREAS.push({ minX: -1.4, maxX: 1.4, minZ: 51.5, maxZ: 64.8 }); // bến thu
 // Thuyền chạy theo giờ chung: mỗi vòng BOAT_PERIOD giây, đậu bến BOAT_DOCK giây rồi đi một vòng quanh đảo
 export const BOAT_PERIOD = 150, BOAT_DOCK = 24, BOATS = 3;
 export const ROUND_OBSTACLES = [{ x: CAULDRON.x, z: CAULDRON.z, r: CAULDRON.r + 0.8 }];
+// Vườn kinh phía tây sân lớn: 32 cột đá khắc kinh (4 hàng × 8), phù điêu đá ở cuối vườn
+export const SUTRA_GARDEN = { minX: -111, maxX: -56, minZ: -30, maxZ: 24, wallX: -112.8 };
+export const PILLAR_POS = [];
+for (const z of [-24, -10, 4, 18]) for (let i = 0; i < 8; i++) PILLAR_POS.push({ x: -61 - 6.6 * i, z });
+WALK_AREAS.push(SUTRA_GARDEN, { minX: -58, maxX: -46, minZ: -19, maxZ: -13 }); // vườn và lối từ sân sang
+ROUND_OBSTACLES.push(...PILLAR_POS.map((p) => ({ x: p.x, z: p.z, r: 1.4 })));
 export const SPAWN = { x: 0, z: 47, ry: Math.PI };
 
 export function groundY(x, z) {
@@ -374,6 +381,202 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     for (let i = 0; i < 6; i++) box(16, 0.25 * (i + 1), 0.8, stone, 0, LAND + 0.125 * (i + 1), PLAZA.minZ - 0.4 - i * 0.8);
   }
 
+  // ---------- Vườn kinh: cột đá khắc kinh, lối đi, cổng đá, phù điêu đời Đức Phật ----------
+  const pillars = [];
+  {
+    const G = SUTRA_GARDEN;
+    // nền lát đá cho vườn và lối sang từ sân
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g2 = c.getContext('2d');
+    g2.fillStyle = '#a9a291';
+    g2.fillRect(0, 0, 128, 128);
+    g2.strokeStyle = 'rgba(70,60,45,0.35)';
+    g2.lineWidth = 3;
+    g2.strokeRect(1, 1, 126, 62);
+    g2.strokeRect(-63, 65, 126, 62);
+    g2.strokeRect(65, 65, 126, 62);
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set((G.maxX - G.minX) / 2, (G.maxZ - G.minZ) / 2);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const floor = mesh(new THREE.PlaneGeometry(G.maxX - G.minX + 2, G.maxZ - G.minZ + 2), std('#ffffff', { map: tex, roughness: 1 }), (G.minX + G.maxX) / 2, LAND + 0.012, (G.minZ + G.maxZ) / 2, { cast: false });
+    floor.rotation.x = -Math.PI / 2;
+    floor.userData.kind = 'ground';
+    pickables.push(floor);
+    const lane = mesh(new THREE.PlaneGeometry(12, 6), std('#b3aa98', { roughness: 1 }), -52, LAND + 0.011, -16, { cast: false });
+    lane.rotation.x = -Math.PI / 2;
+    lane.userData.kind = 'ground';
+    pickables.push(lane);
+    // tường đá thấp bao quanh vườn (chừa lối vào phía sân)
+    const wallLow = std('#9f988a', { roughness: 1 });
+    for (const z of [G.minZ - 0.6, G.maxZ + 0.6]) box(G.maxX - G.wallX + 1, 0.7, 0.5, wallLow, (G.maxX + G.wallX) / 2 + 0.5, LAND + 0.35, z);
+    box(0.5, 0.7, -19.6 - (G.minZ - 0.6), wallLow, G.maxX + 0.6, LAND + 0.35, (-19.6 + G.minZ - 0.6) / 2);
+    box(0.5, 0.7, G.maxZ + 0.6 + 12.4, wallLow, G.maxX + 0.6, LAND + 0.35, (G.maxZ + 0.6 - 12.4) / 2);
+    // cổng đá "VƯỜN KINH" trên lối vào
+    {
+      const gw = new THREE.Group();
+      gw.position.set(-51.5, LAND, -16);
+      gw.rotation.y = Math.PI / 2;
+      scene.add(gw);
+      for (const s of [-1, 1]) box(0.6, 3.6, 0.6, stone, s * 3.6, 1.8, 0, { parent: gw });
+      box(8.2, 0.5, 0.8, stone, 0, 3.75, 0, { parent: gw });
+      curvedRoof(gw, 0, 4.0, 0, 4.4, 1.1, 0.8, 0.8, { lift: 0.5 });
+      box(3.4, 0.7, 0.06, ARCH.gold, 0, 3.15, 0.42, { parent: gw, cast: false });
+      mesh(new THREE.PlaneGeometry(3.2, 0.56), std('#ffffff', { map: T.boardTexture(['VƯỜN KINH'], { w: 1024, h: 180, size: 110 }), roughness: 0.45 }), 0, 3.15, 0.46, { parent: gw, cast: false });
+    }
+    // cột kinh: bệ đá, thân vuông khắc chữ bốn mặt, đầu cột hoa sen, bầu đá trên cùng
+    const res = quality === 'high' ? 1 : 0.6;
+    const carvedTex = (p, i) => {
+      const w = Math.round(128 * res), h = Math.round(768 * res);
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = h;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#bcb5a6';
+      g.fillRect(0, 0, w, h);
+      for (let k = 0; k < 900 * res; k++) {
+        g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '60,55,45'},${Math.random() * 0.08})`;
+        g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+      }
+      g.strokeStyle = 'rgba(70,60,45,0.5)';
+      g.lineWidth = 2;
+      g.strokeRect(6 * res, 6 * res, w - 12 * res, h - 12 * res);
+      // chữ khắc lõm: nét tối, viền sáng phía dưới
+      const write = (txt, y, size, color) => {
+        g.font = `700 ${size}px "Noto Serif", Georgia, serif`;
+        g.textAlign = 'center';
+        g.fillStyle = 'rgba(255,250,235,0.55)';
+        g.fillText(txt, w / 2, y + 1.2);
+        g.fillStyle = color;
+        g.fillText(txt, w / 2, y);
+      };
+      write(`${i + 1}`, 34 * res, 22 * res, '#6b2a1c');
+      const words = p.text.split(' ');
+      const lines = [];
+      let line = '';
+      g.font = `700 ${15 * res}px "Noto Serif", Georgia, serif`;
+      for (const wd of words) {
+        const t = line ? line + ' ' + wd : wd;
+        if (g.measureText(t).width > w - 22 * res && line) {
+          lines.push(line);
+          line = wd;
+        } else line = t;
+      }
+      if (line) lines.push(line);
+      lines.forEach((ln, k) => write(ln, (70 + k * 24) * res, 15 * res, '#3d342a'));
+      // hoa sen chạm ở chân cột
+      g.strokeStyle = 'rgba(60,50,40,0.55)';
+      g.lineWidth = 2 * res;
+      const cy = h - 70 * res;
+      for (let k = -2; k <= 2; k++) {
+        g.beginPath();
+        g.ellipse(w / 2 + k * 14 * res, cy, 8 * res, 22 * res, k * 0.3, 0, Math.PI * 2);
+        g.stroke();
+      }
+      const t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    const capM = std('#b7b0a2', { roughness: 0.9 });
+    PILLAR_POS.forEach((p, i) => {
+      box(1.6, 0.5, 1.6, stoneD, p.x, LAND + 0.25, p.z);
+      box(1.25, 0.25, 1.25, stone, p.x, LAND + 0.62, p.z);
+      const shaft = box(0.9, 5.4, 0.9, std('#ffffff', { map: carvedTex(PILLARS[i], i), roughness: 0.9 }), p.x, LAND + 0.75 + 2.7, p.z);
+      shaft.userData = { kind: 'pillar', index: i };
+      pillars.push(shaft);
+      cyl(0.75, 0.5, 0.5, capM, p.x, LAND + 6.4, p.z, {}, 16);
+      mesh(new THREE.SphereGeometry(0.45, 14, 10), capM, p.x, LAND + 6.95, p.z).scale.y = 0.8;
+      mesh(new THREE.ConeGeometry(0.16, 0.6, 10), capM, p.x, LAND + 7.55, p.z);
+    });
+    // phù điêu đá cuối vườn: sáu cảnh đời Đức Phật
+    {
+      const scenes = ['Đản sinh', 'Xuất gia', 'Khổ hạnh', 'Thành đạo', 'Chuyển pháp luân', 'Nhập Niết Bàn'];
+      const W = 512, H = 256;
+      const draw = (g, k) => {
+        g.fillStyle = '#b3ab9b';
+        g.fillRect(0, 0, W, H);
+        g.strokeStyle = 'rgba(70,60,45,0.6)';
+        g.lineWidth = 6;
+        g.strokeRect(8, 8, W - 16, H - 16);
+        // hình nổi: vẽ bóng tối lệch xuống rồi phủ màu sáng
+        const relief = (fn) => {
+          g.save();
+          g.translate(3, 4);
+          g.fillStyle = 'rgba(60,50,38,0.55)';
+          fn();
+          g.restore();
+          g.fillStyle = '#d8d0bf';
+          fn();
+        };
+        const circle = (x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+        const ell = (x, y, rx, ry, rot = 0) => { g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); g.fill(); };
+        const seated = (x, y, s = 1) => { circle(x, y - 46 * s, 14 * s); ell(x, y - 14 * s, 22 * s, 26 * s); ell(x, y + 12 * s, 40 * s, 12 * s); };
+        const tree = (x, y, r) => { g.fillRect(x - 5, y, 10, 70); circle(x, y, r); circle(x - r * 0.7, y + 12, r * 0.7); circle(x + r * 0.7, y + 12, r * 0.7); };
+        relief(() => {
+          if (k === 0) { // Đản sinh: em bé đứng trên hoa sen, bảy đóa sen
+            circle(256, 92, 13); ell(256, 128, 14, 26); ell(256, 166, 34, 9);
+            for (let j = 0; j < 7; j++) ell(100 + j * 52, 200, 14, 7);
+          } else if (k === 1) { // Xuất gia: ngựa phi, người cưỡi
+            ell(250, 140, 70, 28); ell(330, 105, 18, 32, -0.6); g.fillRect(200, 155, 10, 50); g.fillRect(290, 155, 10, 50);
+            circle(240, 82, 13); ell(240, 112, 13, 20);
+          } else if (k === 2) { // Khổ hạnh: ngồi dưới gốc cây, thân gầy
+            tree(130, 70, 46); seated(290, 170, 0.9);
+          } else if (k === 3) { // Thành đạo: ngồi thiền dưới cội bồ đề
+            circle(256, 78, 70); seated(256, 185, 1.1);
+          } else if (k === 4) { // Chuyển pháp luân: bánh xe pháp, hai con nai
+            circle(256, 110, 50); ell(140, 180, 36, 16); ell(372, 180, 36, 16); circle(165, 158, 9); circle(347, 158, 9);
+          } else { // Nhập Niết Bàn: nằm nghiêng giữa hai cây
+            tree(80, 70, 40); tree(432, 70, 40); ell(256, 170, 110, 20); circle(160, 158, 15);
+          }
+        });
+        if (k === 4) {
+          g.strokeStyle = 'rgba(70,60,45,0.6)';
+          g.lineWidth = 4;
+          for (let j = 0; j < 8; j++) {
+            const a = (j / 8) * Math.PI * 2;
+            g.beginPath();
+            g.moveTo(256, 110);
+            g.lineTo(256 + Math.cos(a) * 46, 110 + Math.sin(a) * 46);
+            g.stroke();
+          }
+        }
+        g.font = '700 26px "Noto Serif", Georgia, serif';
+        g.textAlign = 'center';
+        g.fillStyle = '#4a3d2e';
+        g.fillText(scenes[k], W / 2, H - 22);
+      };
+      const G2 = SUTRA_GARDEN;
+      const span = G2.maxZ - G2.minZ + 1.2, pw = span / 6;
+      box(1.0, 5.2, span + 0.8, stoneD, G2.wallX - 0.5, LAND + 2.6, (G2.minZ + G2.maxZ) / 2);
+      box(1.4, 0.4, span + 1.2, stone, G2.wallX - 0.5, LAND + 5.4, (G2.minZ + G2.maxZ) / 2);
+      scenes.forEach((_, k) => {
+        const cv = document.createElement('canvas');
+        cv.width = W;
+        cv.height = H;
+        draw(cv.getContext('2d'), k);
+        const t = new THREE.CanvasTexture(cv);
+        t.colorSpace = THREE.SRGBColorSpace;
+        const pnl = mesh(new THREE.PlaneGeometry(pw - 0.4, (pw - 0.4) / 2), std('#ffffff', { map: t, roughness: 0.95 }), G2.wallX + 0.02, LAND + 2.6, G2.maxZ + 0.6 - pw * (k + 0.5), { cast: false });
+        pnl.rotation.y = Math.PI / 2;
+      });
+    }
+    // cây bồ đề và đèn đá trong vườn
+    const trunk = std('#6b5a48', { roughness: 0.95 });
+    for (const [tx, tz] of [[-58, -28], [-58, 22], [-109, -28], [-109, 22], [-84, -28], [-84, 22]]) {
+      cyl(0.3, 0.45, 2.8, trunk, tx, LAND + 1.4, tz, {}, 10);
+      mesh(new THREE.SphereGeometry(2.2, 14, 10), leafM, tx, LAND + 4.4, tz).scale.set(1.1, 0.75, 1.1);
+      mesh(new THREE.SphereGeometry(1.5, 12, 9), leafD, tx + 0.8, LAND + 5.2, tz - 0.4);
+    }
+    for (const z of [-3, 11]) { // lối giữa các hàng cột (lối -17 là đường vào, để trống)
+      for (let x = -64; x >= -106; x -= 13.2) {
+        cyl(0.1, 0.12, 1.0, stone, x, LAND + 0.5, z, {}, 8);
+        box(0.36, 0.32, 0.36, lampMat, x, LAND + 1.15, z);
+        mesh(new THREE.ConeGeometry(0.44, 0.26, 4), stoneD, x, LAND + 1.45, z).rotation.y = Math.PI / 4;
+      }
+    }
+  }
+
   // ---------- Ngày và đêm theo giờ Việt Nam ----------
   const dayTop = new THREE.Color('#7fb3d9'), nightTop = new THREE.Color('#0b1424');
   const dayBot = new THREE.Color('#e4e2d6'), nightBot = new THREE.Color('#1b2233');
@@ -408,6 +611,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     pickables,
     boats,
     boatState,
+    pillars,
     get night() {
       return night;
     },

@@ -1,7 +1,8 @@
 // Trang khu Tam Chúc: đi dạo bờ hồ, qua cổng Tam Quan vào sân lớn, gặp mọi người cùng phòng.
 // Dùng chung nhân vật, kết nối mạng, âm thanh, pháp danh và điểm phước với khu Am Mây.
 import * as THREE from 'three';
-import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND, BOARD, BOATS, PIER } from './world.js';
+import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND, BOARD, BOATS, PIER, PILLAR_POS } from './world.js';
+import { PILLARS } from './sutras.js';
 import { Avatar, ROBES } from '../avatar.js';
 import { SANDAL_COLORS } from '../sandals.js';
 import { Sound } from '../audio.js';
@@ -283,6 +284,7 @@ function movePlayerTo(x, z) {
     return;
   }
   pendingBoard = false;
+  pendingRead = null;
   [x, z] = clampWalk(x, z);
   walkRoute(player, x, z);
   sendMove();
@@ -329,6 +331,46 @@ document.querySelectorAll('.actions button').forEach((b) => b.addEventListener('
   } else if (b.dataset.act === 'bow') doBow();
   else if (b.dataset.act === 'boat') goBoard();
 }));
+
+// ---------- Vườn kinh: chạm vào cột kinh để đi tới đọc ----------
+let pendingRead = null; // { i, x, z }
+function goRead(i) {
+  sound.init();
+  if (ride) return toast('Bạn đang ngồi thuyền — thuyền về bến sẽ lên bờ', 2600);
+  const p = PILLAR_POS[i];
+  // đứng trước mặt cột, phía gần mình hơn
+  const s = player.pos.x >= p.x ? 1 : -1;
+  const [x, z] = clampWalk(p.x + s * 1.9, p.z);
+  movePlayerTo(x, z);
+  pendingRead = { i, x, z };
+  toast(`Đi tới cột kinh số ${i + 1}…`, 1800);
+}
+function readTick() {
+  if (!pendingRead || player.moving || player.routeTo) return;
+  const r = pendingRead;
+  pendingRead = null;
+  if (Math.hypot(player.pos.x - r.x, player.pos.z - r.z) > 0.6) return;
+  const p = PILLAR_POS[r.i];
+  player.faceRy = Math.atan2(p.x - player.pos.x, p.z - player.pos.z);
+  openSutra(r.i);
+}
+let reading = -1;
+function openSutra(i) {
+  reading = i;
+  $('#sutra-title').textContent = `Cột kinh số ${i + 1} · ${PILLARS[i].title}`;
+  $('#sutra-text').textContent = PILLARS[i].text;
+  openModal('#modal-sutra');
+}
+$('#sutra-done').addEventListener('click', () => {
+  closeModal($('#modal-sutra'));
+  if (reading < 0) return;
+  player.act('gassho');
+  sound.gassho();
+  net?.send({ t: 'act', a: 'gassho' });
+  if (net) net.send({ t: 'karma', kind: 'sutra' });
+  else toast('Bạn đã đọc xong một cột kinh — nguyện an lạc', 3000);
+  reading = -1;
+});
 
 // ---------- Đi thuyền quanh hồ ----------
 // Thuyền chạy theo giờ chung nên mọi máy thấy thuyền ở cùng chỗ. Ai đang ngồi thuyền thì báo chỗ ngồi = 50 + số thuyền.
@@ -477,6 +519,8 @@ function handleTap(x, y) {
   if (who) return doGassho(who);
   const boatHit = ray.intersectObjects(world.boats, true)[0];
   if (boatHit) return goBoard();
+  const pillarHit = ray.intersectObjects(world.pillars, false)[0];
+  if (pillarHit) return goRead(pillarHit.object.userData.index);
   const hit = ray.intersectObjects(world.pickables, false)[0];
   if (hit) movePlayerTo(hit.point.x, hit.point.z);
 }
@@ -752,6 +796,7 @@ renderer.setAnimationLoop(() => {
     if (arrived && a === player) sendMove();
   }
   boatsTick(dt);
+  readTick();
   world.setFocus(player.pos.x, player.pos.z);
   updateCamera(dt);
   renderer.render(scene, camera);

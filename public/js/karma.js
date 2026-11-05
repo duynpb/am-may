@@ -18,12 +18,13 @@ export const RULES = {
   // 'sweep' được báo kèm số lá vừa quét; cứ đủ 15 lá trong ngày thì cộng phước
   sweep: { label: 'Quét lá sân chùa (15 lá)', phuoc: 2, cap: 10 },
   wipe: { label: 'Lau tượng La Hán', phuoc: 1, cap: 15, gap: 2e3 },
+  sutra: { label: 'Đọc kinh ở vườn kinh', phuoc: 1, cap: 16, gap: 15e3 },
 };
 export const LEAVES_PER_POINT = 15;
 const LEAF_DAY_CAP = 600; // tối đa 600 lá được ghi mỗi ngày
 
 // Những việc trình duyệt được tự báo lên máy chủ (các việc khác máy chủ tự ghi nhận)
-export const CLIENT_KINDS = ['beads', 'chant', 'greet', 'steal'];
+export const CLIENT_KINDS = ['beads', 'chant', 'greet', 'steal', 'sutra'];
 const CHANT_MIN_CAP = 180; // tối đa 180 phút nghe tụng kinh được ghi mỗi ngày
 const CHANT_MIN_GAP = 50e3; // mỗi lần báo cách nhau ít nhất 50 giây
 

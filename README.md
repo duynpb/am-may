@@ -88,7 +88,8 @@ Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam C
 - Chọn khu trong hộp chọn phòng (nút tên chùa góc trái): 8 phòng Chánh điện của khu Am Mây và 4 phòng Tam Chúc. Pháp danh, áo, dép và điểm phước dùng chung ở mọi khu.
 - Đã có: đi lại (chạm đất / W A S D), chắp tay, lạy Phật, chat, gặp người cùng phòng.
 - Bến thuyền và đi thuyền: bến gỗ chìa ra hồ giữa bờ kè; ba thuyền gỗ có mái che cong, cô lái đội nón lá chèo ở đuôi. Thuyền chạy theo giờ chung (mỗi vòng 150 giây: đậu bến 24 giây rồi đi một vòng quanh các đảo) nên mọi người thấy thuyền ở cùng chỗ. Đứng trên bến bấm "Lên thuyền" (hoặc chạm vào thuyền); thuyền về bến thì tự lên bờ. Người khác thấy bạn ngồi trên thuyền nào.
-- Sẽ làm ở các đợt sau: vườn kinh (cột đá khắc kinh), ba điện trên sườn núi (Quan Âm, Pháp Chủ, Tam Thế), bản đồ, đi nhanh, khách mô phỏng.
+- Vườn kinh: phía tây sân lớn, qua cổng đá "VƯỜN KINH". 32 cột đá khắc chữ (16 cột Bát Nhã Tâm Kinh âm Hán-Việt, 16 cột lời dạy ngắn), đầu cột hoa sen; cuối vườn có phù điêu sáu cảnh đời Đức Phật. Chạm vào cột để đi tới đọc; đọc xong chắp tay hồi hướng được +1 phước (tối đa 16 lần/ngày).
+- Sẽ làm ở các đợt sau: ba điện trên sườn núi (Quan Âm, Pháp Chủ, Tam Thế), bản đồ, đi nhanh, khách mô phỏng.
 
 Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `public/js/arch.js` (mái cong, núi đá vôi dùng chung).
 
@@ -117,6 +118,7 @@ Quy tắc nằm trong `public/js/karma.js` (máy chủ và trình duyệt dùng 
 | Thỉnh chuông dồn dập (5 lần trong 30 giây) | +2 nghiệp | 3 |
 | Quét lá sân chùa (mỗi 15 lá) | +2 phước | 10 |
 | Lau sạch một tượng La Hán | +1 phước | 15 |
+| Đọc một cột kinh ở vườn kinh (khu Tam Chúc) | +1 phước | 16 |
 | Lấy dép của người khác | +1 nghiệp | 20 |
 
 ## Lưu trữ dữ liệu (hồ sơ, sổ công đức)
