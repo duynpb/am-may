@@ -2,6 +2,7 @@
 // cổng Tam Quan sát mép hồ mở ra một sân lớn. (Phỏng theo không khí, không sao chép công trình thật.)
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from '../textures.js';
 import { curvedRoof, dragonsOnRidge, karstGeometry, karstMaterial, ARCH } from '../arch.js';
 import { PILLARS } from './sutras.js';
@@ -93,8 +94,13 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   const updaters = [];
   const nightHooks = [];
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...o });
+  // Vật đứng yên tạo trong lúc batching = true (hoặc nhóm được đánh dấu) được gộp theo vật liệu
+  // ở cuối hàm để giảm số lệnh vẽ — quan trọng cho điện thoại.
+  let batching = false;
+  const staticRoots = [];
   const mesh = (geo, mat, x = 0, y = 0, z = 0, { cast = true, recv = true, parent = scene } = {}) => {
     const m = new THREE.Mesh(geo, mat);
+    if (batching && parent === scene) staticRoots.push(m);
     m.position.set(x, y, z);
     m.castShadow = cast;
     m.receiveShadow = recv;
@@ -139,6 +145,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   sun.shadow.normalBias = 0.03;
   scene.add(sun, sun.target);
 
+  batching = true;
   // ---------- Mặt đất, bờ kè, mặt hồ ----------
   {
     const grass = std('#8b9670', { roughness: 1 });
@@ -202,6 +209,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       const lg = new THREE.Group();
       lg.position.set(s * (PIER.halfW - 0.2), PIER.y, PIER.z1 - 0.4);
       scene.add(lg);
+      staticRoots.push(lg);
       cyl(0.06, 0.07, 1.6, post, 0, 0.8, 0, { parent: lg }, 8);
       box(0.3, 0.32, 0.3, lampMat, 0, 1.7, 0, { parent: lg });
       mesh(new THREE.ConeGeometry(0.3, 0.2, 4), post, 0, 1.95, 0, { parent: lg }).rotation.y = Math.PI / 4;
@@ -212,6 +220,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       const lg = new THREE.Group();
       lg.position.set(x, LAND, 40.6);
       scene.add(lg);
+      staticRoots.push(lg);
       box(0.6, 0.12, 0.6, stoneD, 0, 0.06, 0, { parent: lg });
       cyl(0.1, 0.12, 0.9, stone, 0, 0.57, 0, { parent: lg }, 8);
       box(0.55, 0.08, 0.55, stoneD, 0, 1.04, 0, { parent: lg });
@@ -336,6 +345,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   {
     const g = new THREE.Group();
     scene.add(g);
+    staticRoots.push(g);
     const Z = GATE.z, Y = LAND + GATE.plinth;
     box(34, GATE.plinth, 7, stone, 0, LAND + GATE.plinth / 2, Z, { parent: g });
     // cửa giữa: bốn cột lớn, mái dưới, thân gác có biển tên, mái trên với lưỡng long chầu nguyệt
@@ -345,7 +355,8 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     box(9.4, 2.2, 3.8, wallM, 0, Y + 9.4, Z, { parent: g });
     const plaque = (z, rot) => {
       box(5.0, 1.25, 0.08, ARCH.gold, 0, Y + 9.45, z, { parent: g, cast: false });
-      const p = mesh(new THREE.PlaneGeometry(4.7, 1.0), std('#ffffff', { map: T.boardTexture(['TAM CHÚC'], { w: 1024, h: 220, size: 130 }), roughness: 0.45 }), 0, Y + 9.45, z, { parent: g, cast: false });
+      // tấm chữ nằm trước khung viền (không thì bị khung che mất)
+      const p = mesh(new THREE.PlaneGeometry(4.7, 1.0), std('#ffffff', { map: T.boardTexture(['TAM CHÚC'], { w: 1024, h: 220, size: 130 }), roughness: 0.45 }), 0, Y + 9.45, z + Math.sign(z - Z) * 0.06, { parent: g, cast: false });
       p.rotation.y = rot;
     };
     plaque(Z + 1.97, 0);
@@ -457,6 +468,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       gw.position.set(-51.5, LAND, -16);
       gw.rotation.y = Math.PI / 2;
       scene.add(gw);
+      staticRoots.push(gw);
       for (const s of [-1, 1]) box(0.6, 3.6, 0.6, stone, s * 3.6, 1.8, 0, { parent: gw });
       box(8.2, 0.5, 0.8, stone, 0, 3.75, 0, { parent: gw });
       curvedRoof(gw, 0, 4.0, 0, 4.4, 1.1, 0.8, 0.8, { lift: 0.5 });
@@ -744,6 +756,72 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     }
   }
 
+  batching = false;
+
+  // ---------- Cây cối: rừng cây và bụi tre quanh bờ hồ, sân lớn, vườn kinh, hai bên sườn núi ----------
+  {
+    let seed = 29;
+    const rr = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const spots = [];
+    const area = (x0, x1, z0, z1, n) => {
+      for (let i = 0; i < n; i++) spots.push([x0 + rr() * (x1 - x0), z0 + rr() * (z1 - z0)]);
+    };
+    for (const s of [-1, 1]) {
+      area(s > 0 ? 72 : -135, s > 0 ? 135 : -72, 18, 50, 34); // hai đầu bờ hồ
+      area(s > 0 ? 34 : -70, s > 0 ? 75 : -32, -175, -48, 40); // hai bên sườn núi
+    }
+    area(52, 105, -42, 30, 30); // phía đông sân lớn
+    area(-110, -60, 26.5, 33.5, 10); // giữa vườn kinh và tường cổng
+    area(-135, -116, -32, 26, 12); // sau bức phù điêu
+    // thân và hai lớp tán, mỗi cây một sắc lá hơi khác
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.3, 3, 7).translate(0, 1.5, 0), std('#5e4a38', { roughness: 0.95 }), spots.length);
+    const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.9, 1), std('#ffffff', { roughness: 0.9, flatShading: true }), spots.length * 2);
+    const o = new THREE.Object3D(), c = new THREE.Color();
+    spots.forEach(([x, z], i) => {
+      const s = 0.8 + rr() * 0.7;
+      o.position.set(x, LAND, z);
+      o.rotation.set(0, rr() * 6.28, 0);
+      o.scale.setScalar(s);
+      o.updateMatrix();
+      trunk.setMatrixAt(i, o.matrix);
+      for (let k = 0; k < 2; k++) {
+        o.position.set(x + (k ? 0.7 : -0.3) * s, LAND + (3.2 + k * 1.1) * s, z + (k ? -0.4 : 0.3) * s);
+        o.scale.set(s * (k ? 0.75 : 1.05), s * (k ? 0.7 : 0.8), s * (k ? 0.75 : 1.05));
+        o.updateMatrix();
+        crown.setMatrixAt(i * 2 + k, o.matrix);
+        crown.setColorAt(i * 2 + k, c.setHSL(0.25 + rr() * 0.06, 0.38 + rr() * 0.15, 0.24 + rr() * 0.1));
+      }
+    });
+    trunk.castShadow = crown.castShadow = true;
+    crown.receiveShadow = true;
+    scene.add(trunk, crown);
+    // bụi tre: thân thẳng, chùm lá ở ngọn
+    const bamboo = [];
+    const grove = (cx, cz, n) => {
+      for (let i = 0; i < n; i++) bamboo.push([cx + (rr() - 0.5) * 6, cz + (rr() - 0.5) * 6]);
+    };
+    for (const [x, z] of [[-76, 46], [76, 46], [-95, 30], [95, 32], [-52, 30], [52, 30], [-60, -40], [60, -45], [-36, -100], [36, -105], [-40, -150], [40, -155]]) grove(x, z, 14);
+    const stalks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.08, 9, 5).translate(0, 4.5, 0), std('#7d9a4c', { roughness: 0.6 }), bamboo.length);
+    const leafs = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshStandardMaterial({ map: T.bambooLeaves(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8 }), bamboo.length * 2);
+    bamboo.forEach(([x, z], i) => {
+      const s = 0.75 + rr() * 0.45;
+      o.position.set(x, LAND - 0.05, z);
+      o.rotation.set((rr() - 0.5) * 0.12, 0, (rr() - 0.5) * 0.12);
+      o.scale.set(1, s, 1);
+      o.updateMatrix();
+      stalks.setMatrixAt(i, o.matrix);
+      for (let k = 0; k < 2; k++) {
+        o.position.set(x + (rr() - 0.5) * 1.6, LAND + (5.5 + rr() * 3.5) * s, z + (rr() - 0.5) * 1.6);
+        o.rotation.set((rr() - 0.5), rr() * Math.PI, (rr() - 0.5) * 0.8);
+        o.scale.setScalar(0.8 + rr() * 0.6);
+        o.updateMatrix();
+        leafs.setMatrixAt(i * 2 + k, o.matrix);
+      }
+    });
+    stalks.castShadow = true;
+    scene.add(stalks, leafs);
+  }
+
   // ---------- Ngày và đêm theo giờ Việt Nam ----------
   const dayTop = new THREE.Color('#7fb3d9'), nightTop = new THREE.Color('#0b1424');
   const dayBot = new THREE.Color('#e4e2d6'), nightBot = new THREE.Color('#1b2233');
@@ -772,6 +850,34 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     lastSet = t;
     applyHour(hourOverride ?? vnHour());
   });
+
+  // Gộp các vật đứng yên theo vật liệu (bỏ qua vật bấm được, cột kinh, vật nhiều vật liệu)
+  {
+    const skip = new Set(pillars);
+    for (const p of pickables) p.traverse((x) => skip.add(x));
+    const groups = new Map();
+    for (const root of staticRoots) {
+      if (skip.has(root) || !root.parent) continue;
+      root.updateMatrixWorld(true);
+      const list = [];
+      root.traverse((m) => m.isMesh && !m.isInstancedMesh && !skip.has(m) && !Array.isArray(m.material) && list.push(m));
+      for (const m of list) {
+        const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrixWorld);
+        if (!g.attributes.uv || !g.attributes.normal) continue;
+        for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
+        const key = `${m.material.uuid}|${m.castShadow}|${m.receiveShadow}`;
+        if (!groups.has(key)) groups.set(key, { mat: m.material, cast: m.castShadow, recv: m.receiveShadow, geos: [] });
+        groups.get(key).geos.push(g);
+        m.removeFromParent();
+      }
+    }
+    for (const { mat, cast, recv, geos } of groups.values()) {
+      const merged = new THREE.Mesh(mergeGeometries(geos), mat);
+      merged.castShadow = cast;
+      merged.receiveShadow = recv;
+      scene.add(merged);
+    }
+  }
 
   return {
     scene,

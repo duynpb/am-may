@@ -533,6 +533,94 @@ function goBoard() {
   sendMove();
   toast(`Đã lên thuyền — thuyền rời bến sau ${Math.ceil(d.st.left)} giây, đi một vòng quanh các đảo`, 4000);
 }
+// ---------- Khách mô phỏng tham quan (mỗi máy tự cho đi, nhường chỗ khi có người thật) ----------
+const bots = new Set();
+let botSeq = 0;
+const BOT_SAYS = ['Nam mô A Di Đà Phật', 'Hồ đẹp quá', 'Cảnh thật thanh tịnh', 'Lên điện Tam Thế thôi', 'Đi thuyền vui lắm', 'Gió hồ mát ghê'];
+async function botGo(a, x, z) {
+  [x, z] = clampWalk(x, z);
+  walkRoute(a, x, z);
+  await wait(200);
+  while (bots.has(a) && (a.moving || a.routeTo)) await wait(300);
+  return bots.has(a);
+}
+const TRIPS = [
+  // dạo sân lớn, chắp tay trước đỉnh đồng
+  async (a) => {
+    if (!(await botGo(a, rnd(-6, 6), rnd(8, 12)))) return;
+    a.act('gassho', Math.PI);
+    await wait(rnd(4000, 8000));
+  },
+  // đọc kinh ở vườn kinh
+  async (a) => {
+    const i = Math.floor(Math.random() * PILLAR_POS.length), p = PILLAR_POS[i];
+    if (!(await botGo(a, p.x + 1.9, p.z))) return;
+    a.faceRy = -Math.PI / 2;
+    await wait(rnd(5000, 10000));
+    a.act('gassho');
+    bubble(a, 'đọc kinh', 2500);
+  },
+  // lên một điện lạy Phật
+  async (a) => {
+    const T = pick(TERRACES);
+    if (!(await botGo(a, rnd(-4, 4), T.hall.back + rnd(5, 8)))) return;
+    a.act('bow', Math.PI);
+    bubble(a, 'lạy Phật', 2500);
+    await wait(rnd(6000, 10000));
+  },
+  // ra bờ hồ ngắm cảnh
+  async (a) => {
+    if (!(await botGo(a, rnd(-60, 60), rnd(48, 51.5)))) return;
+    a.faceRy = 0;
+    await wait(rnd(8000, 15000));
+  },
+  // đi thuyền một vòng quanh hồ
+  async (a) => {
+    if (!(await botGo(a, BOARD.x - rnd(0, 0.8), BOARD.z - rnd(0.5, 2.5)))) return;
+    let d = null;
+    for (let k = 0; k < 60 && bots.has(a) && !(d = dockedBoat(5)); k++) await wait(1000);
+    if (!d || !bots.has(a)) return;
+    attachBoat(a, d.i);
+    let departed = false;
+    while (bots.has(a)) {
+      const st = world.boatState(d.i);
+      if (!st.docked) departed = true;
+      else if (departed) break;
+      await wait(1000);
+    }
+    if (bots.has(a)) detachBoat(a, BOARD.x - 0.4, BOARD.z - 1.2);
+  },
+];
+async function botLife(a) {
+  await wait(rnd(500, 4000));
+  while (bots.has(a)) {
+    await pick(TRIPS)(a);
+    if (!bots.has(a)) return;
+    if (Math.random() < 0.3) bubble(a, pick(BOT_SAYS), 3500);
+    await wait(rnd(3000, 10000));
+  }
+}
+const BOT_NAMES = [['Mây', 'Sen', 'Trăng', 'Gió', 'Suối', 'Lá', 'Sương', 'Nắng', 'Trúc', 'Sóng'], ['an nhiên', 'lặng lẽ', 'thong thả', 'dịu dàng', 'hiền hòa', 'thanh tịnh', 'bình yên']];
+function makeBot() {
+  const a = addAvatar(new Avatar({ id: 'bot' + botSeq++, name: `${pick(BOT_NAMES[0])} ${pick(BOT_NAMES[1])}`, robe: Math.floor(Math.random() * ROBES.length) }));
+  a.setSandals(pick(SANDAL_COLORS));
+  a.wearSandals(true);
+  const [x, z] = Math.random() < 0.5 ? clampWalk(rnd(-50, 50), rnd(41, 51)) : clampWalk(rnd(-40, 40), rnd(-30, 28));
+  a.placeAt(x, z, rnd(0, 6.28));
+  bots.add(a);
+  botLife(a);
+}
+function syncBots() {
+  const target = net ? Math.max(0, 10 - onlineCount) : 10;
+  while (bots.size < target) makeBot();
+  for (const a of [...bots]) {
+    if (bots.size <= target) break;
+    if (a.onBoat != null) continue; // đang đi thuyền thì để về bến
+    bots.delete(a);
+    removeAvatar(a.id);
+  }
+}
+
 const boatBtn = document.querySelector('[data-act=boat]');
 const slotV = new THREE.Vector3();
 let boatUiT = 0;
@@ -821,6 +909,7 @@ function wireNet(n) {
   n.on('count', (m) => {
     onlineCount = m.n;
     updateCount();
+    syncBots();
   });
   n.on('close', () => {
     if (net !== n) return;
@@ -833,15 +922,17 @@ async function join() {
   const n = await connect({ room: roomId, name: myName, robe: myRobe, sandals: mySandals, uid: myUid });
   if (!n) {
     toast('Đang chạy ngoại tuyến — chưa kết nối được máy chủ', 4000);
+    syncBots();
     return;
   }
-  for (const id of [...avatars.keys()]) if (id !== 'me') removeAvatar(id);
+  for (const id of [...avatars.keys()]) if (id !== 'me' && !id.startsWith('bot')) removeAvatar(id);
   net = n;
   wireNet(n);
   n.welcome.peers.forEach(addRemote);
   onlineCount = n.welcome.peers.length + 1;
   updateCount();
   sendMove();
+  syncBots();
 }
 
 // ---------- Chọn phòng / khu, tắt tiếng ----------

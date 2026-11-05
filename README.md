@@ -81,7 +81,7 @@ public/
 | Chụp ảnh | Nút máy ảnh, tải về file PNG |
 | Cài đặt | Âm lượng từng loại, phát khi chuyển tab, đồ họa Nhẹ/Đẹp, đổi tên |
 
-## Khu Tam Chúc (đang làm, đợt 1)
+## Khu Tam Chúc
 
 Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam Chúc: hồ nước lớn giữa núi đá vôi, đảo đá nhô lên mặt hồ, bờ kè lát đá có lan can và đèn đá, cổng Tam Quan sát mép hồ (mái hai tầng, lưỡng long chầu nguyệt, biển TAM CHÚC, sư tử đá, tường bao) mở ra một sân lớn lát đá có đỉnh đồng ở giữa. Trời sáng tối theo giờ Việt Nam (xem thử bằng `?gio=20`).
 
@@ -91,7 +91,9 @@ Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam C
 - Vườn kinh: phía tây sân lớn, qua cổng đá "VƯỜN KINH". 32 cột đá khắc chữ (16 cột Bát Nhã Tâm Kinh âm Hán-Việt, 16 cột lời dạy ngắn), đầu cột hoa sen; cuối vườn có phù điêu sáu cảnh đời Đức Phật. Chạm vào cột để đi tới đọc; đọc xong chắp tay hồi hướng được +1 phước (tối đa 16 lần/ngày).
 - Ba điện trên sườn núi: sau sân lớn có bậc thang đá lên ba nền đá cao dần (6 m, 14 m, 24 m). Điện Quan Âm (tượng Quan Âm dát vàng), điện Pháp Chủ (một tượng Phật lớn), điện Tam Thế (ba tượng Phật); mỗi điện mái chồng diêm có lưỡng long chầu nguyệt, bàn thờ, nến, đèn ấm. Lối lên nền trên đi vòng hai bên hông điện.
 - Bản đồ khu Tam Chúc (nút bản đồ góc phải) và đi nhanh tới: Bờ hồ, Bến thuyền, Sân lớn, Vườn kinh, Điện Quan Âm, Điện Pháp Chủ, Điện Tam Thế.
-- Sẽ làm ở đợt sau: cây cối, khách mô phỏng tham quan, tối ưu cho điện thoại.
+- Cây cối: rừng cây và bụi tre quanh bờ hồ, hai bên sân lớn, quanh vườn kinh và hai bên sườn núi (vẽ hàng loạt cho nhẹ).
+- Khách mô phỏng: khi phòng còn vắng (dưới 10 người) có khách đi tham quan: dạo sân, chắp tay trước đỉnh đồng, đọc kinh ở vườn kinh, lên các điện lạy Phật, ngắm hồ, ra bến chờ thuyền và đi một vòng quanh hồ; nhường chỗ dần khi có người thật.
+- Tối ưu: vật đứng yên được gộp theo vật liệu lúc dựng cảnh; tượng trong điện chỉ vẽ khi ở gần.
 
 Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `public/js/arch.js` (mái cong, núi đá vôi dùng chung).
 
