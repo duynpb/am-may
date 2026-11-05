@@ -1208,6 +1208,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
     resetDust(pickDust(22));
   }
   for (let i = 0; i < botTarget; i++) makeBot({ seated: Math.random() < 0.85 });
+  makeNovices();
   $('#info-mode').textContent = online
     ? 'Bạn đang trực tuyến. Số trên góc phải là số người thật đang ở đây; khi chánh điện còn vắng, vài khách mô phỏng ngồi cùng cho ấm cúng và sẽ nhường chỗ khi có người vào.'
     : 'Đang chạy ngoại tuyến: những người trong chánh điện là khách mô phỏng. Chạy máy chủ (npm start) để gặp người thật.';
@@ -1893,45 +1894,202 @@ function harvestTick() {
   }, 3400);
 }
 
-// Chú tiểu tự động từ điện Quan Âm đi ra vườn, bưng rổ trái cây vừa hái vào đặt lên bàn thờ cúng Phật
-let noviceSeq = 0;
-const NOVICE_NAMES = ['Chú tiểu Tiểu Minh', 'Chú tiểu Tâm An', 'Chú tiểu Tịnh Giác', 'Chú tiểu Huệ Đăng'];
-async function sendNoviceForFruit(i) {
+// ---------- Các chú tiểu trong chùa: đi vòng quanh làm việc hằng ngày, khi có quả vừa hái thì ra bưng vào cúng Phật ----------
+const novices = [];
+const NOVICE_DEFS = [
+  { id: 'novice1', name: 'Chú tiểu Tiểu Minh', x: 35, z: 24 },
+  { id: 'novice2', name: 'Chú tiểu Tâm An', x: -6, z: 29 },
+  { id: 'novice3', name: 'Chú tiểu Tịnh Giác', x: 54, z: 42 },
+  { id: 'novice4', name: 'Chú tiểu Huệ Đăng', x: 4, z: 58 },
+];
+
+async function noviceGo(a, x, z, token) {
+  if (!avatars.has(a.id) || a.noviceTask !== token) return false;
+  const ok = await Promise.race([walkRoute(a, x, z), wait(24000).then(() => false)]);
+  return ok && avatars.has(a.id) && a.noviceTask === token;
+}
+
+const NOVICE_CHORES = [
+  // 1. Quét lá sân chùa
+  async (a, token) => {
+    if (!(await noviceGo(a, rnd(-9, 9), rnd(24.5, 36.5), token))) return;
+    a.holdBroom(true);
+    bubble(a, pick(['quét lá sân chùa', 'quét dọn sân chùa sạch sẽ']), 3600);
+    for (let k = 0; k < 3; k++) {
+      if (!(await noviceGo(a, rnd(-11, 11), rnd(24.5, 37), token))) break;
+      if (!online) leaves.takeNear(a.pos.x, a.pos.z, 1.4);
+      await wait(rnd(900, 1800));
+      if (a.noviceTask !== token) break;
+    }
+    a.holdBroom(false);
+  },
+  // 2. Múc nước và tưới các luống rau
+  async (a, token) => {
+    if (!(await noviceGo(a, VEG.x1 - 1.5, VEG.z0 - 0.5, token))) return;
+    a.act('stoop');
+    bubble(a, 'múc nước lu sành tưới rau', 3200);
+    await wait(1800);
+    if (a.noviceTask !== token) return;
+    for (let k = 0; k < 2; k++) {
+      const idx = (Math.random() * VEG_PLOTS) | 0;
+      const r = vegRect(idx);
+      if (!(await noviceGo(a, r.minX - 0.25, (r.minZ + r.maxZ) / 2, token))) return;
+      a.faceRy = Math.PI / 2;
+      a.act('stoop');
+      bubble(a, pick([`tưới nước luống ${VEG_KINDS[idx]}`, `nhổ cỏ luống ${VEG_KINDS[idx]}`]), 3400);
+      await wait(rnd(2400, 3800));
+      if (a.noviceTask !== token) return;
+    }
+  },
+  // 3. Chăm sóc vườn cây ăn trái kế bên điện Quan Âm
+  async (a, token) => {
+    for (let k = 0; k < 2; k++) {
+      const tr = pick(ORCHARD_TREES);
+      if (!(await noviceGo(a, tr.x - 1.25, tr.z, token))) return;
+      a.faceRy = Math.atan2(tr.x - a.pos.x, tr.z - a.pos.z);
+      a.act('stoop');
+      bubble(a, pick([`vun gốc ${tr.name}`, `chăm sóc ${tr.name}`, 'nhặt lá khô vườn quả']), 3400);
+      await wait(rnd(2600, 4200));
+      if (a.noviceTask !== token) return;
+    }
+  },
+  // 4. Thăm đồng lúa
+  async (a, token) => {
+    const r = plotRect((Math.random() * PLOTS) | 0);
+    if (!(await noviceGo(a, r.minX - 0.2, (r.minZ + r.maxZ) / 2, token))) return;
+    a.act('gassho');
+    bubble(a, pick(['thăm đồng lúa chùa', 'xem nước bờ ruộng', 'canh chim sẻ ngoài ruộng']), 3400);
+    await wait(rnd(2800, 4500));
+  },
+  // 5. Lau bụi tượng La Hán ở hành lang
+  async (a, token) => {
+    const s = Math.random() < 0.5 ? -1 : 1;
+    const z = rnd(47, 76);
+    if (!(await noviceGo(a, s * 14.5, z, token))) return;
+    a.holdCloth(true);
+    a.act('wipe', s > 0 ? Math.PI / 2 : -Math.PI / 2);
+    bubble(a, 'lau bụi tượng La Hán', 3400);
+    await wait(3200);
+    a.holdCloth(false);
+  },
+  // 6. Múc nước Giếng Ngọc & cho cá koi ăn ở hồ sen
+  async (a, token) => {
+    const [wx, wz] = ringAround(WELL.x, WELL.z, WELL.r + 1.25);
+    if (!(await noviceGo(a, wx, wz, token))) return;
+    a.faceRy = Math.atan2(WELL.x - a.pos.x, WELL.z - a.pos.z);
+    a.act('stoop');
+    bubble(a, 'múc nước Giếng Ngọc về pha trà', 3400);
+    await wait(rnd(2600, 4000));
+  },
+  // 7. Châm dầu đèn & lễ Phật ở điện Quan Âm rồi ra lại sân
+  async (a, token) => {
+    if (!(await noviceGo(a, QAHALL.cx + rnd(-1.6, 1.6), 9.4, token))) return;
+    a.act('bow', Math.PI);
+    bubble(a, pick(['châm dầu đèn bàn thờ', 'lễ Quan Âm Bồ Tát', 'Nam mô Quán Thế Âm Bồ Tát']), 3600);
+    await wait(3600);
+    if (a.noviceTask !== token) return;
+    await noviceGo(a, QAHALL.cx + rnd(-4, 4), 24, token);
+  },
+  // 8. Lên đồi lễ Phật ở điện Tam Thế rồi xuống sân
+  async (a, token) => {
+    if (!(await noviceGo(a, rnd(-2.5, 2.5), TAMTHE.z0 + 6.5, token))) return;
+    a.act('bow', Math.PI);
+    bubble(a, pick(['dọn hương án điện Tam Thế', 'lễ Tam Thế Phật']), 3600);
+    await wait(3600);
+    if (a.noviceTask !== token) return;
+    await noviceGo(a, rnd(-6, 6), 27, token);
+  },
+];
+
+async function noviceCarryFruit(a, i) {
   const tr = ORCHARD_TREES[i];
   if (!tr) return;
-  const novice = addAvatar(new Avatar({ id: 'novice' + ++noviceSeq, name: NOVICE_NAMES[noviceSeq % NOVICE_NAMES.length], novice: true }));
-  novice.zone = 'out';
-  novice.setSandals(SANDAL_COLORS[0]);
-  novice.wearSandals(true);
-  novice.placeAt(QAHALL.cx, 16.4, 0);
-  bubble(novice, `đi nhận ${tr.fruit} cúng Phật`, 3800);
-  const bx = tr.x + 0.65, bz = tr.z + 0.55;
-  if (!(await walkRoute(novice, bx + 0.35, bz + 0.35)) || !avatars.has(novice.id)) return;
-  novice.faceRy = Math.atan2(bx - novice.pos.x, bz - novice.pos.z);
-  novice.act('stoop');
-  await wait(1100);
-  if (!avatars.has(novice.id)) return;
-  const color = world.orchard.takeBasket(i);
-  novice.holdBasket(color);
-  bubble(novice, `bưng rổ ${tr.fruit} vào cúng Phật`, 4500);
-  await wait(500);
-  if (!avatars.has(novice.id)) return;
-  if (!(await walkRoute(novice, QAHALL.cx - 1.1, 8.6)) || !avatars.has(novice.id)) return;
-  novice.faceRy = Math.PI;
-  novice.act('stoop');
-  await wait(1000);
-  if (!avatars.has(novice.id)) return;
-  novice.holdBasket(null);
-  world.orchard.placeOffering(i);
-  sound.bell(0.25);
-  await novice.walk(QAHALL.cx - 1.1, 9.5);
-  if (!avatars.has(novice.id)) return;
-  novice.act('bow', Math.PI);
-  bubble(novice, `dâng ${tr.fruit} cúng Phật, hồi hướng phước lành`, 4200);
-  await wait(3800);
-  if (!avatars.has(novice.id)) return;
-  await novice.walk(QAHALL.cx - 4.2, 15.8);
-  if (avatars.has(novice.id)) removeAvatar(novice.id);
+  const token = (a.noviceTask = {});
+  a.carryingFruit = true;
+  a.holdBroom(false);
+  a.holdCloth(false);
+  try {
+    bubble(a, `đi nhận ${tr.fruit} cúng Phật`, 3800);
+    const bx = tr.x + 0.65, bz = tr.z + 0.55;
+    if (!(await noviceGo(a, bx + 0.35, bz + 0.35, token))) return;
+    a.faceRy = Math.atan2(bx - a.pos.x, bz - a.pos.z);
+    a.act('stoop');
+    await wait(1100);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    const color = world.orchard.takeBasket(i);
+    a.holdBasket(color);
+    bubble(a, `bưng rổ ${tr.fruit} vào cúng Phật`, 4500);
+    await wait(450);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    if (!(await noviceGo(a, QAHALL.cx - 1.1, 8.6, token))) return;
+    a.faceRy = Math.PI;
+    a.act('stoop');
+    await wait(1000);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    a.holdBasket(null);
+    world.orchard.placeOffering(i);
+    sound.bow();
+    await a.walk(QAHALL.cx - 1.1, 9.6);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    a.act('bow', Math.PI);
+    bubble(a, `dâng ${tr.fruit} cúng Phật, hồi hướng phước lành`, 4200);
+    await wait(3400);
+    if (!avatars.has(a.id) || a.noviceTask !== token) return;
+    // lễ xong đi ra sân tiếp tục công việc hằng ngày
+    await noviceGo(a, QAHALL.cx + rnd(-3, 5), 23.5, token);
+  } finally {
+    a.holdBasket(null);
+    a.carryingFruit = false;
+  }
+}
+
+async function noviceLoop(a, startIdx = 0) {
+  let step = startIdx;
+  while (avatars.has(a.id)) {
+    if (a.fruitQueue?.length) {
+      const treeIdx = a.fruitQueue.shift();
+      await noviceCarryFruit(a, treeIdx);
+      continue;
+    }
+    const token = (a.noviceTask = {});
+    const chore = NOVICE_CHORES[step % NOVICE_CHORES.length];
+    step += 1 + ((Math.random() * 3) | 0);
+    await chore(a, token);
+    a.holdBroom(false);
+    a.holdCloth(false);
+    if (!a.fruitQueue?.length) await wait(rnd(600, 1600));
+  }
+}
+
+function makeNovices() {
+  novices.length = 0;
+  NOVICE_DEFS.forEach((def, idx) => {
+    const a = addAvatar(new Avatar({ id: def.id, name: def.name, novice: true }));
+    a.zone = 'out';
+    a.setSandals(SANDAL_COLORS[0]);
+    a.wearSandals(true);
+    a.placeAt(def.x, def.z, rnd(-Math.PI, Math.PI));
+    a.fruitQueue = [];
+    novices.push(a);
+    noviceLoop(a, idx * 2);
+  });
+}
+
+function sendNoviceForFruit(i) {
+  const tr = ORCHARD_TREES[i];
+  if (!tr || !novices.length) return;
+  // chọn chú tiểu đang rảnh và đứng gần cây vừa hái nhất
+  const free = novices.filter((n) => avatars.has(n.id) && !n.carryingFruit && !n.fruitQueue?.length);
+  const pool = free.length ? free : novices.filter((n) => avatars.has(n.id));
+  if (!pool.length) return;
+  pool.sort((a, b) => Math.hypot(a.pos.x - tr.x, a.pos.z - tr.z) - Math.hypot(b.pos.x - tr.x, b.pos.z - tr.z));
+  const chosen = pool[0];
+  chosen.fruitQueue.push(i);
+  if (!chosen.carryingFruit) {
+    // ngắt việc đang làm để đi nhận rổ quả ngay
+    chosen.noviceTask = {};
+    chosen.stop();
+  }
 }
 
 // ---------- Lấy dép (đùa vui) ----------
