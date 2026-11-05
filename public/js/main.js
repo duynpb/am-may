@@ -1077,6 +1077,7 @@ function wireNet(n) {
   });
   n.on('orchard', (m) => {
     world.orchard.setTree(m.i, m.age);
+    if (m.age === 0) sendNoviceForFruit(m.i);
     const a = avatars.get('n' + m.by);
     if (a) {
       a.act('stoop');
@@ -1886,9 +1887,51 @@ function harvestTick() {
       world.orchard.setTree(i, 0);
       if (net) net.send({ t: 'pick-fruit', i });
       else earn('fruit');
-      toast(`Bạn đã hái ${tr.fruit} từ ${tr.name} — quả lành dâng cúng Phật, lộc vườn chia khắp chúng sinh`, 3600);
+      toast(`Bạn đã hái ${tr.fruit} từ ${tr.name} — chú tiểu đang ra mang rổ quả vào cúng Phật`, 4200);
+      sendNoviceForFruit(i);
     }
   }, 3400);
+}
+
+// Chú tiểu tự động từ điện Quan Âm đi ra vườn, bưng rổ trái cây vừa hái vào đặt lên bàn thờ cúng Phật
+let noviceSeq = 0;
+const NOVICE_NAMES = ['Chú tiểu Tiểu Minh', 'Chú tiểu Tâm An', 'Chú tiểu Tịnh Giác', 'Chú tiểu Huệ Đăng'];
+async function sendNoviceForFruit(i) {
+  const tr = ORCHARD_TREES[i];
+  if (!tr) return;
+  const novice = addAvatar(new Avatar({ id: 'novice' + ++noviceSeq, name: NOVICE_NAMES[noviceSeq % NOVICE_NAMES.length], novice: true }));
+  novice.zone = 'out';
+  novice.setSandals(SANDAL_COLORS[0]);
+  novice.wearSandals(true);
+  novice.placeAt(QAHALL.cx, 16.4, 0);
+  bubble(novice, `đi nhận ${tr.fruit} cúng Phật`, 3800);
+  const bx = tr.x + 0.65, bz = tr.z + 0.55;
+  if (!(await walkRoute(novice, bx + 0.35, bz + 0.35)) || !avatars.has(novice.id)) return;
+  novice.faceRy = Math.atan2(bx - novice.pos.x, bz - novice.pos.z);
+  novice.act('stoop');
+  await wait(1100);
+  if (!avatars.has(novice.id)) return;
+  const color = world.orchard.takeBasket(i);
+  novice.holdBasket(color);
+  bubble(novice, `bưng rổ ${tr.fruit} vào cúng Phật`, 4500);
+  await wait(500);
+  if (!avatars.has(novice.id)) return;
+  if (!(await walkRoute(novice, QAHALL.cx - 1.1, 8.6)) || !avatars.has(novice.id)) return;
+  novice.faceRy = Math.PI;
+  novice.act('stoop');
+  await wait(1000);
+  if (!avatars.has(novice.id)) return;
+  novice.holdBasket(null);
+  world.orchard.placeOffering(i);
+  sound.bell(0.25);
+  await novice.walk(QAHALL.cx - 1.1, 9.5);
+  if (!avatars.has(novice.id)) return;
+  novice.act('bow', Math.PI);
+  bubble(novice, `dâng ${tr.fruit} cúng Phật, hồi hướng phước lành`, 4200);
+  await wait(3800);
+  if (!avatars.has(novice.id)) return;
+  await novice.walk(QAHALL.cx - 4.2, 15.8);
+  if (avatars.has(novice.id)) removeAvatar(novice.id);
 }
 
 // ---------- Lấy dép (đùa vui) ----------

@@ -21,6 +21,7 @@ function geos() {
   G.sash = new THREE.BoxGeometry(0.1, 0.56, 0.03);
   G.collar = new THREE.TorusGeometry(0.19, 0.045, 8, 22).rotateX(Math.PI / 2);
   G.head = new THREE.SphereGeometry(0.36, 28, 20);
+  G.topknot = new THREE.SphereGeometry(0.085, 12, 10);
   G.eye = new THREE.SphereGeometry(0.032, 10, 8);
   G.smile = new THREE.TorusGeometry(0.035, 0.009, 6, 12, Math.PI).rotateZ(Math.PI);
   G.cheek = new THREE.SphereGeometry(0.05, 10, 8);
@@ -50,11 +51,12 @@ function dampAngle(a, b, k, dt) {
 }
 
 export class Avatar {
-  constructor({ id, name, robe = 0, skin, isPlayer = false, speed }) {
+  constructor({ id, name, robe = 0, skin, isPlayer = false, speed, novice = false }) {
     this.id = id;
     this.name = name;
     this.isPlayer = isPlayer;
-    this.speed = speed ?? (isPlayer ? 2.8 : 1.7);
+    this.novice = novice;
+    this.speed = speed ?? (isPlayer ? 2.8 : novice ? 2.3 : 1.7);
     this.pos = new THREE.Vector3();
     this.ry = Math.PI;
     this.faceRy = null;
@@ -63,14 +65,17 @@ export class Avatar {
     this.seat = null;
     this.action = null;
     this.seed = Math.random() * 100;
-    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0, stoop: 0, broom: 0, wipe: 0, pull: 0, lean: 0 };
+    this.p = { walk: 0, sit: 0, gassho: 0, bow: 0, stoop: 0, broom: 0, wipe: 0, pull: 0, lean: 0, basket: 0 };
     this.hasBroom = false;
+    this.hasBasket = false;
     this.sweepPhase = 0;
     this.phase = 0;
     this.time = 0;
     this.onArrive = null;
     this.wearing = false;
-    this.build(ROBES[robe % ROBES.length], skin ?? SKINS[Math.floor(Math.random() * SKINS.length)]);
+    const colors = novice ? { robe: '#c47a2b', sash: '#7a2618' } : ROBES[robe % ROBES.length];
+    this.build(colors, skin ?? SKINS[Math.floor(Math.random() * SKINS.length)]);
+    if (novice) this.root.scale.setScalar(0.82);
   }
 
   // Đôi dép của nhân vật (màu [đế, quai]); wearSandals(true) = đang mang
@@ -125,6 +130,10 @@ export class Avatar {
     this.upper.add(this.head);
     add(g.head, skinM, this.head);
     const eyeM = mat('#2b211b', 0.4);
+    if (this.novice) {
+      // chỏm tóc trái đào của chú tiểu
+      add(g.topknot, eyeM, this.head, 0, 0.35, 0.1);
+    }
     for (const s of [-1, 1]) {
       add(g.eye, eyeM, this.head, s * 0.12, 0.0, 0.33).scale.set(1.3, 0.5, 0.6);
       add(g.cheek, mat('#f19c8c', 0.9), this.head, s * 0.2, -0.08, 0.28).scale.set(1, 0.6, 0.4);
@@ -190,6 +199,34 @@ export class Avatar {
     }
     this.hasBroom = on;
     if (this.broomRig) this.broomRig.visible = on;
+  }
+
+  // Bưng rổ trái cây hai tay trước ngực (color = màu quả chín, hoặc null/false để cất)
+  holdBasket(color) {
+    const on = !!color;
+    if (!this.basketRig && on) {
+      this.basketRig = new THREE.Group();
+      this.basketRig.position.set(0, 0.12, 0.34);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.16, 12), mat('#bfa065', 0.9));
+      rim.castShadow = true;
+      this.basketFruitMat = new THREE.MeshStandardMaterial({ color: typeof color === 'string' ? color : '#f5b82e', roughness: 0.55 });
+      const mound = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), this.basketFruitMat);
+      mound.scale.set(1, 0.55, 1);
+      mound.position.y = 0.08;
+      this.basketRig.add(rim, mound);
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2;
+        const fr = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), this.basketFruitMat);
+        fr.position.set(Math.cos(a) * 0.09, 0.12, Math.sin(a) * 0.09);
+        this.basketRig.add(fr);
+      }
+      this.upper.add(this.basketRig);
+    }
+    if (on && this.basketFruitMat && typeof color === 'string') {
+      this.basketFruitMat.color.set(color);
+    }
+    this.hasBasket = on;
+    if (this.basketRig) this.basketRig.visible = on;
   }
 
   // Khăn lau tượng cầm ở tay phải
@@ -323,6 +360,7 @@ export class Avatar {
     p.bow = damp(p.bow, bT, 3.5, dt);
     p.stoop = damp(p.stoop, sT, 5, dt);
     p.broom = damp(p.broom, this.hasBroom ? 1 : 0, 8, dt);
+    p.basket = damp(p.basket, this.hasBasket ? 1 : 0, 8, dt);
     p.wipe = damp(p.wipe, wT, 7, dt);
     p.pull = damp(p.pull, pT, 9, dt);
     p.lean = damp(p.lean, lT, 4, dt);
@@ -364,7 +402,7 @@ export class Avatar {
     this.upper.rotation.y = sweep * 0.18;
     for (const arm of this.arms) {
       const s = arm.userData.side;
-      const swing = Math.sin(this.phase + (s > 0 ? 0 : Math.PI)) * 0.6 * p.walk * (1 - p.broom);
+      const swing = Math.sin(this.phase + (s > 0 ? 0 : Math.PI)) * 0.6 * p.walk * (1 - p.broom) * (1 - p.basket * 0.85);
       let rx = mix(0, -0.55, p.sit) + swing;
       let rz = mix(s * 0.12, -s * 0.38, p.sit);
       rx = mix(rx, -1.15, p.gassho);
@@ -373,6 +411,8 @@ export class Avatar {
       rz = mix(rz, -s * 0.2, p.stoop);
       rx = mix(rx, -0.75 + s * sweep * 0.15, p.broom); // hai tay cầm cán chổi
       rz = mix(rz, -s * 0.32, p.broom);
+      rx = mix(rx, -0.92, p.basket); // hai tay bưng rổ trái cây trước ngực
+      rz = mix(rz, -s * 0.34, p.basket);
       // lau tượng: tay phải cầm khăn xoay vòng, tay trái đỡ phía trước
       const w = (this.time + this.seed) * 8;
       rx = mix(rx, s > 0 ? -1.25 + Math.sin(w) * 0.28 : -0.95, p.wipe);
@@ -386,13 +426,14 @@ export class Avatar {
 
   // Vị trí trên đầu (để đặt nhãn tên)
   labelAnchor(v) {
-    return v.set(this.root.position.x, this.root.position.y + 1.5 - 0.2 * this.p.sit, this.root.position.z);
+    return v.set(this.root.position.x, this.root.position.y + (this.novice ? 1.25 : 1.5) - 0.2 * pSit(this), this.root.position.z);
   }
 
   dispose() {
     this.root.removeFromParent();
   }
 }
+const pSit = (a) => a.p.sit;
 
 // Độ cao mặt đất tại (x, z) — main.js gán theo thềm và sân
 Avatar.ground = () => 0;

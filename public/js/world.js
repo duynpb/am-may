@@ -2329,15 +2329,32 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       obstacles.push({ x: tr.x, z: tr.z, r: 0.65 });
     });
 
+    // mâm bồng trái cây cúng Phật trên bàn thờ điện Quan Âm và bàn thờ Chánh điện (hiện lên khi chú tiểu dâng quả)
+    const offerPlates = [];
+    for (const [ox, oy, oz] of [[QH.cx - 1.25, GY2 + 1.26, QH.z0 + 1.65], [-2.1, 1.66, -15.3]]) {
+      const pg = new THREE.Group();
+      pg.position.set(ox, oy, oz);
+      pg.visible = false;
+      scene.add(pg);
+      cyl(0.1, 0.16, 0.12, M.gold, 0, 0.06, 0, { parent: pg }, 12);
+      cyl(0.28, 0.12, 0.06, M.lacquer, 0, 0.14, 0, { parent: pg }, 16);
+      const fm = std('#f5b82e', { roughness: 0.5 });
+      for (const [dx, dy, dz, r] of [[0, 0.24, 0, 0.09], [-0.1, 0.2, 0.06, 0.075], [0.1, 0.2, 0.06, 0.075], [0, 0.2, -0.1, 0.075], [-0.08, 0.2, -0.07, 0.07], [0.08, 0.2, -0.07, 0.07]]) {
+        mesh(new THREE.SphereGeometry(r, 10, 8), fm, dx, dy, dz, { parent: pg });
+      }
+      offerPlates.push({ pg, fm });
+    }
+
     const planted = new Float64Array(ORCHARD_COUNT);
     const shown = new Int8Array(ORCHARD_COUNT).fill(-1);
+    const basketTaken = new Uint8Array(ORCHARD_COUNT);
     const ageOf = (i) => (Date.now() - planted[i]) / 1000;
 
     function drawTree(i) {
       const st = fruitStage(ageOf(i));
       shown[i] = st;
       const { fruits, mat, sp } = fruitMeshes[i];
-      const freshPick = st === 0 && ageOf(i) < 40;
+      const freshPick = st === 0 && ageOf(i) < 40 && !basketTaken[i];
       // st 0: hoa nhỏ; st 1: trái non xanh; st 2: quả lớn dần; st 3: quả chín rực rỡ
       mat.color.set(st === 0 ? sp.flower : st === 1 ? sp.green : st === 2 ? sp.green : sp.ripe);
       const mult = st === 0 ? 0.42 : st === 1 ? 0.58 : st === 2 ? 0.85 : 1.12;
@@ -2361,12 +2378,26 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       setAges(ages) {
         for (let i = 0; i < ORCHARD_COUNT; i++) {
           planted[i] = Date.now() - (ages?.[i] ?? Math.random() * 480) * 1000;
+          basketTaken[i] = 1;
           drawTree(i);
         }
       },
       setTree(i, age = 0) {
         planted[i] = Date.now() - age * 1000;
+        basketTaken[i] = age === 0 ? 0 : 1;
         drawTree(i);
+      },
+      takeBasket(i) {
+        basketTaken[i] = 1;
+        if (basketMeshes[i]) basketMeshes[i].visible = false;
+        return fruitMeshes[i]?.sp.ripe || '#f5b82e';
+      },
+      placeOffering(i) {
+        const c = fruitMeshes[i]?.sp.ripe || '#f5b82e';
+        for (const { pg, fm } of offerPlates) {
+          fm.color.set(c);
+          pg.visible = true;
+        }
       },
       stageOf: (i) => fruitStage(ageOf(i)),
       ageOf,
