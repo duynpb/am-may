@@ -65,10 +65,10 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .chant-btn { height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; }
 .zen-track-btn[hidden] { display: none; }
 .study-bar[hidden] { display: none; }
-.study-bar { margin-top: 6px; padding: 4px; gap: 2px; display: flex; flex-wrap: wrap; justify-content: flex-end; max-width: 300px; }
-.study-bar button { border: 0; background: transparent; color: inherit; font: inherit; font-size: 12.5px; padding: 6px 9px; border-radius: 999px; cursor: pointer; }
-.study-bar button:hover { background: var(--glass-hover); }
-.study-bar button[aria-pressed='true'] { background: #f0b24a; color: #2a1d0e; font-weight: 600; }
+.study-bar { margin-top: 6px; height: 36px; padding: 0 6px 0 14px; gap: 6px; display: flex; align-items: center; font-size: 13px; cursor: pointer; }
+.study-bar select { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 500; padding: 6px 4px; cursor: pointer; outline: none; }
+.study-bar select:focus-visible { box-shadow: 0 0 0 2px #f0b24a; border-radius: 8px; }
+.study-bar option { color: #2a1d0e; background: #f4ecdf; }
 .zen-track-btn { margin-top: 6px; }
 .chant-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background 0.2s; }
 .chant-btn[aria-pressed='true'] .dot { background: #f0b24a; box-shadow: 0 0 0 0 rgba(240, 178, 74, 0.7); animation: pulse 1.6s infinite; }
@@ -411,6 +411,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   .count { margin-right: 2px; font-size: 13px; }
   .icon-btn { width: 32px; height: 32px; }
   .chant-btn { height: 32px; font-size: 12px; padding: 0 12px; }
+  .study-bar { height: 32px; font-size: 12px; padding: 0 4px 0 12px; }
   .actions { left: 12px; right: 12px; transform: none; justify-content: space-between; bottom: calc(12px + var(--sab)); }
   .actions button { flex: 1; min-width: 0; padding: 8px 2px 7px; font-size: 11px; white-space: nowrap; }
   .actions button svg { width: 22px; height: 22px; }

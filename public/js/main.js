@@ -3434,38 +3434,28 @@ muteBtn.addEventListener('click', () => {
 const chantBtn = $('#btn-chant');
 // ---------- Nhà tự học: ngồi vào bàn thì bật nhạc không lời, đổi được sang suối, mưa, lửa, gõ mõ ----------
 const studyBar = $('#study-bar');
-for (const t of STUDY_SOUNDS) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.dataset.id = t.id;
-  b.textContent = t.name;
-  b.addEventListener('click', () => {
-    settings.studySound = t.id;
-    saveSettings();
-    if (settings.muted) {
-      settings.muted = false;
-      sound.apply();
-      syncMute();
-    }
-    sound.setStudy(t.id);
-    showStudyBar();
-    toast(`Đang phát: ${t.name}`, 2000);
-  });
-  studyBar.append(b);
-}
-{
-  const off = document.createElement('button');
-  off.type = 'button';
-  off.dataset.id = 'off';
-  off.textContent = 'Tắt';
-  off.addEventListener('click', () => {
+// danh sách thả xuống chọn âm thanh khi học (gọn trên màn hình điện thoại)
+const studySel = $('#study-sound');
+for (const t of STUDY_SOUNDS) studySel.append(new Option(t.name, t.id));
+studySel.append(new Option('Tắt âm thanh', 'off'));
+studySel.addEventListener('change', () => {
+  const id = studySel.value;
+  if (id === 'off') {
     sound.setStudy(null);
-    showStudyBar();
-  });
-  studyBar.append(off);
-}
+    return;
+  }
+  settings.studySound = id;
+  saveSettings();
+  if (settings.muted) {
+    settings.muted = false;
+    sound.apply();
+    syncMute();
+  }
+  sound.setStudy(id);
+  toast(`Đang phát: ${STUDY_SOUNDS.find((t) => t.id === id).name.toLowerCase()}`, 2000);
+});
 function showStudyBar() {
-  for (const b of studyBar.querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.id === (sound.studyId ?? 'off'));
+  studySel.value = sound.studyId ?? 'off';
 }
 let wasStudying = false;
 function studyTick() {
