@@ -282,8 +282,9 @@ export class Avatar {
   }
 
   sitAt(seat) {
-    this.placeAt(seat.x, seat.z, Math.PI);
+    this.placeAt(seat.x, seat.z, seat.ry ?? Math.PI);
     this.seat = seat.index;
+    this.seatRy = seat.ry ?? Math.PI;
     this.p.sit = 1;
     this.sync();
   }
@@ -306,7 +307,7 @@ export class Avatar {
   update(dt) {
     this.time += dt;
     let arrived = false;
-    let wantRy = this.faceRy ?? (this.sitting ? Math.PI : this.ry);
+    let wantRy = this.faceRy ?? (this.sitting ? (this.seatRy ?? Math.PI) : this.ry);
     if (this.goal) {
       const dx = this.goal.x - this.pos.x, dz = this.goal.z - this.pos.z;
       const dist = Math.hypot(dx, dz);
@@ -316,6 +317,7 @@ export class Avatar {
         arrived = true;
         if (this.goalSeat) {
           this.seat = this.goalSeat.index;
+          this.seatRy = this.goalSeat.ry ?? Math.PI;
           this.goalSeat = null;
         }
         const cb = this.onArrive;

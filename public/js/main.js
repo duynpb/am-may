@@ -279,6 +279,8 @@ const ROUND_OBSTACLES = [
   { x: 16.85, z: 62, rx: 1.5, rz: 18.7 }, // bệ tượng và tường hậu hành lang La Hán đông
   { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
+  // chân đài thiền và bậc thang: đi vòng qua, chỉ lên đài bằng cầu thang (người và chó không đi xuyên lên mặt đài)
+  { x: ZEN_LOFT.x, z: ZEN_LOFT.z - 1.5, rx: 9.6, rz: 11.2 },
   { x: 29.4, z: QAHALL.z1 - 0.2, r: 0.75 }, // cột mặt tiền điện Quan Âm
   { x: 34.6, z: QAHALL.z1 - 0.2, r: 0.75 },
   { x: -4.4, z: TAMTHE.z1 - 0.2, r: 0.8 }, // cột hai bên cửa giữa điện Tam Thế
@@ -664,7 +666,7 @@ async function bellDown(a) {
   return true;
 }
 
-// ---------- Đài Thiền Hành cao phía trước gác chuông: leo cầu thang đá lên mặt đài cao 9,6 m để thiền hành & ngắm toàn cảnh chùa ----------
+// ---------- Đài thiền cao phía trước gác chuông: leo cầu thang đá lên mặt đài cao 9,6 m, ngồi bồ đoàn quanh đài sen thiền định & ngắm toàn cảnh chùa ----------
 const ZL = ZEN_LOFT;
 const onZenXZ = (x, z) => Math.abs(x - ZL.x) <= 6.2 && Math.abs(z - ZL.z) <= 6.2;
 const onZen = (a) => onZenXZ(a.pos.x, a.pos.z);
@@ -685,59 +687,17 @@ function clampZen(x, z) {
 function zenPath(ax, az, bx, bz) {
   return detour(ax, az, bx, bz, 0, [{ x: ZL.x, z: ZL.z, r: ZL.centerR }]).map(([px, pz]) => clampZen(px, pz));
 }
-let zenWalking = false, zenWalkToken = null, zenPendingWalk = false;
-function stopZenWalk(notify = false) {
-  if (!zenWalking && !zenPendingWalk) return;
-  zenWalking = false;
-  zenPendingWalk = false;
-  zenWalkToken = null;
-  player.speed = 2.6;
-  if (notify) toast('Đã dừng bước thiền hành — bạn có thể dạo quanh đài ngắm toàn cảnh chùa', 2800);
-}
-async function startZenWalk() {
-  if (!onZen(player)) return;
-  const token = (zenWalkToken = {});
-  zenWalking = true;
-  player.speed = 1.25; // bước chân thiền hành chậm rãi, chánh niệm
-  if (!sound.zenMusic && !settings.muted) {
-    sound.setZenMusic(true);
-    syncZenAudio();
-  }
-  toast('Bắt đầu thiền hành quanh Đài Thiền — bước chân thong thả, lắng nghe nhạc thiền không lời', 4200);
-  let angle = Math.atan2(player.pos.z - ZL.z, player.pos.x - ZL.x);
-  let stepCount = 0;
-  while (zenWalking && zenWalkToken === token && onZen(player) && !player.script) {
-    angle += Math.PI / 8;
-    const nx = ZL.x + Math.cos(angle) * ZL.orbitR;
-    const nz = ZL.z + Math.sin(angle) * ZL.orbitR;
-    player.walkTo(nx, nz);
-    sendMove();
-    const ok = await new Promise((res) => {
-      player.onArrive = () => res(zenWalking && zenWalkToken === token);
-    });
-    if (!ok || !zenWalking || zenWalkToken !== token) break;
-    stepCount++;
-    if (stepCount % 6 === 0) {
-      player.act('gassho');
-      await wait(1400);
-    }
-  }
-  if (zenWalkToken === token) {
-    zenWalking = false;
-    player.speed = 2.6;
-  }
-}
-async function walkZen(a, x, z) {
-  if (a === player && !zenPendingWalk) stopZenWalk();
-  [x, z] = clampZen(x, z);
+async function walkZen(a, x, z, seat = null) {
+  // có bồ đoàn thì đi tới bồ đoàn rồi ngồi xuống
+  [x, z] = seat ? [seat.x, seat.z] : clampZen(x, z);
   const token = (a.route = {});
-  a.routeTo = { x, z, seat: null };
+  a.routeTo = { x, z, seat };
   for (const [px, pz] of zenPath(a.pos.x, a.pos.z, x, z)) {
     await a.walk(px, pz);
     if (a.route !== token) return false;
   }
   a.routeTo = null;
-  a.walkTo(x, z);
+  a.walkTo(x, z, seat);
   return new Promise((res) => (a.onArrive = () => res(a.route === token)));
 }
 async function zenUp(a) {
@@ -754,15 +714,10 @@ async function zenUp(a) {
     cam.yaw = -1.15;
     cam.dist = Math.max(cam.dist, 12.5);
     syncZenAudio(true);
-    if (zenPendingWalk) {
-      zenPendingWalk = false;
-      setTimeout(() => onZen(player) && startZenWalk(), 300);
-    }
   }
   return true;
 }
 async function zenDown(a) {
-  if (a === player) stopZenWalk();
   const token = (a.script = {});
   for (const [px, pz] of [...zenPath(a.pos.x, a.pos.z, ZL.arrive.x, ZL.arrive.z), [ZL.arrive.x, ZL.arrive.z]]) {
     await a.walk(px, pz);
@@ -777,7 +732,7 @@ async function zenDown(a) {
   return true;
 }
 
-// Những chỗ trên cao: tầng 13 của tháp, sàn gác chuông và Đài Thiền Hành
+// Những chỗ trên cao: tầng 13 của tháp, sàn gác chuông và đài thiền
 const LOFTS = {
   tower: {
     clamp: clampTower, up: towerUp, down: towerDown, door: TOWER.door, y: TOWER.topY,
@@ -794,8 +749,8 @@ const LOFTS = {
   zen: {
     clamp: clampZen, up: zenUp, down: zenDown, door: ZL.foot, y: ZL.y,
     go: walkZen,
-    upMsg: 'Lên bậc thang Đài Thiền Hành…', downMsg: 'Xuống Đài Thiền Hành…',
-    arrived: 'Bạn đang ở trên Đài Thiền Hành — ngắm toàn cảnh chùa, chạm đài sen giữa sàn để đi thiền hành',
+    upMsg: 'Lên bậc thang đài thiền…', downMsg: 'Xuống đài thiền…',
+    arrived: 'Bạn đang ở trên đài thiền — chạm một bồ đoàn quanh đài sen để ngồi thiền, ngắm toàn cảnh chùa',
   },
 };
 const loftAt = (x, z) => (onTowerXZ(x, z) ? 'tower' : onBellXZ(x, z) ? 'bell' : onZenXZ(x, z) ? 'zen' : null);
@@ -812,7 +767,7 @@ async function crossZone(a, x, z, seat = null) {
       if (zoneOfA(a) === 'in' && !(await crossZone(a, L.door.x, L.door.z))) return false;
       if (!(await L.up(a))) return false;
     }
-    L.go(a, x, z);
+    L.go(a, x, z, seat);
     return true;
   }
   const target = zoneOf(z, x);
@@ -973,8 +928,8 @@ async function botGardenTrip(a) {
 // Khách mô phỏng đi tham quan khuôn viên: một hai nơi rồi về chánh điện ngồi
 const touring = () => [...bots].filter((b) => b.tour).length;
 // đi tới (x, z) qua thềm / tháp nếu cần, chờ tới nơi
-async function botGo(a, x, z) {
-  if (!(await crossZone(a, x, z))) return false;
+async function botGo(a, x, z, seat = null) {
+  if (!(await crossZone(a, x, z, seat))) return false;
   while (avatars.has(a.id) && !a.leaving && (a.moving || a.routeTo || a.script)) await wait(300);
   return avatars.has(a.id) && !a.leaving;
 }
@@ -1063,19 +1018,15 @@ const TOUR = [
     bubble(a, pick(['chăm luống rau chùa', 'rau chùa xanh tốt quá']), 3000);
     await wait(rnd(4500, 9000));
   },
-  // Đài Thiền Hành trước gác chuông: lên đài cao đi thiền hành & ngắm toàn cảnh chùa
+  // đài thiền trước gác chuông: lên đài cao, ngồi một bồ đoàn quanh đài sen thiền định một lúc
   async (a) => {
-    if (!(await botGo(a, ZL.arrive.x, ZL.arrive.z))) return;
-    a.speed = 1.25;
-    bubble(a, pick(['thiền hành trên đài cao', 'bước chân chánh niệm', 'ngắm toàn cảnh chùa từ đài thiền']), 3800);
-    let ang = rnd(0, Math.PI * 2);
-    for (let k = 0; k < 4; k++) {
-      ang += Math.PI / 3;
-      await a.walk(ZL.x + Math.cos(ang) * ZL.orbitR, ZL.z + Math.sin(ang) * ZL.orbitR);
-      if (!avatars.has(a.id) || a.leaving) break;
-      await wait(rnd(900, 1800));
-    }
-    a.speed = 2.6;
+    const free = seats.filter((s) => s.place === 'zen' && !seatTaken(s.index, a));
+    if (!free.length) return;
+    const s = pick(free);
+    if (!(await botGo(a, s.x, s.z, s))) return;
+    bubble(a, pick(['ngồi thiền trên đài cao', 'thở vào, thở ra…', 'tâm tĩnh như mặt hồ']), 3800);
+    a.act('gassho');
+    await wait(rnd(14000, 26000));
   },
 ];
 // ngày lễ: ra bờ hồ sen ngắm hoa đăng
@@ -1191,7 +1142,7 @@ function wireNet(n) {
     // đổi vùng (hoặc đang mang/cởi dép dở) → đi qua thềm cho đúng
     if (m.w) warpPlace(a, m.x, m.z);
     else if (a.script || zoneOfA(a) !== zoneOf(m.z, m.x) || loftOf(a) !== loftAt(m.x, m.z)) crossZone(a, m.x, m.z, seat);
-    else if (loftOf(a)) LOFTS[loftOf(a)].go(a, m.x, m.z);
+    else if (loftOf(a)) LOFTS[loftOf(a)].go(a, m.x, m.z, seat);
     else if (zoneOfA(a) === 'out') walkRoute(a, m.x, m.z, seat);
     else a.walkTo(m.x, m.z, seat);
   });
@@ -1452,8 +1403,9 @@ function movePlayerTo(x, z, seat = null) {
   if (fromL && fromL === toL) {
     // đi lại trên tầng 13 / trên sàn gác chuông
     const L = LOFTS[toL];
-    [x, z] = L.clamp(x, z);
-    L.go(player, x, z);
+    if (seat) [x, z] = [seat.x, seat.z];
+    else [x, z] = L.clamp(x, z);
+    L.go(player, x, z, seat);
     world.showMarker(x, z, L.y + 0.04);
     sendMove();
     return;
@@ -1658,7 +1610,7 @@ const PLACES = [
   { id: 'lahan', name: 'Hành lang La Hán', x: 14.5, z: 46, ry: Math.PI / 2 },
   { id: 'well', name: 'Giếng Ngọc', x: 0, z: WELL.z - 4.3, ry: 0 },
   { id: 'bell', name: 'Gác chuông', x: BELLTOWER.x, z: BELLTOWER.z + BELLTOWER.r + 0.6, ry: Math.PI },
-  { id: 'zen', name: 'Đài Thiền Hành', x: ZEN_LOFT.arrive.x, z: ZEN_LOFT.arrive.z, ry: -1.15 },
+  { id: 'zen', name: 'Đài thiền', x: ZEN_LOFT.arrive.x, z: ZEN_LOFT.arrive.z, ry: -1.15 },
   { id: 'qahall', name: 'Điện Quan Âm', x: QAHALL.cx, z: 12, ry: Math.PI },
   { id: 'orchard', name: 'Vườn cây ăn trái', x: 46.5, z: 25.5, ry: Math.PI / 2 },
   { id: 'field', name: 'Ruộng lúa', x: 34, z: 42.5, ry: 0 },
@@ -1761,7 +1713,7 @@ function buildMap() {
   rect(FIELD.x0, FIELD.x1, FIELD.z0, FIELD.z1, 'm-field'); // ruộng lúa
   rect(VEG.x0, VEG.x1, VEG.z0, VEG.z1, 'm-veg'); // vườn rau kế bên ruộng lúa
   el('rect', { x: mapU(BELLTOWER.z + 4.5), y: mapV(BELLTOWER.x - 4.5), width: 9, height: 9, class: 'm-hall' });
-  rect(ZEN_LOFT.x - 6.2, ZEN_LOFT.x + 6.2, ZEN_LOFT.z - 6.2, ZEN_LOFT.z + 6.2, 'm-hall'); // Đài Thiền Hành trước gác chuông
+  rect(ZEN_LOFT.x - 6.2, ZEN_LOFT.x + 6.2, ZEN_LOFT.z - 6.2, ZEN_LOFT.z + 6.2, 'm-hall'); // đài thiền trước gác chuông
   el('circle', { cx: mapU(ZEN_LOFT.z), cy: mapV(ZEN_LOFT.x), r: ZEN_LOFT.orbitR, class: 'm-porch' });
   rect(-17, 17, 22.4, 39.5, 'm-stone'); // sân chùa
   rect(-3.5, 3.5, 39.4, GATE.z, 'm-stone'); // trục đường
@@ -1899,11 +1851,13 @@ function petDog(d) {
   if (player.pos.distanceTo(d.pos) < 12) sound.bark(0.18);
   toast(`Bạn xoa đầu ${d.name} — chú chó của ${d.owner}`, 3200);
 }
+// quanh đài thiền (chân đài, bậc thang, mặt đài): chó không tới
+const nearZen = (x, z) => ((x - ZEN_LOFT.x) / 10.4) ** 2 + ((z - ZEN_LOFT.z + 1.5) / 12) ** 2 < 1;
 function dogsThink(t, dt) {
   for (const d of dogs) {
     d.update(dt);
     if (d.moving || d.routeTo || t < d.restUntil) continue;
-    const near = zoneOfA(player) === 'out' && !loftOf(player) && player.pos.distanceTo(d.pos) < 11;
+    const near = zoneOfA(player) === 'out' && !loftOf(player) && !nearZen(player.pos.x, player.pos.z) && player.pos.distanceTo(d.pos) < 11;
     const r = Math.random();
     if (near && r < 0.35) {
       // chạy lại chỗ người chơi, ngồi trước mặt vẫy đuôi
@@ -1923,6 +1877,7 @@ function dogsThink(t, dt) {
       // đi tới một chỗ ngẫu nhiên trong sân, tới nơi thì nằm nghỉ
       const area = Math.random() < 0.5 ? DOG_AREAS[0] : pick(DOG_AREAS);
       const [x, z] = clampZone('out', rnd(area.minX + 1, area.maxX - 1), rnd(area.minZ + 1, area.maxZ - 1));
+      if (nearZen(x, z)) continue; // chó không lên đài thiền, cũng không nằm sát chân đài
       d.speed = rnd(1.3, 2.0);
       walkRoute(d, x, z).then((ok) => {
         if (!ok) return;
@@ -3035,13 +2990,15 @@ function handleTap(x, y) {
     return;
   }
   if (kind === 'zen') {
-    // chạm vào đài sen tâm Đài Thiền Hành: đang ở dưới thì lên đài và bắt đầu thiền hành; đang ở trên thì bật/tắt đi thiền hành
-    if (onZen(player)) {
-      if (zenWalking) stopZenWalk(true);
-      else startZenWalk();
+    // chạm vào đài sen giữa đài thiền: đến ngồi bồ đoàn còn trống gần mình nhất (đang ở dưới thì lên đài trước)
+    if (player.seat != null && seats[player.seat]?.place === 'zen') {
+      toast('Bạn đang ngồi thiền — chạm chỗ khác trên sàn để đứng dậy', 2600);
     } else {
-      zenPendingWalk = true;
-      movePlayerTo(ZL.arrive.x, ZL.arrive.z);
+      const free = seats.filter((s) => s.place === 'zen' && !seatTaken(s.index, player));
+      const from = onZen(player) ? player.pos : new THREE.Vector3(ZL.arrive.x, 0, ZL.arrive.z);
+      const s = free.sort((p, q) => Math.hypot(p.x - from.x, p.z - from.z) - Math.hypot(q.x - from.x, q.z - from.z))[0];
+      if (s) movePlayerTo(s.x, s.z, s);
+      else toast('Các bồ đoàn trên đài thiền đều đã có người ngồi', 2600);
     }
     hideHint();
     return;
@@ -3252,7 +3209,6 @@ function keyMove(t) {
   const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
   const len = Math.hypot(f, s);
   if (player.script) return;
-  stopZenWalk();
   const nx = player.pos.x + ((fx * f + rx * s) / len) * 0.7, nz = player.pos.z + ((fz * f + rz * s) / len) * 0.7;
   const loft = loftOf(player);
   const [x, z] = loft ? LOFTS[loft].clamp(nx, nz) : clampZone(zoneOfA(player), nx, nz);
@@ -3289,7 +3245,9 @@ function updateCamera(dt) {
   cam.target.lerp(want, k);
   const high = onTower(player);
   const zenHigh = onZen(player);
-  // trên Đài Thiền Hành: đẩy xa màn sương để nhìn rõ toàn cảnh khuôn viên chùa
+  // trên đài thiền: đẩy xa màn sương để nhìn rõ toàn cảnh khuôn viên chùa
+  // mái đài thiền mờ đi khi camera bay cao hơn chân mái mà người chơi đang ở dưới mái
+  world.zenRoof?.setFade(zenHigh && camera.position.y > world.zenRoof.eaveY - 0.3 ? 0.18 : 1);
   if (!ov.on) {
     scene.fog.near = zenHigh ? 140 : 60;
     scene.fog.far = zenHigh ? 480 : 230;
@@ -3470,7 +3428,7 @@ function syncZenAudio(forceOnZen = onZen(player)) {
     if (sound.chanting) {
       sound.setChant(false);
       sound.setZenMusic(true);
-      toast('Trên Đài Thiền Hành giữ tĩnh lặng — đã chuyển từ tụng kinh sang nhạc thiền không lời', 4000);
+      toast('Trên đài thiền giữ tĩnh lặng — đã chuyển từ tụng kinh sang nhạc thiền không lời', 4000);
     } else if (!wasOnZen && !sound.zenMusic && !settings.muted) {
       sound.setZenMusic(true);
     }
@@ -3502,7 +3460,7 @@ chantBtn.addEventListener('click', () => {
     chantBtn.querySelector('.txt').textContent = on ? 'Dừng nhạc thiền' : 'Mở nhạc thiền không lời';
     caption.hidden = true;
     hintEl.classList.add('hide');
-    if (on) toast('Đang phát nhạc thiền không lời trên Đài Thiền Hành', 2800);
+    if (on) toast('Đang phát nhạc thiền không lời trên đài thiền', 2800);
     return;
   }
   sound.setChant(on);

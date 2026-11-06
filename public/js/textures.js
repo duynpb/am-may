@@ -92,16 +92,22 @@ export function boardTexture(lines, { w = 1024, h = 256, size = 120 } = {}) {
     g.strokeRect(30, 30, w - 60, h - 60);
     g.fillStyle = '#f0cd78';
     g.textAlign = 'center';
-    g.textBaseline = 'middle';
+    g.textBaseline = 'alphabetic';
     g.shadowColor = 'rgba(0,0,0,.55)';
     g.shadowBlur = 8;
     g.shadowOffsetY = 3;
+    const lineH = (h - 84) / lines.length; // chiều cao mỗi dòng bên trong khung viền trong
     lines.forEach((ln, i) => {
-      // chữ dài thì tự co lại cho vừa khung viền trong, không bị cắt hai đầu
+      // chữ dài thì tự co cho vừa bề ngang; chữ có dấu chồng (Ề, Ấ, Ổ…) thì co cho vừa bề cao,
+      // để dấu không đụng vào viền khung
       g.font = `700 ${size}px "Noto Serif", Georgia, serif`;
-      const fit = Math.min(size, (size * (w - 110)) / g.measureText(ln).width);
+      let m = g.measureText(ln);
+      const fit = Math.min(size, (size * (w - 110)) / m.width, (size * lineH) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent));
       g.font = `700 ${fit}px "Noto Serif", Georgia, serif`;
-      g.fillText(ln, w / 2, (h * (i + 0.5)) / lines.length + fit * 0.04);
+      m = g.measureText(ln);
+      // canh giữa theo đúng phần chữ thật (tính cả dấu) trong dòng
+      const cy = 42 + lineH * (i + 0.5);
+      g.fillText(ln, w / 2, cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
     });
   });
 }

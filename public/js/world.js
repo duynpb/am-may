@@ -45,7 +45,8 @@ export const BELL_LOFT = (() => {
     pull: { x: x + 2.9, z: z + 0.95 }, // chỗ đứng nắm dây kéo chày (quay mặt vào chày)
   };
 })();
-// Đài Thiền Hành cao phía trước gác chuông: ba tầng đài đá cổ kính vươn cao ngắm toàn cảnh chùa, mặt trên rộng để thiền hành
+// Đài thiền cao phía trước gác chuông: ba tầng đài đá cổ kính vươn cao ngắm toàn cảnh chùa, mặt trên có mái che,
+// 12 bồ đoàn xếp vòng quanh đài sen để ngồi thiền
 export const ZEN_LOFT = (() => {
   const x = -32, z = 54;
   const base = PORCH.courtY, y = PORCH.courtY + 9.6;
@@ -54,7 +55,8 @@ export const ZEN_LOFT = (() => {
     stair: { x0: x - 1.4, x1: x + 1.4, zFoot: 41.6, zTop: 48.2 },
     floor: { x0: x - 5.6, x1: x + 5.6, z0: z - 5.6, z1: z + 5.6 },
     centerR: 1.35, // đài sen đá & lư trầm ở tâm đài
-    orbitR: 4.1,   // đường kinh hành (thiền hành) lát đá quanh tâm đài
+    orbitR: 3.1,   // vòng bồ đoàn ngồi thiền quanh đài sen
+    roofH: 3.6,    // mái che: chân mái cao 3,6 m trên mặt đài
     foot: { x, z: 40.8 },   // ngoài sân, trước chân cầu thang đài thiền (đối diện gác chuông)
     entry: { x, z: 41.8 },  // bậc đầu tiên
     top: { x, z: 48.3 },    // đầu cầu thang
@@ -1673,7 +1675,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     };
   }
 
-  // ---------- Đài Thiền Hành cao phía trước gác chuông: 3 tầng đài đá vươn cao ngắm toàn cảnh chùa ----------
+  // ---------- Đài thiền cao phía trước gác chuông: 3 tầng đài đá vươn cao ngắm toàn cảnh chùa, mái che, bồ đoàn ngồi thiền ----------
+  let zenRoof = null;
   {
     const Z = ZEN_LOFT, S = Z.stair;
     const g = new THREE.Group();
@@ -1685,7 +1688,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const railM = std('#7a4a2c', { roughness: 0.7 });
     const stepM = std('#b8b1a3', { roughness: 0.95 });
 
-    // lối đá nối từ sân gác chuông đến chân cầu thang Đài Thiền Hành
+    // lối đá nối từ sân gác chuông đến chân cầu thang đài thiền
     const zenLane = mesh(new THREE.PlaneGeometry(5.2, 3.6), pave, Z.x, GY + 0.006, 41.2, { cast: false });
     zenLane.rotation.x = -Math.PI / 2;
     zenLane.userData.kind = 'ground';
@@ -1717,22 +1720,75 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       rectRoof(Z.x, GY + ry, Z.z, t.roofW, t.roofW, 0.52, sideTile, { top: 0.82, ridge: false, hollow: true });
     }
 
-    // mặt sàn rộng trên đỉnh Đài Thiền Hành (cao 9,6 m so với mặt sân, nhìn toàn cảnh khuôn viên chùa)
+    // mặt sàn rộng trên đỉnh đài thiền (cao 9,6 m so với mặt sân, nhìn toàn cảnh khuôn viên chùa)
     const deckW = 12.4;
     const deckFloor = box(deckW, 0.24, deckW, deckWoodM, 0, 9.6 - 0.12, 0, o);
     deckFloor.userData.kind = 'ground';
     pickables.push(deckFloor);
 
-    // đường kinh hành (lối thiền hành) tròn lát đá sáng và 16 dấu hoa sen chánh niệm quanh mặt đài
-    const pathRing = mesh(new THREE.RingGeometry(Z.orbitR - 0.55, Z.orbitR + 0.55, 48).rotateX(-Math.PI / 2), stoneL, 0, 9.608, 0, { parent: g, cast: false });
+    // vòng đá sáng dưới hàng bồ đoàn ngồi thiền quanh đài sen (bồ đoàn dựng chung với bồ đoàn trong các điện)
+    const pathRing = mesh(new THREE.RingGeometry(Z.orbitR - 0.6, Z.orbitR + 0.6, 48).rotateX(-Math.PI / 2), stoneL, 0, 9.608, 0, { parent: g, cast: false });
     pathRing.userData.kind = 'ground';
     pickables.push(pathRing);
-    for (let k = 0; k < 16; k++) {
-      const a = (k / 16) * Math.PI * 2;
-      const lx = Math.cos(a) * Z.orbitR, lz = Math.sin(a) * Z.orbitR;
-      const stepLotus = mesh(new THREE.CircleGeometry(0.22, 12).rotateX(-Math.PI / 2), M.gold, lx, 9.614, lz, { parent: g, cast: false });
-      stepLotus.userData.kind = 'ground';
-      pickables.push(stepLotus);
+
+    // mái che: hàng cột son, xà, mái chồng diêm hai tầng; camera bay lên cao hơn mái thì mái mờ đi cho thấy người bên dưới
+    {
+      const roofG = new THREE.Group();
+      roofG.position.y = 9.6;
+      g.add(roofG);
+      const ro = { parent: roofG };
+      const RH = Z.roofH, cOff = 5.65;
+      const tileM = sideTile.clone(), wallM = sideWall.clone(), goldM = M.gold.clone(), beamM = sideCol.clone();
+      const fadeMats = [tileM, wallM, goldM, beamM];
+      for (const m of fadeMats) m.transparent = true;
+      // cột: 4 góc, giữa các cạnh đông, tây, nam; cạnh bắc chừa lối lên cầu thang
+      const cols = [];
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cols.push([sx * cOff, sz * cOff]);
+      for (const s of [-1, 1]) cols.push([s * 1.9, cOff], [s * 2.5, -cOff], [cOff, s * 1.9], [-cOff, s * 1.9]);
+      for (const [cx, cz] of cols) {
+        cyl(0.17, 0.2, RH, sideCol, cx, RH / 2, cz, ro, 10);
+        cyl(0.26, 0.26, 0.14, stoneM, cx, 0.07, cz, ro, 10);
+      }
+      // xà ngang đỡ mái
+      for (const s of [-1, 1]) {
+        box(cOff * 2 + 0.4, 0.3, 0.26, beamM, 0, RH - 0.15, s * cOff, ro);
+        box(0.26, 0.3, cOff * 2 + 0.4, beamM, s * cOff, RH - 0.15, 0, ro);
+      }
+      // trần gỗ dưới mái
+      const ceil = mesh(new THREE.PlaneGeometry(cOff * 2 + 0.6, cOff * 2 + 0.6).rotateX(Math.PI / 2), std('#4a2e1c', { roughness: 0.85 }), 0, RH + 0.02, 0, { parent: roofG, cast: false });
+      ceil.renderOrder = 1;
+      // mái dưới, thân gác nhỏ, mái trên
+      const pyramid = (w, h, top) => new THREE.CylinderGeometry(Math.SQRT1_2 * top, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).scale(w, h, w);
+      const lowW = 15.4, lowH = 1.6, lowTop = 0.55;
+      const low = mesh(pyramid(lowW, lowH, lowTop), tileM, 0, RH + lowH / 2, 0, ro);
+      const mid = box(lowW * lowTop - 1.4, 0.9, lowW * lowTop - 1.4, wallM, 0, RH + lowH + 0.45, 0, ro);
+      const upW = 9.6, upH = 2.0;
+      const up = mesh(pyramid(upW, upH, 0.2), tileM, 0, RH + lowH + 0.9 + upH / 2, 0, ro);
+      const ballY = RH + lowH + 0.9 + upH;
+      const ball = mesh(new THREE.SphereGeometry(0.32, 14, 10), goldM, 0, ballY + 0.2, 0, ro);
+      const spire = mesh(new THREE.ConeGeometry(0.12, 0.9, 8), goldM, 0, ballY + 0.75, 0, ro);
+      // đầu đao cong vút ở 8 góc mái
+      for (const [w, y] of [[lowW, RH], [upW, RH + lowH + 0.9]]) {
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+          const tip = mesh(new THREE.ConeGeometry(0.12, 0.9, 6), goldM, sx * (w / 2 + 0.1), y + 0.25, sz * (w / 2 + 0.1), ro);
+          tip.rotation.set(sz * 0.75, 0, -sx * 0.75);
+        }
+      }
+      void low; void mid; void up; void ball; void spire;
+      let shown = 1;
+      zenRoof = {
+        // 1 = rõ, nhỏ hơn = mờ (khi camera ở trên cao nhìn xuống người đang ở trên đài)
+        setFade(v) {
+          if (Math.abs(v - shown) < 0.01) return;
+          shown = v;
+          for (const m of fadeMats) {
+            m.opacity = v;
+            m.depthWrite = v > 0.95;
+          }
+          ceil.visible = v > 0.95;
+        },
+        eaveY: Z.y + RH,
+      };
     }
 
     // đài sen đá thanh tịnh, lư trầm và chuông xoay thiền định ở tâm đài (thấp gọn để không chắn tầm nhìn 360°)
@@ -1802,14 +1858,14 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       mesh(new THREE.SphereGeometry(0.16, 10, 8), M.gold, sx * (sw / 2 + 0.14), 1.22, S.zFoot - Z.z - 0.15, o);
     }
 
-    // cổng chào và biển gỗ ĐÀI THIỀN HÀNH ở chân cầu thang (nhìn về phía gác chuông)
+    // cổng chào và biển gỗ ĐÀI THIỀN ở chân cầu thang (nhìn về phía gác chuông)
     const gateZ = S.zFoot - Z.z - 0.05;
     for (const sx of [-1, 1]) cyl(0.13, 0.15, 3.6, sideCol, sx * (sw / 2 + 0.14), 1.8, gateZ, o, 10);
     box(sw + 1.1, 0.22, 0.22, sideCol, 0, 3.55, gateZ, o);
     box(2.9, 0.68, 0.07, M.gold, 0, 3.25, gateZ - 0.08, o);
-    const signF = mesh(new THREE.PlaneGeometry(2.74, 0.54), boardMat(['ĐÀI THIỀN HÀNH'], { w: 1024, h: 220, size: 106 }), 0, 3.25, gateZ - 0.125, o);
+    const signF = mesh(new THREE.PlaneGeometry(2.74, 0.54), boardMat(['ĐÀI THIỀN'], { w: 1024, h: 220, size: 106 }), 0, 3.25, gateZ - 0.125, o);
     signF.rotation.y = Math.PI;
-    const signB = mesh(new THREE.PlaneGeometry(2.74, 0.54), boardMat(['ĐÀI THIỀN HÀNH'], { w: 1024, h: 220, size: 106 }), 0, 3.25, gateZ - 0.035, o);
+    const signB = mesh(new THREE.PlaneGeometry(2.74, 0.54), boardMat(['ĐÀI THIỀN'], { w: 1024, h: 220, size: 106 }), 0, 3.25, gateZ - 0.035, o);
     signB.userData.kind = signF.userData.kind = 'zen-stair';
     pickables.push(signF, signB);
 
@@ -3154,6 +3210,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   for (const z of [TT.z0 + 7.6, TT.z0 + 9.4]) for (const x of [-7, -5, -3, 3, 5, 7]) {
     seats.push({ index: seats.length, x, z, y: H + 0.21, zone: 'out', out: true, place: 'tamthe' });
   }
+  // 12 bồ đoàn xếp vòng quanh đài sen trên đài thiền, ngồi xuống thì quay mặt vào đài sen
+  for (let k = 0; k < 12; k++) {
+    const a = ((k + 0.5) / 12) * Math.PI * 2;
+    const x = ZEN_LOFT.x + Math.cos(a) * ZEN_LOFT.orbitR, z = ZEN_LOFT.z + Math.sin(a) * ZEN_LOFT.orbitR;
+    seats.push({ index: seats.length, x, z, y: ZEN_LOFT.y, zone: 'out', out: true, place: 'zen', ry: Math.atan2(ZEN_LOFT.x - x, ZEN_LOFT.z - z) });
+  }
   const matMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 0.05, 1.9), M.mat, hallSeatCount);
   const cushionMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.42, 0.45, 0.16, 24), M.cushion, seats.length);
   {
@@ -3415,6 +3477,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     tamThe: { head: TT_HEAD },
     falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
     incenseTT,
+    zenRoof,
     field,
     veg,
     orchard,
