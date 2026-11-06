@@ -1783,7 +1783,17 @@ function buildMap() {
     return e;
   };
   const rect = (x0, x1, z0, z1, cls) => el('rect', { x: mapU(z1), y: mapV(x0), width: z1 - z0, height: x1 - x0, class: cls });
-  el('rect', { x: -2, y: -45, width: 194, height: 116, class: 'm-bg' });
+  el('rect', { x: -64, y: -56, width: 260, height: 186, class: 'm-bg' });
+  // sông phía nam (cùng đường cong với sông trong cảnh)
+  {
+    const top = [], bot = [];
+    for (let x = -60; x <= 130; x += 4) {
+      const zc = 132 + Math.sin(x / 38) * 14 + Math.sin(x / 13) * 3, w = 9 + Math.sin(x / 21) * 2;
+      top.push(`${mapU(zc - w)},${mapV(x)}`);
+      bot.unshift(`${mapU(zc + w)},${mapV(x)}`);
+    }
+    el('polygon', { points: [...top, ...bot].join(' '), class: 'm-water' });
+  }
   for (const s of [-1, 1]) rect(s > 0 ? 16.2 : -20.8, s > 0 ? 20.8 : -16.2, -29, 23.2, 'm-stone'); // lối hai bên
   rect(-20.8, 20.8, -33.2, -26, 'm-stone'); // sân sau
   rect(-TERRACE.x, TERRACE.x, TERRACE.z0, TERRACE.z1, 'm-terrace'); // nền đồi
@@ -1845,6 +1855,8 @@ function buildMap() {
     ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['ngoa', NGOA.x, NGOA.z, 'Phật nằm'],
     ['study', STUDY.cx, STUDY.cz, 'Tự học'],
+    ['peak', PEAK.x, PEAK.z - PEAK.r - 3, 'Tháp núi đá'],
+    ['bridge', -6, 128, 'Cầu đá'],
     ['stairs', 6.5, -40, 'Bậc thang'],
     ['qahall', QAHALL.cx, 11, 'Điện Quan Âm'],
     ['orchard', (ORCHARD.x0 + ORCHARD.x1) / 2, (ORCHARD.z0 + ORCHARD.z1) / 2, 'Vườn quả'],
@@ -1898,6 +1910,13 @@ function openMap() {
   mapOpen = true;
   updateMap();
   openModal('#modal-map');
+  // cuộn bản đồ tới chỗ mình đang đứng
+  requestAnimationFrame(() => {
+    const box = $('#map-scroll'), svg = $('#map-svg'), vb = svg.viewBox.baseVal;
+    const k = svg.clientWidth / vb.width;
+    box.scrollLeft = (mapU(player.pos.z) - vb.x) * k - box.clientWidth / 2;
+    box.scrollTop = (mapV(player.pos.x) - vb.y) * k - box.clientHeight / 2;
+  });
 }
 $('#btn-map').addEventListener('click', openMap);
 $('#modal-map').addEventListener('transitionend', () => {

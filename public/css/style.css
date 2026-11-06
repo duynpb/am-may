@@ -255,6 +255,10 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 /* ---------- Bản đồ chùa ---------- */
 .map-sheet { width: min(560px, 100%); }
 .map-svg { display: block; width: 100%; height: auto; margin: 4px 0 14px; border-radius: 14px; background: #8b9670; stroke: none; }
+/* bản đồ to hơn khung, cuộn được hai chiều (kéo bằng tay trên điện thoại) */
+.map-scroll { overflow: auto; max-height: min(58vh, 520px); margin: 4px 0 14px; border-radius: 14px; background: #8b9670; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.map-scroll .map-svg { width: 900px; max-width: none; margin: 0; border-radius: 0; }
+@media (max-width: 600px) { .map-scroll .map-svg { width: 720px; } }
 .map-svg .m-bg { fill: #8b9670; }
 .map-svg .m-stone { fill: #b9b0a0; }
 .map-svg .m-grass { fill: #6c8a4a; }
