@@ -270,6 +270,26 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const pickables = [];
 
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o });
+  // Vật liệu mặt nền: vân (cỏ, đá lát, gạch, đất) trải theo toạ độ trong cảnh nên viên đá, viên gạch ở mọi sân
+  // đều cùng kích thước thật; thêm mảng sáng tối rất lớn để bãi cỏ không lặp đều đều.
+  // tile: một ô vân rộng bao nhiêu mét; macro: độ đậm nhạt của mảng lớn; tint: màu nhuộm thêm.
+  const groundMat = (kind, { tile = 4, macro = 0.1, tint = '#ffffff', ...o } = {}) => {
+    const map = { grass: T.grassTex, slab: () => T.stoneTex('slab'), tile: () => T.stoneTex('tile'), brick: T.brickTex, dirt: T.dirtTex }[kind]();
+    const m = new THREE.MeshStandardMaterial({ color: tint, map, roughness: 0.95, ...o });
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uTile = { value: tile };
+      sh.uniforms.uMacro = { value: macro };
+      sh.vertexShader = 'varying vec2 vWXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+      sh.fragmentShader = 'varying vec2 vWXZ;\nuniform float uTile;\nuniform float uMacro;\n' + sh.fragmentShader.replace('#include <map_fragment>', `
+        vec4 sampledDiffuseColor = texture2D(map, vWXZ / uTile);
+        float mv = 0.5 * sin(vWXZ.x * 0.043 + sin(vWXZ.y * 0.031) * 2.0) + 0.3 * sin(vWXZ.y * 0.071 + vWXZ.x * 0.017) + 0.2 * sin((vWXZ.x + vWXZ.y) * 0.19);
+        sampledDiffuseColor.rgb *= 1.0 + uMacro * mv;
+        diffuseColor *= sampledDiffuseColor;`);
+    };
+    m.customProgramCacheKey = () => 'ground-world-uv';
+    return m;
+  };
+  const POFF = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 };
   const M = {
     wood: std('#4a2d1c', { roughness: 0.7 }),
     darkWood: std('#2e1c12', { roughness: 0.75 }),
@@ -328,16 +348,16 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   );
   scene.add(sky);
 
-  const ground = mesh(new THREE.PlaneGeometry(500, 500), std('#8b9670', { roughness: 1 }), 0, PORCH.courtY - 0.06, 0, { cast: false });
+  const ground = mesh(new THREE.PlaneGeometry(500, 500), groundMat('grass', { tile: 5, macro: 0.3, tint: '#dbe2c8' }), 0, PORCH.courtY - 0.06, 0, { cast: false });
   ground.rotation.x = -Math.PI / 2;
   ground.userData.kind = 'ground';
   pickables.push(ground);
-  const court = mesh(new THREE.PlaneGeometry(34, 18), std('#978e7e', { roughness: 1 }), 0, PORCH.courtY + 0.015, 30.5, { cast: false });
+  const court = mesh(new THREE.PlaneGeometry(34, 18), groundMat('slab', { tile: 5.5, macro: 0.05 }), 0, PORCH.courtY + 0.015, 30.5, { cast: false });
   court.rotation.x = -Math.PI / 2;
   court.userData.kind = 'ground';
   pickables.push(court);
   // lối đi lát gạch giữa sân
-  const path = mesh(new THREE.PlaneGeometry(3, 17), std('#a0533a', { roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 0, PORCH.courtY + 0.035, 30.6, { cast: false });
+  const path = mesh(new THREE.PlaneGeometry(3, 17), groundMat('brick', { tile: 3, macro: 0.04, ...POFF }), 0, PORCH.courtY + 0.035, 30.6, { cast: false });
   path.rotation.x = -Math.PI / 2;
   path.userData.kind = 'ground';
   pickables.push(path);
@@ -989,7 +1009,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   // thảm cỏ
-  const grass = mesh(new THREE.CircleGeometry(6.6, 48), std('#6c8a4a', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 11.3, GY + 0.032, 31.8, { cast: false });
+  const grass = mesh(new THREE.CircleGeometry(6.6, 48), groundMat('grass', { tile: 4, macro: 0.08, tint: '#f4ffe8', ...POFF }), 11.3, GY + 0.032, 31.8, { cast: false });
   grass.rotation.x = -Math.PI / 2;
   grass.userData.kind = 'ground';
   pickables.push(grass);
@@ -1319,7 +1339,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   {
     const roadLen = GATE.z - 3 - 39.5;
     const roadCz = 39.5 + roadLen / 2;
-    const road = mesh(new THREE.PlaneGeometry(7, roadLen), std('#a39a88', { roughness: 1 }), 0, GY + 0.015, roadCz, { cast: false });
+    const road = mesh(new THREE.PlaneGeometry(7, roadLen), groundMat('slab', { tile: 5.5, macro: 0.05 }), 0, GY + 0.015, roadCz, { cast: false });
     road.rotation.x = -Math.PI / 2;
     road.userData.kind = 'ground';
     pickables.push(road);
@@ -1336,7 +1356,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       obstacles.push({ x: tx, z: tz, r: 0.5 });
     }
     // sân trước cổng (bắt đầu từ mép nam nền cổng z = 87 để không chồng lên thềm cổng)
-    const plaza = mesh(new THREE.PlaneGeometry(26, 13), std('#a39a88', { roughness: 1 }), 0, GY + 0.015, GATE.plazaZ + 1.5, { cast: false });
+    const plaza = mesh(new THREE.PlaneGeometry(26, 13), groundMat('slab', { tile: 5.5, macro: 0.05 }), 0, GY + 0.015, GATE.plazaZ + 1.5, { cast: false });
     plaza.rotation.x = -Math.PI / 2;
     plaza.userData.kind = 'ground';
     pickables.push(plaza);
@@ -1380,7 +1400,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   // ---------- Giếng Ngọc: giếng tròn lớn, thành đá có lan can, nước xanh ngọc ----------
   {
     const { x: wx, z: wz, r } = WELL;
-    const disc = mesh(new THREE.CircleGeometry(5.6, 40), std('#b3aa98', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), wx, GY + 0.038, wz, { cast: false });
+    const disc = mesh(new THREE.CircleGeometry(5.6, 40), groundMat('tile', { tile: 3, macro: 0.04, tint: '#fbf6ec', ...POFF }), wx, GY + 0.038, wz, { cast: false });
     disc.rotation.x = -Math.PI / 2;
     disc.userData.kind = 'ground';
     pickables.push(disc);
@@ -1523,7 +1543,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const sideTile = std('#6a3426', { roughness: 0.75 });
   const sideCol = std('#9c2a1c', { roughness: 0.55 });
   const sideWall = std('#e6dcc6', { roughness: 0.9 });
-  const pave = std('#a39a88', { roughness: 1 });
+  const pave = groundMat('tile', { tile: 4, macro: 0.05 });
 
   // lối đi và nền lát của hai sân bên (khớp mép với sân chính x = ±17 và sân bên x = ±21..±43 để không chồng mặt phẳng)
   for (const s of [-1, 1]) {
@@ -1579,7 +1599,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       box(TERRACE.x - STAIRS.x - 0.6, 0.7, 0.3, stoneL, s * (STAIRS.x + TERRACE.x) / 2 + s * 0.3, H + 0.35, TERRACE.z1 - 0.15);
     }
     box(STAIRS.x * 2, 7.96, TERRACE.z1 - 0.4 - TERRACE.z0, retainM, 0, GY + 3.98, (TERRACE.z0 + TERRACE.z1 - 0.4) / 2);
-    const top = mesh(new THREE.PlaneGeometry(TERRACE.x * 2, dz), std('#aaa292', { roughness: 1 }), 0, H + 0.015, czT, { cast: false });
+    const top = mesh(new THREE.PlaneGeometry(TERRACE.x * 2, dz), groundMat('slab', { tile: 5.5, macro: 0.05 }), 0, H + 0.015, czT, { cast: false });
     top.rotation.x = -Math.PI / 2;
     top.userData.kind = 'ground';
     pickables.push(top);
@@ -2032,7 +2052,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     }
     // sân lát đá trước mặt tượng (cao hơn mặt cỏ, có lệch chiều sâu để không chớp)
     const C = NG.court;
-    const courtMat = std('#a39a88', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+    const courtMat = groundMat('slab', { tile: 5.5, macro: 0.05, ...POFF });
     const courtM = mesh(new THREE.PlaneGeometry(C.x1 - C.x0, C.z1 - C.z0), courtMat, (C.x0 + C.x1) / 2, GY + 0.03, (C.z0 + C.z1) / 2, { cast: false });
     courtM.rotation.x = -Math.PI / 2;
     courtM.userData.kind = 'ground';
@@ -2517,7 +2537,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     // ---------- Lối đá xuyên ruộng, cầu đá vòm qua sông, sân đá bên kia sông (khu mới) ----------
     {
       const B = BRIDGE, hw = B.half;
-      const paveM2 = std('#a39a88', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+      const paveM2 = groundMat('tile', { tile: 4, macro: 0.05, ...POFF });
       const lane = mesh(new THREE.PlaneGeometry(3.6, B.z0 - 101 + 0.5), paveM2, 0, GY + 0.03, (101 + B.z0) / 2, { cast: false });
       lane.rotation.x = -Math.PI / 2;
       lane.userData.kind = 'ground';
@@ -2663,7 +2683,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       // lối đá từ sân trước cổng sang chân núi, cầu đá nhỏ bắc qua kênh phía đông
       {
         const L = P.lane;
-        const laneM = std('#a39a88', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+        const laneM = groundMat('tile', { tile: 4, macro: 0.05, ...POFF });
         for (const [x0, x1] of [[L.x0, 73.6], [78.4, L.x1]]) {
           const m = mesh(new THREE.PlaneGeometry(x1 - x0, L.z1 - L.z0), laneM, (x0 + x1) / 2, PY + 0.03, (L.z0 + L.z1) / 2, { cast: false });
           m.rotation.x = -Math.PI / 2;
@@ -2854,7 +2874,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     for (let c = 0; c <= F.cols; c++) box(0.6, 0.16, F.z1 - F.z0 + 0.6, dykeM, F.x0 + c * w, GY2 + 0.08, (F.z0 + F.z1) / 2, { cast: false });
     for (let r = 0; r <= F.rows; r++) box(F.x1 - F.x0 + 0.6, 0.168, 0.6, dykeM, (F.x0 + F.x1) / 2, GY2 + 0.084, F.z0 + r * d, { cast: false });
     // lối đất từ mép nam sân bên (z = 40) xuống bờ ruộng (z = 43.7)
-    const lane = mesh(new THREE.PlaneGeometry(7, 3.7), std('#8a7a58', { roughness: 1 }), 34, GY2 + 0.015, 41.85, { cast: false });
+    const lane = mesh(new THREE.PlaneGeometry(7, 3.7), groundMat('dirt', { tile: 3, macro: 0.06 }), 34, GY2 + 0.015, 41.85, { cast: false });
     lane.rotation.x = -Math.PI / 2;
     lane.userData.kind = 'ground';
     pickables.push(lane);
@@ -2950,12 +2970,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   // ---------- Vườn rau kế bên ruộng lúa: 8 luống rau nhiều loại, phật tử chạm vào để hái ----------
   const veg = (() => {
     const V = VEG, GY2 = PORCH.courtY;
-    const groundV = mesh(new THREE.PlaneGeometry(V.x1 - V.x0 + 1.6, V.z1 - V.z0 + 1.0), std('#7a684b', { roughness: 1 }), (V.x0 + V.x1) / 2, GY2 + 0.015, (V.z0 + V.z1) / 2 + 0.2, { cast: false });
+    const groundV = mesh(new THREE.PlaneGeometry(V.x1 - V.x0 + 1.6, V.z1 - V.z0 + 1.0), groundMat('dirt', { tile: 3, macro: 0.06, tint: '#d8ccb8' }), (V.x0 + V.x1) / 2, GY2 + 0.015, (V.z0 + V.z1) / 2 + 0.2, { cast: false });
     groundV.rotation.x = -Math.PI / 2;
     groundV.userData.kind = 'veg';
     pickables.push(groundV);
     // lối đất nối từ lối xuống ruộng (x = 37.5) sang vườn rau và vườn cây ăn trái, khớp mép z = 40..43.7
-    const connLane = mesh(new THREE.PlaneGeometry(26.5, 3.7), std('#8a7a58', { roughness: 1 }), 50.75, GY2 + 0.015, 41.85, { cast: false });
+    const connLane = mesh(new THREE.PlaneGeometry(26.5, 3.7), groundMat('dirt', { tile: 3, macro: 0.06 }), 50.75, GY2 + 0.015, 41.85, { cast: false });
     connLane.rotation.x = -Math.PI / 2;
     connLane.userData.kind = 'ground';
     pickables.push(connLane);
@@ -3143,7 +3163,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const orchard = (() => {
     const O = ORCHARD, GY2 = PORCH.courtY;
     // thảm cỏ vườn quả xanh mát bên hông điện Quan Âm (bắt đầu từ x = 43 và kéo tới z = 40 để khớp mép với sân bên & lối đất, không chồng mặt phẳng)
-    const grass = mesh(new THREE.PlaneGeometry(O.x1 - 43, 40 - O.z0), std('#738a54', { roughness: 1 }), (43 + O.x1) / 2, GY2 + 0.015, (O.z0 + 40) / 2, { cast: false });
+    const grass = mesh(new THREE.PlaneGeometry(O.x1 - 43, 40 - O.z0), groundMat('grass', { tile: 4, macro: 0.1, tint: '#f4ffe8' }), (43 + O.x1) / 2, GY2 + 0.015, (O.z0 + 40) / 2, { cast: false });
     grass.rotation.x = -Math.PI / 2;
     grass.userData.kind = 'ground';
     pickables.push(grass);
@@ -3628,7 +3648,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
 
   // tiểu cảnh quanh tháp: thảm cỏ, đường đá, đèn đá, cây cảnh, tùng, đá
   {
-    const grassT = mesh(new THREE.CircleGeometry(8.2, 48), std('#6c8a4a', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), TW.x, GY + 0.032, TW.z, { cast: false });
+    const grassT = mesh(new THREE.CircleGeometry(8.2, 48), groundMat('grass', { tile: 4, macro: 0.08, tint: '#f4ffe8', ...POFF }), TW.x, GY + 0.032, TW.z, { cast: false });
     grassT.rotation.x = -Math.PI / 2;
     grassT.userData.kind = 'ground';
     pickables.push(grassT);

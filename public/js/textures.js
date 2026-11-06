@@ -306,3 +306,144 @@ export function buddhistFlag() {
     });
   });
 }
+
+// ---------- Vân mặt nền (lặp liền mạch, trải theo toạ độ trong cảnh) ----------
+// số ngẫu nhiên có hạt giống để vân giống nhau ở mọi máy
+const seeded = (seed) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+// vẽ lặp ở 9 ô kề nhau để nét chạm mép vẫn nối liền khi lặp
+const wrapDraw = (w, h, fn) => {
+  for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) fn(dx, dy);
+};
+const groundCache = new Map();
+const cached = (key, make) => {
+  if (!groundCache.has(key)) groundCache.set(key, make());
+  return groundCache.get(key);
+};
+
+// Cỏ: nền xanh, hàng nghìn nét lá cỏ đậm nhạt, vài đốm cỏ ba lá và đất
+export function grassTex() {
+  return cached('grass', () => canvasTexture(512, 512, (g, w, h) => {
+    const r = seeded(11);
+    g.fillStyle = '#6f8a4a';
+    g.fillRect(0, 0, w, h);
+    // mảng sáng tối lớn
+    for (let i = 0; i < 40; i++) {
+      const x = r() * w, y = r() * h, rad = 30 + r() * 70;
+      wrapDraw(w, h, (dx, dy) => {
+        const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad);
+        gr.addColorStop(0, r() < 0.5 ? 'rgba(140,170,90,0.25)' : 'rgba(60,85,40,0.25)');
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr;
+        g.fillRect(x + dx - rad, y + dy - rad, rad * 2, rad * 2);
+      });
+    }
+    // lá cỏ
+    for (let i = 0; i < 9000; i++) {
+      const x = r() * w, y = r() * h, l = 3 + r() * 7, a = -Math.PI / 2 + (r() - 0.5) * 1.2;
+      const hue = 72 + r() * 30, light = 22 + r() * 30;
+      g.strokeStyle = `hsl(${hue}, ${35 + r() * 25}%, ${light}%)`;
+      g.lineWidth = 0.8 + r() * 0.8;
+      wrapDraw(w, h, (dx, dy) => {
+        g.beginPath();
+        g.moveTo(x + dx, y + dy);
+        g.lineTo(x + dx + Math.cos(a) * l, y + dy + Math.sin(a) * l);
+        g.stroke();
+      });
+    }
+    // đốm đất và hoa cỏ li ti
+    for (let i = 0; i < 160; i++) {
+      const x = r() * w, y = r() * h;
+      g.fillStyle = r() < 0.75 ? `rgba(110,90,60,${0.25 + r() * 0.3})` : r() < 0.5 ? 'rgba(245,240,220,0.8)' : 'rgba(240,210,90,0.8)';
+      wrapDraw(w, h, (dx, dy) => {
+        g.beginPath();
+        g.arc(x + dx, y + dy, 0.8 + r() * 1.6, 0, Math.PI * 2);
+        g.fill();
+      });
+    }
+  }, { repeat: [1, 1] }));
+}
+
+// Đá lát: tấm đá chữ nhật xếp so le, mỗi tấm đậm nhạt khác nhau, đường ron sẫm, vân đá li ti
+export function stoneTex(variant = 'slab') {
+  return cached('stone-' + variant, () => canvasTexture(512, 512, (g, w, h) => {
+    const r = seeded(variant === 'slab' ? 23 : 37);
+    const rows = variant === 'slab' ? 4 : 6;
+    const base = variant === 'slab' ? [168, 160, 146] : [176, 168, 152];
+    g.fillStyle = '#6e675c';
+    g.fillRect(0, 0, w, h);
+    const rh = h / rows;
+    for (let row = 0; row < rows; row++) {
+      // các tấm trong hàng: chiều dài ngẫu nhiên, cộng lại đúng bằng bề ngang ô (để lặp liền)
+      const n = variant === 'slab' ? 3 : 4;
+      const ws = Array.from({ length: n }, () => 0.7 + r() * 0.6);
+      const sum = ws.reduce((a, b) => a + b, 0);
+      let x = (row % 2) * (w / n / 2) + r() * 20;
+      for (const wi of ws) {
+        const sw = (wi / sum) * w;
+        const k = 0.86 + r() * 0.24, tint = r() * 10 - 5;
+        const col = `rgb(${Math.round(base[0] * k + tint)},${Math.round(base[1] * k)},${Math.round(base[2] * k - tint)})`;
+        wrapDraw(w, h, (dx, dy) => {
+          g.fillStyle = col;
+          g.fillRect(x + dx + 2, row * rh + dy + 2, sw - 4, rh - 4);
+        });
+        // vân đá: chấm sáng tối và vệt mòn trong tấm
+        for (let i = 0; i < 70; i++) {
+          const px = x + 3 + r() * (sw - 6), py = row * rh + 3 + r() * (rh - 6);
+          const c = r() < 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)';
+          wrapDraw(w, h, (dx, dy) => {
+            g.fillStyle = c;
+            g.fillRect(px + dx, py + dy, 1 + r() * 3, 1 + r() * 2);
+          });
+        }
+        x += sw;
+      }
+    }
+    // rêu nhẹ dọc ron
+    for (let i = 0; i < 120; i++) {
+      const x = r() * w, y = Math.round(r() * rows) * rh;
+      wrapDraw(w, h, (dx, dy) => {
+        g.fillStyle = 'rgba(80,100,50,0.18)';
+        g.fillRect(x + dx, y + dy - 2, 6 + r() * 14, 4);
+      });
+    }
+  }, { repeat: [1, 1] }));
+}
+
+// Gạch đỏ lát lối đi: xếp so le, màu gạch nung đậm nhạt khác nhau, ron vữa sáng
+export function brickTex() {
+  return cached('brick', () => canvasTexture(512, 512, (g, w, h) => {
+    const r = seeded(51);
+    g.fillStyle = '#b5a48a';
+    g.fillRect(0, 0, w, h);
+    const rows = 16, cols = 4, bh = h / rows, bw = w / cols;
+    for (let row = 0; row < rows; row++) {
+      for (let c = -1; c <= cols; c++) {
+        const x = c * bw + (row % 2) * (bw / 2);
+        const k = 0.8 + r() * 0.3;
+        g.fillStyle = `rgb(${Math.round(168 * k)},${Math.round(84 * k)},${Math.round(58 * k)})`;
+        g.fillRect(x + 2, row * bh + 2, bw - 4, bh - 4);
+        g.fillStyle = 'rgba(0,0,0,0.08)';
+        g.fillRect(x + 2, row * bh + bh - 6, bw - 4, 4);
+      }
+    }
+  }, { repeat: [1, 1] }));
+}
+
+// Đất nện: nâu, sỏi nhỏ, vết lõm
+export function dirtTex() {
+  return cached('dirt', () => canvasTexture(512, 512, (g, w, h) => {
+    const r = seeded(77);
+    g.fillStyle = '#8a7556';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2600; i++) {
+      const x = r() * w, y = r() * h, s = 0.6 + r() * 2.6;
+      const l = 28 + r() * 30;
+      g.fillStyle = `hsla(${28 + r() * 14}, ${20 + r() * 20}%, ${l}%, ${0.35 + r() * 0.5})`;
+      wrapDraw(w, h, (dx, dy) => {
+        g.beginPath();
+        g.arc(x + dx, y + dy, s, 0, Math.PI * 2);
+        g.fill();
+      });
+    }
+  }, { repeat: [1, 1] }));
+}
