@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from './textures.js';
-import { makeBuddha, swapToCarvedBuddha } from './buddha.js';
+import { makeBuddha, swapToCarvedBuddha, CARVED } from './buddha.js';
 import { makeQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
@@ -1520,7 +1520,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     mesh(new THREE.PlaneGeometry(5.4, 1.0), boardMat(['TAM THẾ ĐIỆN'], { w: 1024, h: 190, size: 110 }), 0, H + 8.4, cz + d * 0.31 + 0.06, { cast: false });
     rectRoof(0, H + 9.35, cz, w * 0.66 + 3, d * 0.62 + 3, 2.3, sideTile, { top: 0.33 });
     mesh(new THREE.SphereGeometry(0.4, 14, 10), M.gold, 0, H + 11.9, cz);
-    // bàn thờ dài, ba tượng Phật: tượng giữa chạm khắc như chánh điện, hai bên dựng bằng mã
+    // bàn thờ dài, ba tượng Phật chạm khắc: tượng giữa như chánh điện, hai bên một mẫu khác
     box(15, 1.2, 2.2, M.lacquer, 0, H + 0.8, TT.z0 + 1.6);
     box(15.2, 0.08, 2.4, M.gold, 0, H + 1.44, TT.z0 + 1.6, { cast: false });
     for (const x of [-4.6, 0, 4.6]) {
@@ -1530,8 +1530,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       b.position.set(x, H + 1.48, TT.z0 + 1.6);
       b.scale.setScalar(1.15);
       scene.add(b);
-      // tượng giữa (Thích Ca, hiện tại) dùng tượng chạm khắc giống chánh điện
-      if (x === 0) swapToCarvedBuddha(b, { height: 3.3, shadow: false }).catch((e) => console.warn('Không nạp được tượng mẫu cho điện Tam Thế', e));
+      // tượng giữa dùng tượng chạm khắc giống chánh điện (lớn hơn), hai tượng bên dùng mẫu chạm khắc thứ hai
+      const opt = x === 0 ? { url: CARVED.main, height: 3.3 } : { url: CARVED.side, height: 2.9 };
+      swapToCarvedBuddha(b, { ...opt, shadow: false }).catch((e) => console.warn('Không nạp được tượng mẫu cho điện Tam Thế', e));
     }
     for (const x of [-6.8, -2.3, 2.3, 6.8]) {
       cyl(0.08, 0.1, 0.06, M.bronze, x, H + 1.51, TT.z0 + 2.5);

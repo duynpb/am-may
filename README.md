@@ -30,7 +30,8 @@ public/
   js/main.js         Khởi động, camera, điều khiển chạm/chuột/phím, mạng, giao diện
   js/world.js        Dựng chánh điện, tượng Phật, bàn thờ, chuông trống, cảnh tre núi, ánh sáng
   js/buddha.js       Tượng Phật tạc bằng SDF (dùng cho điện Tam Thế, tháp) và nạp tượng mẫu chạm khắc cho chánh điện
-  models/buddha-thien.glb  Tượng Phật ngồi thiền trên tòa sen trong chánh điện (mẫu khắc maufree.vn số 7021, giảm còn 120 nghìn mặt, nén Draco)
+  models/buddha-thien.glb  Tượng Phật ngồi thiền trên tòa sen trong chánh điện và giữa điện Tam Thế (mẫu khắc maufree.vn số 7021, giảm còn 120 nghìn mặt, nén Draco)
+  models/buddha-thien-2.glb  Hai tượng hai bên điện Tam Thế (mẫu khắc maufree.vn số 6217, giảm còn 100 nghìn mặt, nén Draco)
   js/quanam.js       Tượng Quan Âm đứng trên tòa sen (dát vàng, trong điện Quan Âm)
   js/lahan.js        Tượng La Hán đá (ba tư thế, vẽ hàng loạt)
   js/dog.js          Chó nhỏ của nhà chùa (dáng, đi, ngồi, vẫy đuôi)

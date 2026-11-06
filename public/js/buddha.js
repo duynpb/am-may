@@ -538,22 +538,28 @@ export function makeBuddha({ quality = 'high', style = 'thien' } = {}) {
 // Mẫu tượng Phật ngồi thiền trên tòa sen (nguồn: mẫu khắc miễn phí maufree.vn, số 7021), đã giảm còn ~120 nghìn mặt.
 // File chuẩn hóa: cao 1, đáy ở y = 0, mặt tượng nhìn về +z. Nạp xong thì thay thân tượng cũ, giữ hai vầng hào quang.
 // Lỗi mạng / máy không đọc được thì giữ nguyên tượng cũ.
-// tải file tượng một lần, các tượng dùng chung khuôn và chất liệu
-let carvedPromise = null;
-function loadCarved() {
-  carvedPromise ??= loadCarvedOnce().catch((e) => {
-    carvedPromise = null;
-    throw e;
-  });
-  return carvedPromise;
+// Các mẫu tượng chạm khắc (đều chuẩn hóa: cao 1, đáy ở y = 0, mặt nhìn về +z):
+//  - buddha-thien.glb: mẫu khắc maufree.vn số 7021 (chánh điện, tượng giữa điện Tam Thế)
+//  - buddha-thien-2.glb: mẫu khắc maufree.vn số 6217 (hai tượng hai bên điện Tam Thế)
+export const CARVED = { main: '/models/buddha-thien.glb', side: '/models/buddha-thien-2.glb' };
+// mỗi file chỉ tải một lần, các tượng cùng mẫu dùng chung khuôn và chất liệu
+const carvedCache = new Map();
+function loadCarved(url) {
+  if (!carvedCache.has(url)) {
+    carvedCache.set(url, loadCarvedOnce(url).catch((e) => {
+      carvedCache.delete(url);
+      throw e;
+    }));
+  }
+  return carvedCache.get(url);
 }
-async function loadCarvedOnce() {
+async function loadCarvedOnce(url) {
   const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
     import('three/addons/loaders/GLTFLoader.js'),
     import('three/addons/loaders/DRACOLoader.js'),
   ]);
   const draco = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/gltf/');
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync('/models/buddha-thien.glb');
+  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(url);
   draco.dispose();
   let src = null;
   gltf.scene.traverse((o) => {
@@ -576,8 +582,8 @@ async function loadCarvedOnce() {
   const gold = new THREE.MeshStandardMaterial({ color: '#f2c45a', vertexColors: true, metalness: 0.92, roughness: 0.3, envMapIntensity: 1.8 });
   return { geo, gold };
 }
-export async function swapToCarvedBuddha(group, { height = 2.75, shadow = true } = {}) {
-  const { geo, gold } = await loadCarved();
+export async function swapToCarvedBuddha(group, { url = CARVED.main, height = 2.75, shadow = true } = {}) {
+  const { geo, gold } = await loadCarved(url);
   const statue = new THREE.Mesh(geo, gold);
   statue.scale.setScalar(height);
   statue.castShadow = shadow;
