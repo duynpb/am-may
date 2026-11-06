@@ -149,8 +149,8 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   // ---------- Mặt đất, bờ kè, mặt hồ ----------
   {
     const grass = std('#8b9670', { roughness: 1 });
-    // khối đất bên bờ: mặt trên là cỏ, mặt trông ra hồ là kè đá
-    const land = mesh(new THREE.BoxGeometry(900, 3, 700), [stoneD, stoneD, grass, stoneD, stoneD, stoneD], 0, LAND - 1.5, SHORE - 350, { cast: false });
+    // khối đất bên bờ: mặt trên là cỏ, mặt trông ra hồ là kè đá (hạ thấp 4 cm so với LAND để các sân lát đá bên trên không bị nhấp nháy Z-fighting)
+    const land = mesh(new THREE.BoxGeometry(900, 3, 700), [stoneD, stoneD, grass, stoneD, stoneD, stoneD], 0, LAND - 1.54, SHORE - 350, { cast: false });
     land.userData.kind = 'ground';
     pickables.push(land);
     // mặt hồ: gợn sóng vẽ bằng canvas, trôi chậm
@@ -177,7 +177,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     water.rotation.x = -Math.PI / 2;
     updaters.push((t) => normal.offset.set(t * 0.004, t * 0.007));
     // bờ hồ lát đá
-    const prom = mesh(new THREE.PlaneGeometry(140, 13), std('#b9b0a0', { roughness: 1 }), 0, LAND + 0.01, 45.8, { cast: false });
+    const prom = mesh(new THREE.PlaneGeometry(140, 13), std('#b9b0a0', { roughness: 1 }), 0, LAND + 0.015, 45.8, { cast: false });
     prom.rotation.x = -Math.PI / 2;
     prom.userData.kind = 'ground';
     pickables.push(prom);
@@ -396,7 +396,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set((PLAZA.maxX - PLAZA.minX) / 2.4, (PLAZA.maxZ - PLAZA.minZ) / 2.4);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const plaza = mesh(new THREE.PlaneGeometry(PLAZA.maxX - PLAZA.minX, PLAZA.maxZ - PLAZA.minZ), std('#ffffff', { map: tex, roughness: 1 }), 0, LAND + 0.012, (PLAZA.minZ + PLAZA.maxZ) / 2, { cast: false });
+    const plaza = mesh(new THREE.PlaneGeometry(PLAZA.maxX - PLAZA.minX, PLAZA.maxZ - PLAZA.minZ), std('#ffffff', { map: tex, roughness: 1 }), 0, LAND + 0.015, (PLAZA.minZ + PLAZA.maxZ) / 2, { cast: false });
     plaza.rotation.x = -Math.PI / 2;
     plaza.userData.kind = 'ground';
     pickables.push(plaza);
@@ -449,11 +449,11 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set((G.maxX - G.minX) / 2, (G.maxZ - G.minZ) / 2);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const floor = mesh(new THREE.PlaneGeometry(G.maxX - G.minX + 2, G.maxZ - G.minZ + 2), std('#ffffff', { map: tex, roughness: 1 }), (G.minX + G.maxX) / 2, LAND + 0.012, (G.minZ + G.maxZ) / 2, { cast: false });
+    const floor = mesh(new THREE.PlaneGeometry(G.maxX - G.minX + 2, G.maxZ - G.minZ + 2), std('#ffffff', { map: tex, roughness: 1 }), (G.minX + G.maxX) / 2, LAND + 0.015, (G.minZ + G.maxZ) / 2, { cast: false });
     floor.rotation.x = -Math.PI / 2;
     floor.userData.kind = 'ground';
     pickables.push(floor);
-    const lane = mesh(new THREE.PlaneGeometry(12, 6), std('#b3aa98', { roughness: 1 }), -52, LAND + 0.011, -16, { cast: false });
+    const lane = mesh(new THREE.PlaneGeometry(7, 6), std('#b3aa98', { roughness: 1 }), -51.5, LAND + 0.015, -16, { cast: false });
     lane.rotation.x = -Math.PI / 2;
     lane.userData.kind = 'ground';
     pickables.push(lane);
@@ -636,8 +636,8 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     const floorTex = T.woodFloor();
     for (const Tr of TERRACES) {
       const d = Tr.front - Tr.back, cz = (Tr.front + Tr.back) / 2, h = Tr.y - LAND;
-      box(Tr.halfX * 2, h, d, retainM, 0, LAND + h / 2, cz);
-      const top = mesh(new THREE.PlaneGeometry(Tr.halfX * 2, d), paveM, 0, Tr.y + 0.012, cz, { cast: false });
+      box(Tr.halfX * 2, h - 0.04, d, retainM, 0, LAND + (h - 0.04) / 2, cz);
+      const top = mesh(new THREE.PlaneGeometry(Tr.halfX * 2, d), paveM, 0, Tr.y + 0.015, cz, { cast: false });
       top.rotation.x = -Math.PI / 2;
       top.userData.kind = 'ground';
       pickables.push(top);
@@ -671,7 +671,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       fl.rotation.x = -Math.PI / 2;
       fl.userData.kind = 'ground';
       pickables.push(fl);
-      box(2.4, 0.02, d - 3.5, std('#7a271c', { roughness: 1 }), 0, y + 0.26, cz + 1.4, { cast: false });
+      box(2.4, 0.02, d - 3.5, std('#7a271c', { roughness: 1 }), 0, y + 0.268, cz + 1.4, { cast: false });
       box(w, 6.4, 0.3, wallM, 0, y + 3.45, H.back + 0.15);
       for (const sx of [-1, 1]) {
         box(0.3, 6.4, d, wallM, sx * (H.hx - 0.15), y + 3.45, cz);

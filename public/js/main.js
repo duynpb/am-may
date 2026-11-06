@@ -94,7 +94,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 600);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 600);
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;

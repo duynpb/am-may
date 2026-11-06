@@ -233,16 +233,16 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   );
   scene.add(sky);
 
-  const ground = mesh(new THREE.PlaneGeometry(500, 500), std('#8b9670', { roughness: 1 }), 0, PORCH.courtY - 0.03, 0, { cast: false });
+  const ground = mesh(new THREE.PlaneGeometry(500, 500), std('#8b9670', { roughness: 1 }), 0, PORCH.courtY - 0.06, 0, { cast: false });
   ground.rotation.x = -Math.PI / 2;
   ground.userData.kind = 'ground';
   pickables.push(ground);
-  const court = mesh(new THREE.PlaneGeometry(34, 18), std('#978e7e', { roughness: 1 }), 0, PORCH.courtY + 0.005, 30.5, { cast: false });
+  const court = mesh(new THREE.PlaneGeometry(34, 18), std('#978e7e', { roughness: 1 }), 0, PORCH.courtY + 0.015, 30.5, { cast: false });
   court.rotation.x = -Math.PI / 2;
   court.userData.kind = 'ground';
   pickables.push(court);
   // lối đi lát gạch giữa sân
-  const path = mesh(new THREE.PlaneGeometry(3, 17), std('#a0533a', { roughness: 0.95 }), 0, PORCH.courtY + 0.01, 30.6, { cast: false });
+  const path = mesh(new THREE.PlaneGeometry(3, 17), std('#a0533a', { roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 0, PORCH.courtY + 0.035, 30.6, { cast: false });
   path.rotation.x = -Math.PI / 2;
   path.userData.kind = 'ground';
   pickables.push(path);
@@ -326,7 +326,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   pickables.push(floor);
 
   // Thảm đỏ lối đi giữa
-  box(2.2, 0.02, 30.5, std('#7a271c', { roughness: 1 }), 0, 0.01, 2.4, { cast: false });
+  box(2.2, 0.02, 30.5, std('#7a271c', { roughness: 1 }), 0, 0.018, 2.4, { cast: false });
 
   const wall = mesh(new THREE.PlaneGeometry(30, 10.2), std('#ffffff', { map: T.lacquerWall(), roughness: 0.5 }), 0, 5.1, -21, { cast: false });
   box(30.6, 10.4, 0.3, M.plaster, 0, 5.0, -21.2); // mặt ngoài tường hậu
@@ -891,7 +891,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   // thảm cỏ
-  const grass = mesh(new THREE.CircleGeometry(6.6, 48), std('#6c8a4a', { roughness: 1 }), 11.3, GY + 0.008, 31.8, { cast: false });
+  const grass = mesh(new THREE.CircleGeometry(6.6, 48), std('#6c8a4a', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 11.3, GY + 0.032, 31.8, { cast: false });
   grass.rotation.x = -Math.PI / 2;
   grass.userData.kind = 'ground';
   pickables.push(grass);
@@ -1028,12 +1028,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   }
 
   // hồ sen: đáy tối, mặt nước trong, viền đá, lá sen, hoa sen, non bộ, cá koi
-  const pondBottom = mesh(new THREE.CircleGeometry(1, 40), std('#1a2a27', { roughness: 1 }), PD.x, GY + 0.012, PD.z, { cast: false });
+  const pondBottom = mesh(new THREE.CircleGeometry(1, 40), std('#1a2a27', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }), PD.x, GY + 0.042, PD.z, { cast: false });
   pondBottom.scale.set(PD.rx, PD.rz, 1);
   pondBottom.rotation.x = -Math.PI / 2;
   const water = mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshStandardMaterial({
     color: '#2e5c63', roughness: 0.06, metalness: 0.3, transparent: true, opacity: 0.78, envMapIntensity: 1.6,
-  }), PD.x, GY + 0.07, PD.z, { cast: false });
+  }), PD.x, GY + 0.08, PD.z, { cast: false });
   water.scale.set(PD.rx, PD.rz, 1);
   water.rotation.x = -Math.PI / 2;
   obstacles.push({ x: PD.x, z: PD.z, rx: PD.rx + 0.35, rz: PD.rz + 0.35 });
@@ -1219,13 +1219,14 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
 
   // ---------- Trục đường chính từ sân chùa ra cổng Tam Quan ----------
   {
-    const roadLen = GATE.z - 39.4;
-    const road = mesh(new THREE.PlaneGeometry(7, roadLen), std('#a39a88', { roughness: 1 }), 0, GY + 0.006, 39.4 + roadLen / 2, { cast: false });
+    const roadLen = GATE.z - 3 - 39.5;
+    const roadCz = 39.5 + roadLen / 2;
+    const road = mesh(new THREE.PlaneGeometry(7, roadLen), std('#a39a88', { roughness: 1 }), 0, GY + 0.015, roadCz, { cast: false });
     road.rotation.x = -Math.PI / 2;
     road.userData.kind = 'ground';
     pickables.push(road);
     // viền đá hai bên đường
-    for (const s of [-1, 1]) box(0.25, 0.12, roadLen, stoneL, s * 3.62, GY + 0.06, 39.4 + roadLen / 2);
+    for (const s of [-1, 1]) box(0.25, 0.12, roadLen, stoneL, s * 3.62, GY + 0.06, roadCz);
     // đèn đá dọc đường (tránh sân giếng Ngọc và lối ngang sang hành lang)
     for (const z of [45, 51, 72, 77]) for (const s of [-1, 1]) stoneLantern(s * 4.6, z);
     // cây xanh hai góc sân trước cổng
@@ -1236,8 +1237,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       mesh(new THREE.SphereGeometry(1.1, 12, 9), leafD, tx + Math.sign(tx) * 0.5, GY + 3.9, tz - 0.4);
       obstacles.push({ x: tx, z: tz, r: 0.5 });
     }
-    // sân trước cổng
-    const plaza = mesh(new THREE.PlaneGeometry(26, 14), std('#a39a88', { roughness: 1 }), 0, GY + 0.006, GATE.plazaZ, { cast: false });
+    // sân trước cổng (bắt đầu từ mép nam nền cổng z = 87 để không chồng lên thềm cổng)
+    const plaza = mesh(new THREE.PlaneGeometry(26, 13), std('#a39a88', { roughness: 1 }), 0, GY + 0.015, GATE.plazaZ + 1.5, { cast: false });
     plaza.rotation.x = -Math.PI / 2;
     plaza.userData.kind = 'ground';
     pickables.push(plaza);
@@ -1249,10 +1250,10 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const lotusM = std('#f3a3b6', { roughness: 0.6 });
   for (const s of [-1, 1]) {
     const cx = s * 9.2, cz = 61, rx = 3.6, rz = 16;
-    const rim = mesh(new THREE.CircleGeometry(1, 48), stoneL, cx, GY + 0.012, cz, { cast: false });
+    const rim = mesh(new THREE.CircleGeometry(1, 48), stoneL, cx, GY + 0.025, cz, { cast: false });
     rim.scale.set(rx + 0.45, rz + 0.45, 1);
     rim.rotation.x = -Math.PI / 2;
-    const water = mesh(new THREE.CircleGeometry(1, 48), waterM, cx, GY + 0.03, cz, { cast: false });
+    const water = mesh(new THREE.CircleGeometry(1, 48), waterM, cx, GY + 0.045, cz, { cast: false });
     water.scale.set(rx, rz, 1);
     water.rotation.x = -Math.PI / 2;
     // lá sen và hoa sen nổi trên mặt hồ
@@ -1262,13 +1263,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const o = new THREE.Object3D();
     for (let i = 0; i < n; i++) {
       const a = rnd(0, 6.28), r = Math.sqrt(Math.random()) * 0.85;
-      o.position.set(cx + Math.cos(a) * r * rx, GY + 0.045, cz + Math.sin(a) * r * rz);
+      o.position.set(cx + Math.cos(a) * r * rx, GY + 0.06, cz + Math.sin(a) * r * rz);
       o.rotation.set(0, rnd(0, 6.28), 0);
       o.scale.setScalar(rnd(0.7, 1.3));
       o.updateMatrix();
       leaves.setMatrixAt(i, o.matrix);
       if (i < 12) {
-        o.position.y = GY + 0.06;
+        o.position.y = GY + 0.075;
         o.scale.setScalar(rnd(0.8, 1.1));
         o.updateMatrix();
         flowers.setMatrixAt(i, o.matrix);
@@ -1281,7 +1282,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   // ---------- Giếng Ngọc: giếng tròn lớn, thành đá có lan can, nước xanh ngọc ----------
   {
     const { x: wx, z: wz, r } = WELL;
-    const disc = mesh(new THREE.CircleGeometry(5.6, 40), std('#b3aa98', { roughness: 1 }), wx, GY + 0.009, wz, { cast: false });
+    const disc = mesh(new THREE.CircleGeometry(5.6, 40), std('#b3aa98', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), wx, GY + 0.038, wz, { cast: false });
     disc.rotation.x = -Math.PI / 2;
     disc.userData.kind = 'ground';
     pickables.push(disc);
@@ -1426,13 +1427,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const sideWall = std('#e6dcc6', { roughness: 0.9 });
   const pave = std('#a39a88', { roughness: 1 });
 
-  // lối đi và nền lát của hai sân bên
+  // lối đi và nền lát của hai sân bên (khớp mép với sân chính x = ±17 và sân bên x = ±21..±43 để không chồng mặt phẳng)
   for (const s of [-1, 1]) {
-    const lane = mesh(new THREE.PlaneGeometry(6, 1.8), pave, s * 18.5, GY + 0.007, 23.5, { cast: false });
+    const lane = mesh(new THREE.PlaneGeometry(4, 1.8), pave, s * 19, GY + 0.015, 23.5, { cast: false });
     lane.rotation.x = -Math.PI / 2;
     lane.userData.kind = 'ground';
     pickables.push(lane);
-    const court = mesh(new THREE.PlaneGeometry(22, 22), pave, s * 32, GY + 0.006, 29, { cast: false });
+    const court = mesh(new THREE.PlaneGeometry(22, 22), pave, s * 32, GY + 0.015, 29, { cast: false });
     court.rotation.x = -Math.PI / 2;
     court.userData.kind = 'ground';
     pickables.push(court);
@@ -1445,12 +1446,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const H = TERRACE.y;
   {
     for (const s of [-1, 1]) {
-      const lane = mesh(new THREE.PlaneGeometry(4.6, 52.2), pave, s * 18.5, GY + 0.007, -2.9, { cast: false });
+      const lane = mesh(new THREE.PlaneGeometry(4, 48.6), pave, s * 19, GY + 0.015, -1.7, { cast: false });
       lane.rotation.x = -Math.PI / 2;
       lane.userData.kind = 'ground';
       pickables.push(lane);
     }
-    const back = mesh(new THREE.PlaneGeometry(41.6, 7.2), pave, 0, GY + 0.008, -29.6, { cast: false });
+    const back = mesh(new THREE.PlaneGeometry(42, 7.2), pave, 0, GY + 0.015, -29.6, { cast: false });
     back.rotation.x = -Math.PI / 2;
     back.userData.kind = 'ground';
     pickables.push(back);
@@ -1475,12 +1476,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const retainM = std('#8f897d', { roughness: 1 });
     const dz = TERRACE.z1 - TERRACE.z0, czT = (TERRACE.z0 + TERRACE.z1) / 2;
     for (const s of [-1, 1]) {
-      box(TERRACE.x - STAIRS.x, 8, dz, retainM, s * (STAIRS.x + TERRACE.x) / 2, GY + 4, czT);
+      box(TERRACE.x - STAIRS.x, 7.96, dz, retainM, s * (STAIRS.x + TERRACE.x) / 2, GY + 3.98, czT);
       // lan can đá dọc mép nền
       box(TERRACE.x - STAIRS.x - 0.6, 0.7, 0.3, stoneL, s * (STAIRS.x + TERRACE.x) / 2 + s * 0.3, H + 0.35, TERRACE.z1 - 0.15);
     }
-    box(STAIRS.x * 2, 8, TERRACE.z1 - 0.4 - TERRACE.z0, retainM, 0, GY + 4, (TERRACE.z0 + TERRACE.z1 - 0.4) / 2);
-    const top = mesh(new THREE.PlaneGeometry(TERRACE.x * 2, dz), std('#aaa292', { roughness: 1 }), 0, H + 0.012, czT, { cast: false });
+    box(STAIRS.x * 2, 7.96, TERRACE.z1 - 0.4 - TERRACE.z0, retainM, 0, GY + 3.98, (TERRACE.z0 + TERRACE.z1 - 0.4) / 2);
+    const top = mesh(new THREE.PlaneGeometry(TERRACE.x * 2, dz), std('#aaa292', { roughness: 1 }), 0, H + 0.015, czT, { cast: false });
     top.rotation.x = -Math.PI / 2;
     top.userData.kind = 'ground';
     pickables.push(top);
@@ -1505,7 +1506,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     floorT.rotation.x = -Math.PI / 2;
     floorT.userData.kind = 'ground';
     pickables.push(floorT);
-    box(2.4, 0.02, d - 3, std('#7a271c', { roughness: 1 }), 0, H + 0.22, cz + 1.2, { cast: false });
+    box(2.4, 0.02, d - 3, std('#7a271c', { roughness: 1 }), 0, H + 0.228, cz + 1.2, { cast: false });
     box(w, 6, 0.3, sideWall, 0, H + 3.2, TT.z0 + 0.15);
     for (const sx of [-1, 1]) {
       box(0.3, 6, d, sideWall, sx * (w / 2 - 0.15), H + 3.2, cz);
@@ -1697,8 +1698,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const railM = std('#7a4a2c', { roughness: 0.7 });
     const stepM = std('#b8b1a3', { roughness: 0.95 });
 
-    // lối đá nối từ sân gác chuông đến chân cầu thang đài thiền
-    const zenLane = mesh(new THREE.PlaneGeometry(5.2, 3.6), pave, Z.x, GY + 0.006, 41.2, { cast: false });
+    // lối đá nối từ sân gác chuông (mép nam z = 40) đến chân cầu thang đài thiền
+    const zenLane = mesh(new THREE.PlaneGeometry(5.2, 2.8), pave, Z.x, GY + 0.015, 41.4, { cast: false });
     zenLane.rotation.x = -Math.PI / 2;
     zenLane.userData.kind = 'ground';
     pickables.push(zenLane);
@@ -1904,7 +1905,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     floorQ.rotation.x = -Math.PI / 2;
     floorQ.userData.kind = 'ground';
     pickables.push(floorQ);
-    box(2.2, 0.02, d - 2, std('#7a271c', { roughness: 1 }), QH.cx, GY + 0.22, cz + 1, { cast: false });
+    box(2.2, 0.02, d - 2, std('#7a271c', { roughness: 1 }), QH.cx, GY + 0.228, cz + 1, { cast: false });
     // tường sau và hai tường bên, có cửa sổ
     box(w, 4.4, 0.3, sideWall, QH.cx, GY + 2.4, QH.z0 + 0.15);
     for (const sx of [-1, 1]) {
@@ -2131,7 +2132,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const segs = 80, pts = [], idx = [];
     for (let i = 0; i <= segs; i++) {
       const x = -230 + (460 * i) / segs, zc = 132 + Math.sin(x / 38) * 14 + Math.sin(x / 13) * 3, w = 9 + Math.sin(x / 21) * 2;
-      pts.push(x, GY - 0.01, zc - w, x, GY - 0.01, zc + w);
+      pts.push(x, GY - 0.015, zc - w, x, GY - 0.015, zc + w);
       if (i < segs) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
     }
     const riverG = new THREE.BufferGeometry();
@@ -2149,7 +2150,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         const x = gx * 13 + 6.5, z = 106 + gz * 6.2;
         if (Math.abs(x) < 16 && z < 112) continue;
         if (z > 132 + Math.sin(x / 38) * 14 - 13) continue; // không lấn xuống sông
-        o.position.set(x, GY - 0.015, z);
+        o.position.set(x, GY - 0.03, z);
         o.rotation.set(0, 0, 0);
         o.scale.set(12.2, 1, 5.6);
         o.updateMatrix();
@@ -2169,13 +2170,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     water.rotation.x = -Math.PI / 2;
     water.userData.kind = 'field';
     pickables.push(water);
-    // bờ ruộng đắp đất giữa các ô và quanh ruộng
+    // bờ ruộng đắp đất giữa các ô và quanh ruộng (bờ ngang cao hơn bờ dọc 8 mm để các ngã tư không trùng mặt phẳng)
     const dykeM = std('#7a6a4a', { roughness: 1 });
     const w = (F.x1 - F.x0) / F.cols, d = (F.z1 - F.z0) / F.rows;
     for (let c = 0; c <= F.cols; c++) box(0.6, 0.16, F.z1 - F.z0 + 0.6, dykeM, F.x0 + c * w, GY2 + 0.08, (F.z0 + F.z1) / 2, { cast: false });
-    for (let r = 0; r <= F.rows; r++) box(F.x1 - F.x0 + 0.6, 0.16, 0.6, dykeM, (F.x0 + F.x1) / 2, GY2 + 0.08, F.z0 + r * d, { cast: false });
-    // lối đất từ sân xuống ruộng
-    const lane = mesh(new THREE.PlaneGeometry(7, 5), std('#8a7a58', { roughness: 1 }), 34, GY2 + 0.006, 41.5, { cast: false });
+    for (let r = 0; r <= F.rows; r++) box(F.x1 - F.x0 + 0.6, 0.168, 0.6, dykeM, (F.x0 + F.x1) / 2, GY2 + 0.084, F.z0 + r * d, { cast: false });
+    // lối đất từ mép nam sân bên (z = 40) xuống bờ ruộng (z = 43.7)
+    const lane = mesh(new THREE.PlaneGeometry(7, 3.7), std('#8a7a58', { roughness: 1 }), 34, GY2 + 0.015, 41.85, { cast: false });
     lane.rotation.x = -Math.PI / 2;
     lane.userData.kind = 'ground';
     pickables.push(lane);
@@ -2271,12 +2272,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   // ---------- Vườn rau kế bên ruộng lúa: 8 luống rau nhiều loại, phật tử chạm vào để hái ----------
   const veg = (() => {
     const V = VEG, GY2 = PORCH.courtY;
-    const groundV = mesh(new THREE.PlaneGeometry(V.x1 - V.x0 + 1.6, V.z1 - V.z0 + 1.4), std('#7a684b', { roughness: 1 }), (V.x0 + V.x1) / 2, GY2 + 0.008, (V.z0 + V.z1) / 2, { cast: false });
+    const groundV = mesh(new THREE.PlaneGeometry(V.x1 - V.x0 + 1.6, V.z1 - V.z0 + 1.0), std('#7a684b', { roughness: 1 }), (V.x0 + V.x1) / 2, GY2 + 0.015, (V.z0 + V.z1) / 2 + 0.2, { cast: false });
     groundV.rotation.x = -Math.PI / 2;
     groundV.userData.kind = 'veg';
     pickables.push(groundV);
-    // lối đất nối từ lối xuống ruộng sang vườn rau và vườn cây ăn trái
-    const connLane = mesh(new THREE.PlaneGeometry(27, 4.2), std('#8a7a58', { roughness: 1 }), 50.5, GY2 + 0.006, 41.5, { cast: false });
+    // lối đất nối từ lối xuống ruộng (x = 37.5) sang vườn rau và vườn cây ăn trái, khớp mép z = 40..43.7
+    const connLane = mesh(new THREE.PlaneGeometry(26.5, 3.7), std('#8a7a58', { roughness: 1 }), 50.75, GY2 + 0.015, 41.85, { cast: false });
     connLane.rotation.x = -Math.PI / 2;
     connLane.userData.kind = 'ground';
     pickables.push(connLane);
@@ -2463,8 +2464,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   // ---------- Vườn cây ăn trái kế bên điện Quan Âm: xoài, bưởi, mít, hồng, khế, ổi, nhãn, chuối ----------
   const orchard = (() => {
     const O = ORCHARD, GY2 = PORCH.courtY;
-    // thảm cỏ vườn quả xanh mát bên hông điện Quan Âm
-    const grass = mesh(new THREE.PlaneGeometry(O.x1 - O.x0, O.z1 - O.z0), std('#738a54', { roughness: 1 }), (O.x0 + O.x1) / 2, GY2 + 0.005, (O.z0 + O.z1) / 2, { cast: false });
+    // thảm cỏ vườn quả xanh mát bên hông điện Quan Âm (bắt đầu từ x = 43 và kéo tới z = 40 để khớp mép với sân bên & lối đất, không chồng mặt phẳng)
+    const grass = mesh(new THREE.PlaneGeometry(O.x1 - 43, 40 - O.z0), std('#738a54', { roughness: 1 }), (43 + O.x1) / 2, GY2 + 0.015, (O.z0 + 40) / 2, { cast: false });
     grass.rotation.x = -Math.PI / 2;
     grass.userData.kind = 'ground';
     pickables.push(grass);
@@ -2478,7 +2479,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       [51.8, 24.4], [51.8, 26.8], [51.6, 29.4], [51.6, 32.0], [51.6, 34.6], [51.6, 37.2], [51.6, 39.4],
     ];
     for (const [sx, sz] of stoneSpots) {
-      const st = mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.04, 10), stepStoneM, sx, GY2 + 0.02, sz, { cast: false });
+      const st = mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.04, 10), stepStoneM, sx, GY2 + 0.038, sz, { cast: false });
       st.scale.set(1.1, 1, 0.85);
       st.userData.kind = 'ground';
       pickables.push(st);
@@ -2949,12 +2950,12 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
 
   // tiểu cảnh quanh tháp: thảm cỏ, đường đá, đèn đá, cây cảnh, tùng, đá
   {
-    const grassT = mesh(new THREE.CircleGeometry(8.2, 48), std('#6c8a4a', { roughness: 1 }), TW.x, GY + 0.008, TW.z, { cast: false });
+    const grassT = mesh(new THREE.CircleGeometry(8.2, 48), std('#6c8a4a', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), TW.x, GY + 0.032, TW.z, { cast: false });
     grassT.rotation.x = -Math.PI / 2;
     grassT.userData.kind = 'ground';
     pickables.push(grassT);
     for (let x = TW.x + TW.plinthR + 0.45; x < -1.7; x += 0.8) {
-      const st = mesh(new THREE.CylinderGeometry(0.36, 0.38, 0.05, 12), stoneL, x, GY + 0.025, TW.z + rnd(-0.08, 0.08), { cast: false });
+      const st = mesh(new THREE.CylinderGeometry(0.36, 0.38, 0.05, 12), stoneL, x, GY + 0.045, TW.z + rnd(-0.08, 0.08), { cast: false });
       st.scale.z = rnd(0.75, 0.95);
     }
     stoneLantern(TW.x + 6.6, TW.z - 2.1);
