@@ -538,7 +538,16 @@ export function makeBuddha({ quality = 'high', style = 'thien' } = {}) {
 // Mẫu tượng Phật ngồi thiền trên tòa sen (nguồn: mẫu khắc miễn phí maufree.vn, số 7021), đã giảm còn ~120 nghìn mặt.
 // File chuẩn hóa: cao 1, đáy ở y = 0, mặt tượng nhìn về +z. Nạp xong thì thay thân tượng cũ, giữ hai vầng hào quang.
 // Lỗi mạng / máy không đọc được thì giữ nguyên tượng cũ.
-export async function swapToCarvedBuddha(group, { height = 2.75 } = {}) {
+// tải file tượng một lần, các tượng dùng chung khuôn và chất liệu
+let carvedPromise = null;
+function loadCarved() {
+  carvedPromise ??= loadCarvedOnce().catch((e) => {
+    carvedPromise = null;
+    throw e;
+  });
+  return carvedPromise;
+}
+async function loadCarvedOnce() {
   const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
     import('three/addons/loaders/GLTFLoader.js'),
     import('three/addons/loaders/DRACOLoader.js'),
@@ -550,7 +559,7 @@ export async function swapToCarvedBuddha(group, { height = 2.75 } = {}) {
   gltf.scene.traverse((o) => {
     if (o.isMesh && !src) src = o;
   });
-  if (!src) return false;
+  if (!src) throw new Error('file tượng không có khối nào');
   const geo = src.geometry;
   if (!geo.attributes.normal) geo.computeVertexNormals();
   // màu đỉnh: chỗ lõm (nếp áo, kẽ cánh sen) sẫm hơn, chỗ nhô sáng hơn — giả bóng kẽ cho tượng thếp vàng
@@ -565,15 +574,21 @@ export async function swapToCarvedBuddha(group, { height = 2.75 } = {}) {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const gold = new THREE.MeshStandardMaterial({ color: '#f2c45a', vertexColors: true, metalness: 0.92, roughness: 0.3, envMapIntensity: 1.8 });
+  return { geo, gold };
+}
+export async function swapToCarvedBuddha(group, { height = 2.75, shadow = true } = {}) {
+  const { geo, gold } = await loadCarved();
   const statue = new THREE.Mesh(geo, gold);
   statue.scale.setScalar(height);
-  statue.castShadow = statue.receiveShadow = true;
+  statue.castShadow = shadow;
+  statue.receiveShadow = true;
   // bỏ thân tượng cũ, chỉ giữ hai tấm hào quang (hai phần cuối cùng) và lùi chúng ra sau lưng tượng mới
   const keep = group.children.slice(-2);
   for (const o of group.children.slice(0, -2)) group.remove(o);
   const [halo, big] = keep;
-  halo.position.set(0, height * 0.86, -height * 0.36);
-  big.position.set(0, height * 0.6, -height * 0.4);
+  // hào quang lùi sau lưng tượng nhưng không quá 1,1 (tượng lớn đặt sát tường thì hào quang không lọt vào tường)
+  halo.position.set(0, height * 0.86, -Math.min(height * 0.36, 0.99));
+  big.position.set(0, height * 0.6, -Math.min(height * 0.4, 1.1));
   group.add(statue);
   return true;
 }
