@@ -22,6 +22,14 @@ const SYL_POS = (() => {
 })();
 export const RECORDING_URL = 'audio/tung-kinh.mp3';
 // Các bài nhạc thiền để chọn khi ngồi thiền trên đài thiền: bản nhạc thu sẵn (tải dần, phát lặp lại) hoặc nhạc tổng hợp
+// Âm thanh khi ngồi học ở nhà tự học
+export const STUDY_SOUNDS = [
+  { id: 'music', name: 'Nhạc không lời' },
+  { id: 'stream', name: 'Suối' },
+  { id: 'rain', name: 'Mưa' },
+  { id: 'fire', name: 'Lửa' },
+  { id: 'mo', name: 'Gõ mõ' },
+];
 export const ZEN_TRACKS = [
   { id: 'tinhtam', name: 'Tịnh tâm thư thái', url: 'audio/thien-tinh-tam.mp3' },
   { id: 'synth', name: 'Chuông xoay & đàn tranh' },
@@ -407,6 +415,131 @@ export class Sound {
     }
     vib.start(t);
     vib.stop(t + dur + 0.05);
+  }
+
+  // ---------- Nhà tự học: nhạc không lời hoặc tiếng suối, mưa, lửa, gõ mõ (tổng hợp) ----------
+  setStudy(id) {
+    this.stopStudy();
+    this.studyId = id || null;
+    if (!id) return;
+    this.init();
+    if (!this.ctx) return;
+    if (this.chanting) {
+      this.chanting = false;
+      this.stopVoices();
+    }
+    const ctx = this.ctx, out = this.bus.chant, token = (this.studyToken = {});
+    const alive = () => this.studyToken === token;
+    if (id === 'music') {
+      if (!this.studyEl) {
+        this.studyEl = new Audio(ZEN_TRACKS[0].url);
+        this.studyEl.loop = true;
+        this.studyEl.preload = 'auto';
+        this.studyEl.crossOrigin = 'anonymous';
+        ctx.createMediaElementSource(this.studyEl).connect(out);
+      }
+      this.studyEl.play().catch(() => {});
+      return;
+    }
+    const g = (this.studyGain = ctx.createGain());
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.setTargetAtTime(1, ctx.currentTime + 0.05, 0.6);
+    g.connect(out);
+    const nodes = (this.studyNodes = []);
+    const noiseLoop = (rate, filters, gain) => {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      src.playbackRate.value = rate;
+      let last = src;
+      for (const [type, freq, q = 0.7] of filters) {
+        const f = ctx.createBiquadFilter();
+        f.type = type;
+        f.frequency.value = freq;
+        f.Q.value = q;
+        last.connect(f);
+        last = f;
+        nodes.push(f);
+      }
+      const gg = ctx.createGain();
+      gg.gain.value = gain;
+      last.connect(gg).connect(g);
+      src.start();
+      nodes.push(src, gg);
+      return { src, filters: nodes };
+    };
+    // lặp ngẫu nhiên: gọi fn rồi hẹn lần sau sau [a, b] ms
+    const every = (a, b, fn) => {
+      const tick = () => {
+        if (!alive()) return;
+        if (this.live) fn(ctx.currentTime + 0.02);
+        setTimeout(tick, a + Math.random() * (b - a));
+      };
+      tick();
+    };
+    if (id === 'stream') {
+      // nước chảy róc rách: tiếng ồn lọc dải giữa, tần số lượn lờ, thêm tiếng bọt nước lách tách
+      const base = noiseLoop(1, [['bandpass', 900, 0.5], ['lowpass', 2600]], 0.55);
+      const lfo = ctx.createOscillator(), lg = ctx.createGain();
+      lfo.frequency.value = 0.23;
+      lg.gain.value = 320;
+      lfo.connect(lg).connect(base.filters[0].frequency);
+      lfo.start();
+      nodes.push(lfo, lg);
+      noiseLoop(0.6, [['lowpass', 380]], 0.25);
+      every(60, 260, (t) => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        const f = 700 + Math.random() * 1500;
+        o.frequency.setValueAtTime(f, t);
+        o.frequency.exponentialRampToValueAtTime(f * (1.4 + Math.random() * 0.6), t + 0.05);
+        og.gain.setValueAtTime(0.0001, t);
+        og.gain.exponentialRampToValueAtTime(0.025 + Math.random() * 0.03, t + 0.006);
+        og.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        o.connect(og).connect(g);
+        o.start(t);
+        o.stop(t + 0.09);
+      });
+    } else if (id === 'rain') {
+      // mưa rào: tiếng rì rào cao, tiếng ầm trầm, giọt mưa lộp độp
+      noiseLoop(1, [['highpass', 900], ['lowpass', 7500]], 0.32);
+      noiseLoop(0.5, [['lowpass', 320]], 0.22);
+      every(25, 110, (t) => this.noiseHit(t, { freq: 2200 + Math.random() * 3800, q: 1.5, gain: 0.03 + Math.random() * 0.05, dur: 0.015 + Math.random() * 0.02, out: g }));
+    } else if (id === 'fire') {
+      // lửa bập bùng: tiếng ù trầm và tiếng củi nổ lách tách
+      const roar = noiseLoop(0.3, [['lowpass', 520]], 0.55);
+      const lfo = ctx.createOscillator(), lg = ctx.createGain();
+      lfo.frequency.value = 0.4;
+      lg.gain.value = 140;
+      lfo.connect(lg).connect(roar.filters[0].frequency);
+      lfo.start();
+      nodes.push(lfo, lg);
+      every(70, 420, (t) => {
+        const n = Math.random() < 0.25 ? 3 : 1;
+        for (let k = 0; k < n; k++) this.noiseHit(t + k * (0.01 + Math.random() * 0.03), { freq: 1500 + Math.random() * 3000, q: 0.9, gain: 0.08 + Math.random() * 0.22, dur: 0.008 + Math.random() * 0.025, out: g });
+      });
+    } else if (id === 'mo') {
+      // gõ mõ đều tay, chậm rãi (khoảng 72 nhịp mỗi phút), cứ 4 tiếng nhấn một tiếng
+      let k = 0;
+      every(830, 834, (t) => this.mo(t, k++ % 4 === 0));
+    }
+  }
+
+  stopStudy() {
+    this.studyToken = null;
+    if (this.studyEl && !this.studyEl.paused) this.studyEl.pause();
+    const g = this.studyGain, nodes = this.studyNodes || [];
+    this.studyGain = null;
+    this.studyNodes = null;
+    if (g && this.ctx) {
+      g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.2);
+      setTimeout(() => {
+        for (const n of nodes) {
+          try { n.stop?.(); } catch { /* ignore */ }
+          try { n.disconnect(); } catch { /* ignore */ }
+        }
+        try { g.disconnect(); } catch { /* ignore */ }
+      }, 900);
+    }
   }
 
   get zenTrack() {

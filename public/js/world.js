@@ -83,6 +83,17 @@ export const NGOA = (() => {
   };
 })();
 export const QAHALL = { x0: 25, x1: 39, z0: 5, z1: 17, cx: 32 };
+// Nhà tự học phía sau điện Quan Âm: nhà mái ngói thoáng bốn phía, sàn gỗ cao 25 cm, 8 bàn học thấp có bồ đoàn,
+// tường sau có kệ sách. Ngồi vào bàn thì bật nhạc không lời (đổi được sang tiếng suối, mưa, lửa, gõ mõ).
+export const STUDY = (() => {
+  const x0 = 26.5, x1 = 38.5, z0 = -15, z1 = -4, floor = 0.25;
+  const cols = [28.5, 31.2, 33.8, 36.5], rows = [-11.4, -7.6]; // chỗ ngồi (bồ đoàn); bàn ở phía trước 0,62 m
+  return {
+    x0, x1, z0, z1, floor, cols, rows, deskDz: -0.62, roofH: 3.2,
+    cx: (x0 + x1) / 2, cz: (z0 + z1) / 2,
+    door: { x: x0 - 1.2, z: (z0 + z1) / 2 + 2 }, // lối vào phía tây (từ khoảng sân giữa chánh điện và điện Quan Âm)
+  };
+})();
 // Sau chánh điện: sân sau, bậc thang đá lên nền đồi cao 8 m, trên đó là điện Tam Thế
 export const TERRACE = { x: 26, z0: -86, z1: -47.6, y: PORCH.courtY + 8 };
 export const STAIRS = { x: 3.6, z0: -48, z1: -32.9 };
@@ -169,6 +180,7 @@ export function groundY(x, z) {
     if (d < TOWER.plinthR) return PORCH.courtY + TOWER_BASE;
   }
   if (x > QAHALL.x0 - 0.6 && x < QAHALL.x1 + 0.6 && z > QAHALL.z0 - 0.5 && z < QAHALL.z1 + 0.9) return PORCH.courtY + 0.21; // nền và sàn điện Quan Âm
+  if (x > STUDY.x0 - 0.3 && x < STUDY.x1 + 0.3 && z > STUDY.z0 - 0.3 && z < STUDY.z1 + 0.3) return PORCH.courtY + STUDY.floor; // sàn nhà tự học
   if (x > FIELD.x0 && x < FIELD.x1 && z > FIELD.z0 && z < FIELD.z1) return PORCH.courtY - 0.1; // lội xuống ruộng
   if (ax > 15.6 || z < -21.6) return PORCH.courtY; // ngoài chánh điện và thềm
   if (z <= PORCH.z1 - 0.05) return 0;
@@ -290,7 +302,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const zt = rnd(-42, 3), west = side < 0 && zt > NGOA.z - NGOA.len / 2 - 4 && zt < NGOA.z + NGOA.len / 2 + 4;
       spots.push(
         i < 60
-          ? west ? [-rnd(44.5, 52), zt] : [side * rnd(21.8, 27), zt]
+          ? west ? [-rnd(44.5, 52), zt] : side > 0 && zt > STUDY.z0 - 4 && zt < STUDY.z1 + 4 ? [rnd(21.8, 27), rnd(-42, STUDY.z0 - 4)] : [side * rnd(21.8, 27), zt]
           : side < 0
             ? [-rnd(45, 58), rnd(-12, 41)]
             : Math.random() < 0.55
@@ -1991,6 +2003,123 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     obstacles.push({ x: B.x, z: B.z, r: 0.85 });
   }
 
+  // ---------- Nhà tự học phía sau điện Quan Âm ----------
+  let studyRoof = null;
+  {
+    const ST = STUDY, w = ST.x1 - ST.x0, d = ST.z1 - ST.z0, FY = GY + ST.floor;
+    // nền đá và sàn gỗ (mặt sàn cao hơn mặt nền đá 1 cm cho khỏi chớp)
+    box(w + 0.8, ST.floor - 0.02, d + 0.8, stoneL, ST.cx, GY + (ST.floor - 0.02) / 2, ST.cz);
+    const floorS = box(w + 0.2, 0.04, d + 0.2, std('#9a6b43', { roughness: 0.7 }), ST.cx, FY - 0.01, ST.cz, { cast: false });
+    floorS.userData.kind = 'ground';
+    pickables.push(floorS);
+    // bậc lên ở cửa tây và cửa nam
+    box(0.6, ST.floor * 0.5, 3.0, stoneL, ST.x0 - 0.7, GY + ST.floor * 0.25, ST.door.z);
+    box(3.0, ST.floor * 0.5, 0.6, stoneL, ST.cx, GY + ST.floor * 0.25, ST.z1 + 0.7);
+    // cột son
+    const colsXZ = [];
+    for (const x of [ST.x0, ST.x0 + 4, ST.x1 - 4, ST.x1]) for (const z of [ST.z0, ST.z1]) colsXZ.push([x, z]);
+    for (const x of [ST.x0, ST.x1]) colsXZ.push([x, ST.cz]);
+    for (const [x, z] of colsXZ) {
+      cyl(0.16, 0.19, ST.roofH, sideCol, x, FY + ST.roofH / 2, z, {}, 10);
+      cyl(0.25, 0.25, 0.12, stoneM, x, FY + 0.06, z, {}, 10);
+    }
+    // tường sau (phía bắc) có kệ sách dài, tranh chữ TĨNH TÂM giữa kệ
+    box(w + 0.3, ST.roofH, 0.2, sideWall, ST.cx, FY + ST.roofH / 2, ST.z0 - 0.12);
+    const shelfM = std('#5b3a24', { roughness: 0.7 });
+    for (const s of [-1, 1]) {
+      const sx = ST.cx + s * 3.6;
+      box(4.6, 2.3, 0.45, shelfM, sx, FY + 1.15, ST.z0 + 0.15);
+      for (let k = 0; k < 4; k++) box(4.5, 0.04, 0.42, std('#7a5233', { roughness: 0.7 }), sx, FY + 0.25 + k * 0.6, ST.z0 + 0.38, { cast: false });
+    }
+    // gáy sách nhiều màu trên kệ (vẽ hàng loạt)
+    {
+      const bookGeo = new THREE.BoxGeometry(1, 1, 1);
+      const books = new THREE.InstancedMesh(bookGeo, std('#ffffff', { roughness: 0.8 }), 160);
+      const o3 = new THREE.Object3D(), c = new THREE.Color();
+      const palette = ['#8c2f24', '#2f4f6b', '#6b5a2f', '#3c5a3a', '#7a6a55', '#a07a3a', '#4a3a5a', '#d8cbb0'];
+      let n = 0;
+      for (const s of [-1, 1]) for (let k = 0; k < 4; k++) {
+        let x = ST.cx + s * 3.6 - 2.15;
+        while (x < ST.cx + s * 3.6 + 2.1 && n < 160) {
+          const bw = 0.05 + Math.random() * 0.05, bh = 0.32 + Math.random() * 0.18;
+          o3.position.set(x + bw / 2, FY + 0.27 + k * 0.6 + bh / 2, ST.z0 + 0.36);
+          o3.scale.set(bw, bh, 0.26);
+          o3.rotation.z = Math.random() < 0.08 ? 0.12 : 0;
+          o3.updateMatrix();
+          books.setMatrixAt(n, o3.matrix);
+          books.setColorAt(n, c.set(palette[Math.floor(Math.random() * palette.length)]));
+          n++;
+          x += bw + 0.008;
+        }
+      }
+      books.count = n;
+      scene.add(books);
+    }
+    box(1.9, 1.2, 0.05, M.gold, ST.cx, FY + 2.0, ST.z0 + 0.02, { cast: false });
+    mesh(new THREE.PlaneGeometry(1.75, 1.05), boardMat(['TĨNH', 'TÂM'], { w: 512, h: 320, size: 120 }), ST.cx, FY + 2.0, ST.z0 + 0.06, { cast: false });
+    // bàn học thấp, đèn bàn, sách mở, chén trà
+    const deskM = std('#6b4428', { roughness: 0.55 }), pageM = std('#f4ecd8', { roughness: 0.9 }), lampM = new THREE.MeshStandardMaterial({ color: '#ffe2a8', emissive: '#ffb84a', emissiveIntensity: 0.9, roughness: 0.6 });
+    for (const z of ST.rows) for (const x of ST.cols) {
+      const dz = z + ST.deskDz;
+      box(1.15, 0.05, 0.55, deskM, x, FY + 0.33, dz);
+      for (const sx of [-1, 1]) box(0.06, 0.3, 0.5, deskM, x + sx * 0.52, FY + 0.15, dz);
+      // sách mở
+      const bk = new THREE.Group();
+      bk.position.set(x - 0.1, FY + 0.365, dz + 0.05);
+      for (const s of [-1, 1]) {
+        const p = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.27), pageM);
+        p.position.x = s * 0.1;
+        p.rotation.z = -s * 0.08;
+        bk.add(p);
+      }
+      scene.add(bk);
+      // đèn bàn nhỏ chao vải
+      cyl(0.05, 0.06, 0.03, M.bronze, x + 0.38, FY + 0.37, dz - 0.12, {}, 10);
+      cyl(0.012, 0.012, 0.22, M.bronze, x + 0.38, FY + 0.47, dz - 0.12, {}, 6);
+      cyl(0.06, 0.11, 0.1, lampM, x + 0.38, FY + 0.6, dz - 0.12, { cast: false }, 14);
+      // chén trà
+      cyl(0.035, 0.028, 0.05, std('#e8e2d2', { roughness: 0.3 }), x - 0.38, FY + 0.38, dz + 0.1, {}, 10);
+    }
+    // biển NHÀ TỰ HỌC trên xà cửa tây
+    box(0.07, 0.62, 2.7, M.gold, ST.x0 - 0.12, FY + ST.roofH - 0.45, ST.door.z);
+    const sign = mesh(new THREE.PlaneGeometry(2.55, 0.5), boardMat(['NHÀ TỰ HỌC'], { w: 1024, h: 200, size: 104 }), ST.x0 - 0.17, FY + ST.roofH - 0.45, ST.door.z, { cast: false });
+    sign.rotation.y = -Math.PI / 2;
+    // mái ngói hai tầng; camera bay cao hơn chân mái khi người chơi ở trong nhà thì mái mờ đi
+    {
+      const roofG = new THREE.Group();
+      roofG.position.set(ST.cx, FY + ST.roofH, ST.cz);
+      scene.add(roofG);
+      const tileM = sideTile.clone(), beamM = sideCol.clone(), wallM2 = sideWall.clone();
+      const fadeMats = [tileM, beamM, wallM2];
+      for (const m of fadeMats) m.transparent = true;
+      const ro = { parent: roofG };
+      for (const s of [-1, 1]) {
+        box(w + 0.3, 0.26, 0.24, beamM, 0, -0.13, s * d / 2, ro);
+        box(0.24, 0.26, d + 0.3, beamM, s * w / 2, -0.13, 0, ro);
+      }
+      const ceil = mesh(new THREE.PlaneGeometry(w + 0.4, d + 0.4).rotateX(Math.PI / 2), std('#4a2e1c', { roughness: 0.85 }), 0, 0.02, 0, { parent: roofG, cast: false });
+      const pyr = (pw, pd, h, top) => new THREE.CylinderGeometry(Math.SQRT1_2 * top, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).scale(pw, h, pd);
+      mesh(pyr(w + 2.6, d + 2.6, 1.4, 0.62), tileM, 0, 0.7, 0, ro);
+      box((w + 2.6) * 0.62 - 1.2, 0.7, (d + 2.6) * 0.62 - 1.2, wallM2, 0, 1.75, 0, ro);
+      mesh(pyr((w + 2.6) * 0.62 + 1.4, (d + 2.6) * 0.62 + 1.4, 1.6, 0.25), tileM, 0, 2.9, 0, ro);
+      let shown = 1;
+      studyRoof = {
+        setFade(v) {
+          if (Math.abs(v - shown) < 0.01) return;
+          shown = v;
+          for (const m of fadeMats) {
+            m.opacity = v;
+            m.depthWrite = v > 0.95;
+          }
+          ceil.visible = v > 0.95;
+        },
+        eaveY: FY + ST.roofH,
+      };
+    }
+    // tường sau và kệ sách là vật cản
+    obstacles.push({ minX: ST.x0 - 0.4, maxX: ST.x1 + 0.4, minZ: ST.z0 - 0.5, maxZ: ST.z0 + 0.7 });
+  }
+
   // ---------- Điện Quan Âm: hai tầng mái, tượng Quan Âm dát vàng, lư hương, nến ----------
   const QH = QAHALL;
   let incenseQH = null;
@@ -3326,6 +3455,10 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   for (const z of [TT.z0 + 7.6, TT.z0 + 9.4]) for (const x of [-7, -5, -3, 3, 5, 7]) {
     seats.push({ index: seats.length, x, z, y: H + 0.21, zone: 'out', out: true, place: 'tamthe' });
   }
+  // 8 bồ đoàn trước 8 bàn học trong nhà tự học (ngồi quay mặt về kệ sách phía bắc)
+  for (const z of STUDY.rows) for (const x of STUDY.cols) {
+    seats.push({ index: seats.length, x, z, y: PORCH.courtY + STUDY.floor, zone: 'out', out: true, place: 'study' });
+  }
   // 12 bồ đoàn xếp vòng quanh đài sen trên đài thiền, ngồi xuống thì quay mặt vào đài sen
   for (let k = 0; k < 12; k++) {
     const a = ((k + 0.5) / 12) * Math.PI * 2;
@@ -3592,6 +3725,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     qaHall: { head: QH_HEAD },
     tamThe: { head: TT_HEAD },
     ngoa: { head: NGOA.head },
+    studyRoof,
     incenseNgoa,
     falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
     incenseTT,

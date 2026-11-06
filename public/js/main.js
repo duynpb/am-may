@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { Dog } from './dog.js';
 import {
@@ -9,7 +9,7 @@ import {
 } from './field.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
-import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS } from './audio.js';
+import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS, STUDY_SOUNDS } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } from './net.js';
 import { applyEvent, newProfile, publicProfile, RULES, CLIENT_KINDS } from './karma.js';
@@ -280,6 +280,8 @@ const ROUND_OBSTACLES = [
   { x: 16.85, z: 62, rx: 1.5, rz: 18.7 }, // bệ tượng và tường hậu hành lang La Hán đông
   { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
+  // bàn học trong nhà tự học (bồ đoàn ở ngay sau bàn nên đi tới bồ đoàn không bị vòng)
+  ...STUDY.rows.flatMap((z) => STUDY.cols.map((x) => ({ x, z: z + STUDY.deskDz, rx: 0.72, rz: 0.4 }))),
   // bệ tượng Phật nằm và vách núi sau lưng, lư hương trước tượng
   { x: NGOA.x - 2.6, z: NGOA.z, rx: 7.5, rz: NGOA.len / 2 + 5 },
   { x: NGOA.burner.x, z: NGOA.burner.z, r: 0.9 },
@@ -1024,6 +1026,15 @@ const TOUR = [
     bubble(a, pick(['chăm luống rau chùa', 'rau chùa xanh tốt quá']), 3000);
     await wait(rnd(4500, 9000));
   },
+  // nhà tự học sau điện Quan Âm: ngồi vào một bàn học đọc sách một lúc
+  async (a) => {
+    const free = seats.filter((s) => s.place === 'study' && !seatTaken(s.index, a));
+    if (!free.length) return;
+    const s = pick(free);
+    if (!(await botGo(a, s.x, s.z, s))) return;
+    bubble(a, pick(['đọc kinh sách', 'chép kinh', 'học bài', 'tĩnh tâm đọc sách']), 3800);
+    await wait(rnd(20000, 40000));
+  },
   // đài thiền trước gác chuông: lên đài cao, ngồi một bồ đoàn quanh đài sen thiền định một lúc
   async (a) => {
     const free = seats.filter((s) => s.place === 'zen' && !seatTaken(s.index, a));
@@ -1623,6 +1634,7 @@ const PLACES = [
   { id: 'veg', name: 'Vườn rau', x: 56.8, z: 54, ry: Math.PI / 2 },
   { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
   { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: TAMTHE.z0 + 8.4, ry: Math.PI },
+  { id: 'study', name: 'Nhà tự học', x: STUDY.door.x, z: STUDY.door.z, ry: Math.PI / 2 },
   { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.court.x1 - 0.6, z: NGOA.z, ry: -Math.PI / 2 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
 ];
@@ -1714,6 +1726,7 @@ function buildMap() {
     rect(s > 0 ? 15.5 : -21.5, s > 0 ? 21.5 : -15.5, 22.6, 24.4, 'm-stone'); // lối sang sân bên
   }
   rect(QAHALL.x0, QAHALL.x1, QAHALL.z0, QAHALL.z1, 'm-hall');
+  rect(STUDY.x0, STUDY.x1, STUDY.z0, STUDY.z1, 'm-hall'); // nhà tự học sau điện Quan Âm
   rect(ORCHARD.x0, ORCHARD.x1, ORCHARD.z0, ORCHARD.z1, 'm-grass'); // vườn cây ăn trái kế bên điện Quan Âm
   for (const tr of ORCHARD_TREES) el('circle', { cx: mapU(tr.z), cy: mapV(tr.x), r: 1.1, class: 'm-tree' });
   rect(30.5, 64, 39, FIELD.z0 + 1, 'm-stone'); // lối xuống ruộng và sang vườn rau
@@ -1750,6 +1763,7 @@ function buildMap() {
     ['zen', ZEN_LOFT.x, ZEN_LOFT.z, 'Đài thiền'],
     ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['ngoa', NGOA.x, NGOA.z, 'Phật nằm'],
+    ['study', STUDY.cx, STUDY.cz, 'Tự học'],
     ['stairs', 6.5, -40, 'Bậc thang'],
     ['qahall', QAHALL.cx, 11, 'Điện Quan Âm'],
     ['orchard', (ORCHARD.x0 + ORCHARD.x1) / 2, (ORCHARD.z0 + ORCHARD.z1) / 2, 'Vườn quả'],
@@ -3255,6 +3269,9 @@ function updateCamera(dt) {
   const high = onTower(player);
   const zenHigh = onZen(player);
   // trên đài thiền: đẩy xa màn sương để nhìn rõ toàn cảnh khuôn viên chùa
+  // mái nhà tự học mờ đi khi camera cao hơn chân mái mà người chơi đang ở trong nhà
+  const inStudy = player.pos.x > STUDY.x0 - 0.3 && player.pos.x < STUDY.x1 + 0.3 && player.pos.z > STUDY.z0 && player.pos.z < STUDY.z1 + 0.3;
+  world.studyRoof?.setFade(inStudy && camera.position.y > world.studyRoof.eaveY - 0.3 ? 0.18 : 1);
   // mái đài thiền mờ đi khi camera bay cao hơn chân mái mà người chơi đang ở dưới mái
   world.zenRoof?.setFade(zenHigh && camera.position.y > world.zenRoof.eaveY - 0.3 ? 0.18 : 1);
   if (!ov.on) {
@@ -3415,6 +3432,63 @@ muteBtn.addEventListener('click', () => {
 });
 
 const chantBtn = $('#btn-chant');
+// ---------- Nhà tự học: ngồi vào bàn thì bật nhạc không lời, đổi được sang suối, mưa, lửa, gõ mõ ----------
+const studyBar = $('#study-bar');
+for (const t of STUDY_SOUNDS) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.dataset.id = t.id;
+  b.textContent = t.name;
+  b.addEventListener('click', () => {
+    settings.studySound = t.id;
+    saveSettings();
+    if (settings.muted) {
+      settings.muted = false;
+      sound.apply();
+      syncMute();
+    }
+    sound.setStudy(t.id);
+    showStudyBar();
+    toast(`Đang phát: ${t.name}`, 2000);
+  });
+  studyBar.append(b);
+}
+{
+  const off = document.createElement('button');
+  off.type = 'button';
+  off.dataset.id = 'off';
+  off.textContent = 'Tắt';
+  off.addEventListener('click', () => {
+    sound.setStudy(null);
+    showStudyBar();
+  });
+  studyBar.append(off);
+}
+function showStudyBar() {
+  for (const b of studyBar.querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.id === (sound.studyId ?? 'off'));
+}
+let wasStudying = false;
+function studyTick() {
+  const studying = player.seat != null && seats[player.seat]?.place === 'study';
+  if (studying === wasStudying) return;
+  wasStudying = studying;
+  studyBar.hidden = !studying;
+  if (studying) {
+    // đang nghe tụng kinh thì tạm dừng để giữ yên tĩnh cho việc học
+    if (sound.chanting) {
+      sound.setChant(false);
+      chantBtn.setAttribute('aria-pressed', false);
+      chantBtn.querySelector('.txt').textContent = 'Nghe tụng kinh';
+      caption.hidden = true;
+    }
+    const id = STUDY_SOUNDS.some((t) => t.id === settings.studySound) ? settings.studySound : 'music';
+    if (!settings.muted) sound.setStudy(id);
+    showStudyBar();
+    toast(`Bạn ngồi vào bàn học — ${settings.muted ? 'đang tắt tiếng' : `đang phát ${STUDY_SOUNDS.find((t) => t.id === id).name.toLowerCase()}`}; chọn âm thanh ở góc phải trên`, 3800);
+  } else {
+    sound.setStudy(null);
+  }
+}
 // nút đổi bài nhạc thiền: chỉ hiện khi đang ở trên đài thiền
 const zenTrackBtn = $('#btn-zen-track');
 const zenTrackSel = $('#set-zen-track');
@@ -3656,6 +3730,7 @@ function frame() {
   incenseRitual();
   meritRitual();
   broomRitual();
+  studyTick();
   harvestTick();
   greatBellRitual();
   wipeRitual();

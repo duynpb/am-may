@@ -64,6 +64,11 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 
 .chant-btn { height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; }
 .zen-track-btn[hidden] { display: none; }
+.study-bar[hidden] { display: none; }
+.study-bar { margin-top: 6px; padding: 4px; gap: 2px; display: flex; flex-wrap: wrap; justify-content: flex-end; max-width: 300px; }
+.study-bar button { border: 0; background: transparent; color: inherit; font: inherit; font-size: 12.5px; padding: 6px 9px; border-radius: 999px; cursor: pointer; }
+.study-bar button:hover { background: var(--glass-hover); }
+.study-bar button[aria-pressed='true'] { background: #f0b24a; color: #2a1d0e; font-weight: 600; }
 .zen-track-btn { margin-top: 6px; }
 .chant-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background 0.2s; }
 .chant-btn[aria-pressed='true'] .dot { background: #f0b24a; box-shadow: 0 0 0 0 rgba(240, 178, 74, 0.7); animation: pulse 1.6s infinite; }
