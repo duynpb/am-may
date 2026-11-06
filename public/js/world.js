@@ -116,9 +116,8 @@ export const PEAK = (() => {
   const at = (s) => {
     // lên tới mặt sàn đỉnh (cao h + 0,3) ở 93% đường, đoạn cuối là lối đi bằng nối vào sàn
     const y = Math.min(h + 0.3, ((h + 0.3) * s) / 0.93);
-    // chưa lên tới mặt sàn thì đi vòng ngoài mép sàn; lên đủ cao mới rẽ vào sàn
-    const R = s < 0.93 ? Math.max(rockR(y) + 1.8, platR + 1.0) : platR + 1.0 - ((s - 0.93) / 0.07) * 2.5;
-    return { th: th0 + span * s, R, y };
+    // luôn đi ở ngoài mép sàn đỉnh; tới cuối đường mới rẽ thẳng vào sàn qua lối chừa ở lan can
+    return { th: th0 + span * s, R: Math.max(rockR(y) + 1.8, platR + 1.0), y };
   };
   const p0 = at(0), p1 = at(1);
   const end = { x: x + Math.cos(p1.th) * p1.R, z: z + Math.sin(p1.th) * p1.R };
@@ -127,7 +126,7 @@ export const PEAK = (() => {
     top: PORCH.courtY + h + 0.3, // mặt sàn trên đỉnh
     pagodaHalf: 3.6, // nửa cạnh tầng dưới của tháp
     foot: { x: x + Math.cos(p0.th) * (p0.R + 1.6), z: z + Math.sin(p0.th) * (p0.R + 1.6) }, // chân thang, trên lối đá
-    entry: { x: x + (end.x - x) * 0.86, z: z + (end.z - z) * 0.86 }, // bước lên sàn đỉnh
+    entry: { x: x + Math.cos(p1.th) * (platR - 1.6), z: z + Math.sin(p1.th) * (platR - 1.6) }, // bước vào sàn đỉnh, ngay trong lối chừa ở lan can
     lane: { x0: 68, x1: x + 1.6, z0: 99.2, z1: 102.6 }, // lối đá từ sân trước cổng sang chân núi, qua cầu nhỏ trên kênh
   };
 })();
@@ -2679,39 +2678,55 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       // cầu thang đá uốn quanh vách núi: bậc đá, lan can phía ngoài, cột chống bên dưới
       {
         const N = 170;
-        const stepG = new THREE.BoxGeometry(1, 1, 1);
-        const steps = new THREE.InstancedMesh(stepG, std('#c9c1b0', { roughness: 0.9 }), N);
+        // các bậc thang dựng thành một khối liền: mặt bậc, mặt đứng, hai bên thành và mặt dưới — bậc nối khít, không chồng lên nhau nên không chớp
+        const pos = [];
+        const quad = (a, b, c, d) => pos.push(...a, ...b, ...c, ...a, ...c, ...d);
+        const pt = (th, R, y) => [P.x + Math.cos(th) * R, PY + y, P.z + Math.sin(th) * R];
+        const TH = 0.45; // độ dày bản thang
+        let prevY = null;
         const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.07, 1, 6).translate(0, 0.5, 0), std('#7a5a3a', { roughness: 0.8 }), Math.ceil(N / 3) + 1);
         const props = new THREE.InstancedMesh(new THREE.BoxGeometry(0.28, 1, 0.28).translate(0, -0.5, 0), stoneM, Math.ceil(N / 10) + 1);
         const o3 = new THREE.Object3D();
         const railPts = [];
         let pi2 = 0, qi = 0;
         for (let i = 0; i < N; i++) {
-          const s0 = i / N, s1 = (i + 1) / N, sm = (s0 + s1) / 2;
-          const a = P.at(sm), b = P.at(s1);
-          const depth = Math.abs(P.at(s1).th - P.at(s0).th) * a.R + 0.06;
-          o3.position.set(P.x + Math.cos(a.th) * a.R, PY + b.y - 0.15, P.z + Math.sin(a.th) * a.R);
-          o3.rotation.set(0, -a.th, 0);
-          o3.scale.set(P.W, 0.3 + 0.2, depth);
-          o3.position.y -= 0.1;
-          o3.updateMatrix();
-          steps.setMatrixAt(i, o3.matrix);
-          const ox = P.x + Math.cos(a.th) * (a.R + P.W / 2 + 0.05), oz = P.z + Math.sin(a.th) * (a.R + P.W / 2 + 0.05);
+          const s0 = i / N, s1 = (i + 1) / N;
+          const a0 = P.at(s0), a1 = P.at(s1), am = P.at((s0 + s1) / 2);
+          const y = a1.y, R = am.R, ri = R - P.W / 2, ro = R + P.W / 2;
+          const t0 = a0.th, t1 = a1.th;
+          quad(pt(t0, ri, y), pt(t0, ro, y), pt(t1, ro, y), pt(t1, ri, y)); // mặt bậc
+          const yb = prevY ?? y - 0.2;
+          if (y - yb > 1e-4) quad(pt(t0, ri, yb), pt(t0, ro, yb), pt(t0, ro, y), pt(t0, ri, y)); // mặt đứng
+          quad(pt(t0, ro, y), pt(t0, ro, y - TH), pt(t1, ro, y - TH), pt(t1, ro, y)); // thành ngoài
+          quad(pt(t0, ri, y), pt(t1, ri, y), pt(t1, ri, y - TH), pt(t0, ri, y - TH)); // thành trong
+          quad(pt(t0, ri, y - TH), pt(t1, ri, y - TH), pt(t1, ro, y - TH), pt(t0, ro, y - TH)); // mặt dưới
+          prevY = y;
+          const ox = P.x + Math.cos(am.th) * (ro + 0.05), oz = P.z + Math.sin(am.th) * (ro + 0.05);
           if (i % 3 === 0) {
-            o3.position.set(ox, PY + b.y, oz);
+            o3.position.set(ox, PY + y, oz);
             o3.rotation.set(0, 0, 0);
             o3.scale.set(1, 1.0, 1);
             o3.updateMatrix();
             posts.setMatrixAt(pi2++, o3.matrix);
           }
-          if (i % 10 === 5 && b.y > 2.5) {
-            o3.position.set(ox - Math.cos(a.th) * 0.2, PY + b.y - 0.3, oz - Math.sin(a.th) * 0.2);
+          if (i % 10 === 5 && y > 2.5) {
+            o3.position.set(ox - Math.cos(am.th) * 0.2, PY + y - TH, oz - Math.sin(am.th) * 0.2);
             o3.rotation.set(0, 0, 0);
-            o3.scale.set(1, Math.min(4.5, b.y), 1);
+            o3.scale.set(1, Math.min(4.5, y - TH), 1);
             o3.updateMatrix();
             props.setMatrixAt(qi++, o3.matrix);
           }
-          railPts.push(new THREE.Vector3(ox, PY + b.y + 1.0, oz));
+          railPts.push(new THREE.Vector3(ox, PY + y + 1.0, oz));
+        }
+        const stairG = new THREE.BufferGeometry();
+        stairG.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        stairG.computeVertexNormals();
+        const steps = new THREE.Mesh(stairG, std('#c9c1b0', { roughness: 0.9, side: THREE.DoubleSide }));
+        // bản đá nối từ đầu cầu thang vào sàn đỉnh (thấp hơn mặt sàn 2 cm, phần nằm dưới sàn bị sàn che)
+        {
+          const e = P.at(1), len = P.W + 2.2;
+          const slab = box(len, 0.3, P.W, std('#c9c1b0', { roughness: 0.9 }), P.x + Math.cos(e.th) * (e.R - len / 2 + P.W / 2), PY + e.y - 0.17, P.z + Math.sin(e.th) * (e.R - len / 2 + P.W / 2));
+          slab.rotation.y = -e.th;
         }
         posts.count = pi2;
         props.count = qi;
@@ -2748,7 +2763,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
           for (let j = 0; j < n; j++) {
             const t0 = a0 + ((a1 - a0) * j) / n, t1 = a0 + ((a1 - a0) * (j + 1)) / n, tm = (t0 + t1) / 2;
             let da = Math.abs(((tm - ea + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-            if (da < 0.16) continue; // lối lên
+            if (da < (P.W / 2 + 0.25) / railR) continue; // lối lên: chừa đúng bề ngang cầu thang
             const x0 = P.x + Math.cos(t0) * railR, z0 = P.z + Math.sin(t0) * railR, x1 = P.x + Math.cos(t1) * railR, z1 = P.z + Math.sin(t1) * railR;
             const len = Math.hypot(x1 - x0, z1 - z0);
             const seg = box(len + 0.02, 0.12, 0.16, stoneL, (x0 + x1) / 2, T0 + 0.95, (z0 + z1) / 2);
