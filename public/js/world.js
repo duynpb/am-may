@@ -2471,6 +2471,87 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       lane.rotation.x = -Math.PI / 2;
       lane.userData.kind = 'ground';
       pickables.push(lane);
+      // ---------- Lối tre: rừng tre cao, thân cong vào lối đi, ngọn khép lại phía trên như mái vòm ----------
+      {
+        const zA = 101.8, zB = B.z0 - 0.6; // từ sân trước cổng tới chân cầu
+        const H = 15, BEND = 2.8; // thân cao 15 m, ngọn nghiêng vào lối đi tới 2,8 m
+        const stalkG = new THREE.CylinderGeometry(0.06, 0.1, H, 6, 12).translate(0, H / 2, 0);
+        const sp = stalkG.attributes.position;
+        for (let i = 0; i < sp.count; i++) {
+          const y = sp.getY(i) / H;
+          sp.setX(i, sp.getX(i) + BEND * y * y); // cong dần về phía +x
+        }
+        stalkG.computeVertexNormals();
+        const spots2 = [];
+        for (let z = zA; z < zB; z += 0.5) {
+          for (const side of [-1, 1]) for (let k = 0; k < 3; k++) spots2.push({ side, x: side * rnd(2.5, 7.8), z: z + rnd(-0.25, 0.25), s: rnd(0.75, 1.25), h: rnd(0.8, 1.1), ry: rnd(-0.35, 0.35) });
+        }
+        const stalkM = std('#86a24f', { roughness: 0.55 });
+        const tunnelStalks = new THREE.InstancedMesh(stalkG, stalkM, spots2.length);
+        const leafM2 = new THREE.MeshStandardMaterial({ map: T.bambooLeaves(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8, color: '#d8f0a0' });
+        const tunnelLeaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.4, 2.4), leafM2, spots2.length * 6);
+        const o2 = new THREE.Object3D(), c2 = new THREE.Color();
+        let li2 = 0;
+        spots2.forEach((t, i) => {
+          // thân bên trái (x âm) cong về +x, thân bên phải xoay ngược lại để cong về -x; cây càng xa lối đi càng cong ít
+          const dir = t.side < 0 ? 0 : Math.PI, near = 1 - (Math.abs(t.x) - 2.5) / 6;
+          o2.position.set(t.x, GY - 0.05, t.z);
+          o2.rotation.set(0, dir + t.ry * (1 - near * 0.6), 0);
+          o2.scale.set(t.s * (0.5 + near * 0.7), t.h, t.s);
+          o2.updateMatrix();
+          tunnelStalks.setMatrixAt(i, o2.matrix);
+          tunnelStalks.setColorAt(i, c2.setHSL(0.2 + rnd(-0.02, 0.03), 0.42, 0.42 + rnd(-0.08, 0.08)));
+          // lá ở phần ngọn, đặt theo đường cong của thân
+          const bend = BEND * t.s * (0.5 + near * 0.7);
+          for (let k = 0; k < 6; k++) {
+            const y = rnd(0.5, 1.0), along = bend * y * y;
+            const lx = Math.cos(dir + t.ry) * along, lz = -Math.sin(dir + t.ry) * along;
+            o2.position.set(t.x + lx + rnd(-0.5, 0.5), GY + y * H * t.h, t.z + lz + rnd(-0.5, 0.5));
+            o2.rotation.set(rnd(-0.6, 0.6), rnd(0, Math.PI), rnd(-0.5, 0.5));
+            o2.scale.setScalar(rnd(1.1, 1.9));
+            o2.updateMatrix();
+            tunnelLeaves.setMatrixAt(li2++, o2.matrix);
+          }
+        });
+        tunnelLeaves.count = li2;
+        tunnelStalks.castShadow = true;
+        scene.add(tunnelStalks, tunnelLeaves);
+        updaters.push((t) => {
+          tunnelLeaves.rotation.z = Math.sin(t * 0.5) * 0.003;
+        });
+        // hàng rào cành khô màu nâu đỏ dưới chân tre, phía trước là lan can tre thấp
+        const brushTex = (() => {
+          const cv = document.createElement('canvas');
+          cv.width = 256;
+          cv.height = 128;
+          const g = cv.getContext('2d');
+          g.fillStyle = '#7a3f22';
+          g.fillRect(0, 0, 256, 128);
+          for (let i = 0; i < 900; i++) {
+            const x = Math.random() * 256, y = Math.random() * 128, l = 10 + Math.random() * 40;
+            g.strokeStyle = `hsl(${18 + Math.random() * 14}, ${45 + Math.random() * 25}%, ${22 + Math.random() * 28}%)`;
+            g.lineWidth = 0.6 + Math.random() * 1.4;
+            g.beginPath();
+            g.moveTo(x, y);
+            g.lineTo(x + (Math.random() - 0.5) * 10, y - l);
+            g.stroke();
+          }
+          const tx = new THREE.CanvasTexture(cv);
+          tx.wrapS = THREE.RepeatWrapping;
+          tx.colorSpace = THREE.SRGBColorSpace;
+          tx.repeat.set((zB - zA) / 3, 1);
+          return tx;
+        })();
+        const brushM = std('#ffffff', { map: brushTex, roughness: 1 });
+        const railM = std('#b89a5e', { roughness: 0.7 });
+        for (const side of [-1, 1]) {
+          box(0.7, 1.1, zB - zA, brushM, side * 2.55, GY + 0.55, (zA + zB) / 2);
+          // lan can tre: cọc thấp và một thanh ngang
+          for (let z = zA; z <= zB; z += 1.8) cyl(0.045, 0.05, 0.75, railM, side * 2.05, GY + 0.375, z, {}, 6);
+          const pole = cyl(0.04, 0.04, zB - zA, railM, side * 2.05, GY + 0.62, (zA + zB) / 2, {}, 6);
+          pole.rotation.x = Math.PI / 2;
+        }
+      }
       // mặt cầu: các tấm đá nối theo đường vòm
       const deckM = std('#bdb6a6', { roughness: 0.9 });
       const N = 24, step = (B.z1 - B.z0) / N;
