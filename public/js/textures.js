@@ -100,10 +100,10 @@ export function boardTexture(lines, { w = 1024, h = 256, size = 120 } = {}) {
     lines.forEach((ln, i) => {
       // chữ dài thì tự co cho vừa bề ngang; chữ có dấu chồng (Ề, Ấ, Ổ…) thì co cho vừa bề cao,
       // để dấu không đụng vào viền khung
-      g.font = `700 ${size}px "Noto Serif", Georgia, serif`;
+      g.font = `700 ${size}px "Noto Serif", "Times New Roman", Georgia, serif`;
       let m = g.measureText(ln);
       const fit = Math.min(size, (size * (w - 110)) / m.width, (size * lineH) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent));
-      g.font = `700 ${fit}px "Noto Serif", Georgia, serif`;
+      g.font = `700 ${fit}px "Noto Serif", "Times New Roman", Georgia, serif`;
       m = g.measureText(ln);
       // canh giữa theo đúng phần chữ thật (tính cả dấu) trong dòng
       const cy = 42 + lineH * (i + 0.5);

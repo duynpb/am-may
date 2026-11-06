@@ -87,6 +87,8 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
+// tải cả phần chữ tiếng Việt của font trước khi vẽ biển (Google Fonts tách font theo bộ chữ)
+try { await document.fonts.load('700 40px "Noto Serif"', 'TAM CHÚC ĐÀI THIỀN ẤẦẨẪẬ ỀỂỄỆ ỐỒỔỖỘ ỚỜỞỠỢ ỨỪỬỮỰ ĂÂÊÔƠƯ'); } catch { /* dùng font dự phòng */ }
 const world = buildTamChuc(renderer, { quality: settings.quality });
 const { scene } = world;
 if (params.has('gio')) world.setHour(parseFloat(params.get('gio')));

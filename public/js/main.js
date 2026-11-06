@@ -107,7 +107,8 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-try { await document.fonts.load('700 40px "Noto Serif"'); } catch { /* dùng font dự phòng */ }
+// tải cả phần chữ tiếng Việt của font (Google Fonts tách font theo bộ chữ), để biển có chữ Ề, Ấ… không bị rời dấu
+try { await document.fonts.load('700 40px "Noto Serif"', 'ĐÀI THIỀN ẤẦẨẪẬ ỀỂỄỆ ỐỒỔỖỘ ỚỜỞỠỢ ỨỪỬỮỰ ĂÂÊÔƠƯ'); } catch { /* dùng font dự phòng */ }
 const world = buildWorld(renderer, { quality: settings.quality });
 const { scene, seats } = world;
 Avatar.ground = groundY;

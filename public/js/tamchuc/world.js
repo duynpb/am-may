@@ -494,7 +494,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       g.strokeRect(6 * res, 6 * res, w - 12 * res, h - 12 * res);
       // chữ khắc lõm: nét tối, viền sáng phía dưới
       const write = (txt, y, size, color) => {
-        g.font = `700 ${size}px "Noto Serif", Georgia, serif`;
+        g.font = `700 ${size}px "Noto Serif", "Times New Roman", Georgia, serif`;
         g.textAlign = 'center';
         g.fillStyle = 'rgba(255,250,235,0.55)';
         g.fillText(txt, w / 2, y + 1.2);
@@ -505,7 +505,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       const words = p.text.split(' ');
       const lines = [];
       let line = '';
-      g.font = `700 ${15 * res}px "Noto Serif", Georgia, serif`;
+      g.font = `700 ${15 * res}px "Noto Serif", "Times New Roman", Georgia, serif`;
       for (const wd of words) {
         const t = line ? line + ' ' + wd : wd;
         if (g.measureText(t).width > w - 22 * res && line) {
@@ -591,7 +591,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
             g.stroke();
           }
         }
-        g.font = '700 26px "Noto Serif", Georgia, serif';
+        g.font = '700 26px "Noto Serif", "Times New Roman", Georgia, serif';
         g.textAlign = 'center';
         g.fillStyle = '#4a3d2e';
         g.fillText(scenes[k], W / 2, H - 22);
