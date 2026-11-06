@@ -79,6 +79,7 @@
     <button class="pill chant-btn" id="btn-chant" aria-pressed="false">
       <span class="dot"></span><span class="txt">Nghe tụng kinh</span>
     </button>
+    <div class="pill chant-btn study-timer" id="study-timer" hidden role="timer" aria-live="off"><span class="txt"></span></div>
     <label class="pill study-bar" id="study-bar" hidden title="Âm thanh khi học">
       <span aria-hidden="true">♪</span>
       <select id="study-sound" aria-label="Âm thanh khi học"></select>
@@ -190,6 +191,17 @@
           <select id="set-zen-track"></select>
         </label>
         <small class="voice-status">Phát khi lên đài thiền (to nhỏ theo thanh tụng kinh ở trên)</small>
+      </div>
+      <div class="card">
+        <div class="row"><div><b>Tự học</b><small>Ngồi vào bàn ở nhà tự học thì đếm ngược giờ học; hết giờ nhân vật tự đứng dậy nghỉ, nghỉ xong mới ngồi học tiếp được</small></div></div>
+        <label class="select-row">
+          <span>Thời gian học (phút)</span>
+          <input type="number" id="set-study-min" min="1" max="180" step="1" inputmode="numeric">
+        </label>
+        <label class="select-row">
+          <span>Thời gian nghỉ (phút)</span>
+          <input type="number" id="set-break-min" min="1" max="60" step="1" inputmode="numeric">
+        </label>
       </div>
       <div class="card">
         <div class="row"><div><b>Hiệu ứng</b><small>Chuông khi lạy, tiếng hạt, trống</small></div><input type="checkbox" class="switch" id="set-fx"></div>

@@ -334,6 +334,13 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   border: 1px solid rgba(0, 0, 0, 0.12); background: #fff; outline: none;
 }
 .select-row select:focus { border-color: var(--gold); }
+.select-row input[type='number'] {
+  font: inherit; font-size: 13px; color: var(--ink); width: 76px; padding: 7px 10px; border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12); background: #fff; outline: none; text-align: center;
+}
+.select-row input[type='number']:focus { border-color: var(--gold); }
+.study-timer[hidden] { display: none; }
+.study-timer { margin-top: 6px; font-variant-numeric: tabular-nums; cursor: default; }
 .voice-status { display: block; margin-top: 6px; line-height: 1.45; }
 .card input[type='range'] { width: 100%; margin-top: 12px; accent-color: var(--gold); }
 

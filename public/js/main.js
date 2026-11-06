@@ -58,7 +58,7 @@ const randomName = () => `${pick(NOUNS)} ${pick(ADJS)}`;
 const isCoarse = matchMedia('(pointer: coarse)').matches;
 const SETTINGS_VERSION = 2;
 const settings = Object.assign(
-  { ambient: true, ambientVol: 0.45, chantVol: 0.5, fx: true, fxVol: 0.55, bg: true, quality: isCoarse ? 'low' : 'high', muted: false, showNames: true },
+  { ambient: true, ambientVol: 0.45, chantVol: 0.5, fx: true, fxVol: 0.55, bg: true, quality: isCoarse ? 'low' : 'high', muted: false, showNames: true, studyMin: 25, breakMin: 5 },
   store.get('settings', {}),
 );
 // v2: "Phát khi chuyển tab" mặc định bật — bật lại một lần cho cài đặt đã lưu từ trước
@@ -3040,6 +3040,10 @@ function handleTap(x, y) {
   }
   if (seat) {
     if (player.seat === seat.index) return;
+    if (seat.place === 'study' && breakLeft() > 0) {
+      toast(`Đang giờ nghỉ — còn ${mmss(breakLeft())} nữa mới ngồi vào bàn học tiếp được`, 3200);
+      return;
+    }
     if (seatTaken(seat.index, player)) {
       toast('Bồ đoàn này đã có người ngồi');
       return;
@@ -3460,8 +3464,48 @@ function showStudyBar() {
   studySel.value = sound.studyId ?? 'off';
 }
 let wasStudying = false;
+// ---------- Chu kỳ học: đếm ngược giờ học, hết giờ tự đứng dậy nghỉ; trong giờ nghỉ chưa ngồi vào bàn học được ----------
+const studyTimerEl = $('#study-timer');
+let studyEnd = 0; // lúc hết giờ học (ms), 0 = không đếm
+let breakEnd = store.get('studyBreak', 0); // lúc hết giờ nghỉ (ms); lưu lại để tải lại trang vẫn còn giờ nghỉ
+let timerText = '';
+const mmss = (ms) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+const breakLeft = () => breakEnd - Date.now();
+function finishStudy() {
+  const s = seats[player.seat];
+  studyEnd = 0;
+  breakEnd = Date.now() + settings.breakMin * 60000;
+  store.set('studyBreak', breakEnd);
+  sound.bow(); // tiếng chuông báo hết giờ
+  toast(`Hết ${settings.studyMin} phút học — đứng dậy nghỉ ${settings.breakMin} phút nhé`, 5000);
+  if (s) movePlayerTo(s.x, s.z + 1.0); // đứng dậy, bước ra lối đi sau bồ đoàn
+}
+function studyTimerTick(studying) {
+  const now = Date.now();
+  let txt = '';
+  if (studying && studyEnd) {
+    if (studyEnd <= now) finishStudy();
+    else txt = `⏱ Học còn ${mmss(studyEnd - now)}`;
+  }
+  if (!txt && breakEnd > now) txt = `☕ Nghỉ còn ${mmss(breakEnd - now)}`;
+  else if (breakEnd && breakEnd <= now) {
+    breakEnd = 0;
+    store.set('studyBreak', 0);
+    sound.gassho();
+    toast('Hết giờ nghỉ — bạn có thể ngồi vào bàn học tiếp', 4000);
+  }
+  if (txt !== timerText) {
+    timerText = txt;
+    studyTimerEl.hidden = !txt;
+    studyTimerEl.querySelector('.txt').textContent = txt;
+  }
+}
 function studyTick() {
   const studying = player.seat != null && seats[player.seat]?.place === 'study';
+  studyTimerTick(studying);
   // không ngồi ở bàn học mà vẫn còn âm thanh học (vì bất cứ lý do gì) thì tắt ngay
   if (!studying && sound.studyId) sound.setStudy(null);
   if (studying === wasStudying) return;
@@ -3478,10 +3522,12 @@ function studyTick() {
     const id = STUDY_SOUNDS.some((t) => t.id === settings.studySound) ? settings.studySound : 'music';
     if (!settings.muted) sound.setStudy(id);
     showStudyBar();
-    toast(`Bạn ngồi vào bàn học — ${settings.muted ? 'đang tắt tiếng' : `đang phát ${STUDY_SOUNDS.find((t) => t.id === id).name.toLowerCase()}`}; chọn âm thanh ở góc phải trên`, 3800);
+    studyEnd = Date.now() + settings.studyMin * 60000;
+    toast(`Bắt đầu ${settings.studyMin} phút học — ${settings.muted ? 'đang tắt tiếng' : `đang phát ${STUDY_SOUNDS.find((t) => t.id === id).name.toLowerCase()}`}; chọn âm thanh ở góc phải trên`, 4000);
   } else {
     sound.setStudy(null);
     studySel.blur();
+    studyEnd = 0; // tự đứng dậy giữa chừng: thôi đếm, lần sau ngồi lại đếm từ đầu
   }
 }
 // nút đổi bài nhạc thiền: chỉ hiện khi đang ở trên đài thiền
@@ -3658,6 +3704,16 @@ $('#btn-shot').addEventListener('click', () => {
     if (chanting()) sound.setChant(true);
   });
 
+  // thời gian học và nghỉ ở nhà tự học (phút)
+  for (const [el, key, max] of [[$('#set-study-min'), 'studyMin', 180], [$('#set-break-min'), 'breakMin', 60]]) {
+    el.value = settings[key];
+    el.addEventListener('change', () => {
+      const v = Math.round(clamp(+el.value || settings[key], 1, max));
+      settings[key] = v;
+      el.value = v;
+      saveSettings();
+    });
+  }
   $('#btn-my-profile').addEventListener('click', () => {
     closeModal($('#modal-settings'));
     openProfile(player);
