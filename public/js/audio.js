@@ -21,6 +21,11 @@ const SYL_POS = (() => {
   });
 })();
 export const RECORDING_URL = 'audio/tung-kinh.mp3';
+// Các bài nhạc thiền để chọn khi ngồi thiền trên đài thiền: bản nhạc thu sẵn (tải dần, phát lặp lại) hoặc nhạc tổng hợp
+export const ZEN_TRACKS = [
+  { id: 'tinhtam', name: 'Tịnh tâm thư thái', url: 'audio/thien-tinh-tam.mp3' },
+  { id: 'synth', name: 'Chuông xoay & đàn tranh' },
+];
 
 // Giọng tiếng Việt có sẵn trên thiết bị (Web Speech API)
 export function vietnameseVoices() {
@@ -404,7 +409,13 @@ export class Sound {
     vib.stop(t + dur + 0.05);
   }
 
+  get zenTrack() {
+    return ZEN_TRACKS.find((t) => t.id === this.s.zenTrack) ?? ZEN_TRACKS[0];
+  }
+
   stopZenMusic() {
+    // bản nhạc thu sẵn: tạm dừng, lần sau mở lại phát tiếp từ chỗ đang nghe
+    if (this.zenEl && !this.zenEl.paused) this.zenEl.pause();
     clearInterval(this.zenTimer);
     if (this.zenPadGain && this.ctx) {
       const g = this.zenPadGain;
@@ -435,6 +446,24 @@ export class Sound {
     this.stopZenMusic();
     if (!on) return;
     const ctx = this.ctx, out = this.bus.chant;
+    const track = this.zenTrack;
+    if (track.url) {
+      if (this.zenEl?.dataset.track !== track.id) {
+        if (this.zenEl) {
+          this.zenEl.pause();
+          this.zenNode?.disconnect();
+        }
+        this.zenEl = new Audio(track.url);
+        this.zenEl.dataset.track = track.id;
+        this.zenEl.loop = true;
+        this.zenEl.preload = 'auto';
+        this.zenEl.crossOrigin = 'anonymous';
+        this.zenNode = ctx.createMediaElementSource(this.zenEl);
+        this.zenNode.connect(out);
+      }
+      this.zenEl.play().catch(() => {});
+      return;
+    }
     // Âm nền thiền trầm ấm (drone ngũ cung D3 - A3 - D4)
     const padG = (this.zenPadGain = ctx.createGain());
     padG.gain.setValueAtTime(0.0001, ctx.currentTime);

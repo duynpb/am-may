@@ -106,6 +106,8 @@ Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `publi
 Khi bấm “Nghe tụng kinh”, website tự chọn giọng tốt nhất có sẵn (đổi được trong Cài đặt → Giọng tụng):
 
 1. **Bản ghi âm**: nếu có file `public/audio/tung-kinh.mp3`, website phát lặp file này. Đây là cách cho giọng tụng thật, giống nhau trên mọi thiết bị. Nên dùng bản tự thu hoặc bản được phép sử dụng.
+
+Nhạc thiền trên đài thiền: chọn bài ở nút ♪ dưới nút nhạc thiền (chỉ hiện khi đang ở trên đài) hoặc trong Cài đặt → Nhạc thiền. Có bản nhạc "Tịnh tâm thư thái" (`public/audio/thien-tinh-tam.mp3`, 66 phút, nén 48 kbps, tải dần khi phát, mở lại thì phát tiếp chỗ đang nghe) và nhạc tổng hợp "Chuông xoay & đàn tranh".
 2. **Giọng đọc tiếng Việt của thiết bị**: đọc “Nam mô A Di Đà Phật” chậm rãi theo nhịp mõ, phụ đề sáng theo từng chữ. Có sẵn trên hầu hết điện thoại Android, iPhone/iPad, trình duyệt Edge (giọng HoaiMy, NamMinh), Safari trên Mac. Chrome trên Windows chỉ có khi máy cài gói giọng nói tiếng Việt (Cài đặt Windows → Thời gian và ngôn ngữ → Giọng nói).
 3. **Giọng ngân tổng hợp**: dùng khi thiết bị không có hai lựa chọn trên.
 

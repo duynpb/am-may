@@ -79,6 +79,9 @@
     <button class="pill chant-btn" id="btn-chant" aria-pressed="false">
       <span class="dot"></span><span class="txt">Nghe tụng kinh</span>
     </button>
+    <button class="pill chant-btn zen-track-btn" id="btn-zen-track" hidden title="Đổi bài nhạc thiền">
+      <span aria-hidden="true">♪</span><span class="txt"></span>
+    </button>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -178,6 +181,11 @@
         </label>
         <small class="voice-status" id="voice-status"></small>
         <input type="range" id="set-chant-vol" min="0" max="1" step="0.01">
+        <label class="select-row">
+          <span>Nhạc thiền</span>
+          <select id="set-zen-track"></select>
+        </label>
+        <small class="voice-status">Phát khi lên đài thiền (to nhỏ theo thanh tụng kinh ở trên)</small>
       </div>
       <div class="card">
         <div class="row"><div><b>Hiệu ứng</b><small>Chuông khi lạy, tiếng hạt, trống</small></div><input type="checkbox" class="switch" id="set-fx"></div>

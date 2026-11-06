@@ -9,7 +9,7 @@ import {
 } from './field.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
-import { Sound, CHANT_SYLLABLES, vietnameseVoices } from './audio.js';
+import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } from './net.js';
 import { applyEvent, newProfile, publicProfile, RULES, CLIENT_KINDS } from './karma.js';
@@ -3406,6 +3406,37 @@ muteBtn.addEventListener('click', () => {
 });
 
 const chantBtn = $('#btn-chant');
+// nút đổi bài nhạc thiền: chỉ hiện khi đang ở trên đài thiền
+const zenTrackBtn = $('#btn-zen-track');
+const zenTrackSel = $('#set-zen-track');
+for (const t of ZEN_TRACKS) zenTrackSel.append(new Option(t.name, t.id));
+function showZenTrack() {
+  zenTrackBtn.querySelector('.txt').textContent = sound.zenTrack.name;
+  zenTrackSel.value = sound.zenTrack.id;
+}
+function pickZenTrack(id) {
+  settings.zenTrack = id;
+  saveSettings();
+  showZenTrack();
+  // đang ở trên đài thiền thì phát luôn bài vừa chọn
+  if (onZen(player)) {
+    sound.setZenMusic(true);
+    if (settings.muted) {
+      settings.muted = false;
+      sound.apply();
+      syncMute();
+    }
+    chantBtn.setAttribute('aria-pressed', true);
+    chantBtn.querySelector('.txt').textContent = 'Dừng nhạc thiền';
+    toast(`Đang phát nhạc thiền: ${sound.zenTrack.name}`, 2800);
+  } else if (sound.zenMusic) sound.setZenMusic(true);
+}
+zenTrackBtn.addEventListener('click', () => {
+  const i = ZEN_TRACKS.findIndex((t) => t.id === sound.zenTrack.id);
+  pickZenTrack(ZEN_TRACKS[(i + 1) % ZEN_TRACKS.length].id);
+});
+zenTrackSel.addEventListener('change', () => pickZenTrack(zenTrackSel.value));
+showZenTrack();
 const caption = $('#chant-caption');
 caption.innerHTML = CHANT_SYLLABLES.map((s) => `<span data-text="${s}">${s}</span>`).join('');
 const capSpans = [...caption.querySelectorAll('span')];
@@ -3436,7 +3467,10 @@ function syncZenAudio(forceOnZen = onZen(player)) {
     chantBtn.setAttribute('aria-pressed', on);
     chantBtn.querySelector('.txt').textContent = on ? 'Dừng nhạc thiền' : 'Mở nhạc thiền không lời';
     caption.hidden = true;
+    zenTrackBtn.hidden = false;
+    showZenTrack();
   } else {
+    zenTrackBtn.hidden = true;
     if (wasOnZen && sound.zenMusic) {
       sound.setZenMusic(false);
     }
