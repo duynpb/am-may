@@ -447,3 +447,216 @@ export function dirtTex() {
     }
   }, { repeat: [1, 1] }));
 }
+
+// ---------- Lá cây cho vườn quả (nền trong suốt; màu lá lấy theo màu vật liệu) ----------
+// Chùm lá: nhiều lá bầu dục toả ra từ giữa, đậm nhạt khác nhau, có gân giữa
+export function leafClusterTex() {
+  return cached('leaf-cluster', () => canvasTexture(256, 256, (g, w, h) => {
+    const r = seeded(91);
+    g.clearRect(0, 0, w, h);
+    for (let i = 0; i < 46; i++) {
+      const a = r() * Math.PI * 2, d = 18 + r() * 80;
+      const x = w / 2 + Math.cos(a) * d, y = h / 2 + Math.sin(a) * d;
+      const L = 26 + r() * 22, W = L * (0.38 + r() * 0.12), rot = a + (r() - 0.5) * 0.9;
+      const v = 150 + r() * 105;
+      g.save();
+      g.translate(x, y);
+      g.rotate(rot);
+      g.fillStyle = `rgb(${v * 0.9},${v},${v * 0.85})`;
+      g.beginPath();
+      g.ellipse(0, 0, L / 2, W / 2, 0, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = `rgba(255,255,255,0.35)`;
+      g.lineWidth = 1.2;
+      g.beginPath();
+      g.moveTo(-L / 2, 0);
+      g.lineTo(L / 2, 0);
+      g.stroke();
+      g.restore();
+    }
+  }, { srgb: true }));
+}
+
+// Lá chuối: phiến dài, gân giữa đậm, gân phụ song song, mép có vài vết rách
+export function bananaLeafTex() {
+  return cached('banana-leaf', () => canvasTexture(128, 512, (g, w, h) => {
+    const r = seeded(131);
+    g.clearRect(0, 0, w, h);
+    // phiến lá thuôn hai đầu
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.moveTo(w / 2, 0);
+    g.bezierCurveTo(w * 1.02, h * 0.15, w * 1.02, h * 0.8, w / 2, h);
+    g.bezierCurveTo(-w * 0.02, h * 0.8, -w * 0.02, h * 0.15, w / 2, 0);
+    g.fill();
+    // gân phụ chéo
+    g.strokeStyle = 'rgba(120,150,90,0.45)';
+    g.lineWidth = 1;
+    for (let y = 8; y < h; y += 7) {
+      g.beginPath();
+      g.moveTo(w / 2, y);
+      g.lineTo(2, y + 22);
+      g.moveTo(w / 2, y);
+      g.lineTo(w - 2, y + 22);
+      g.stroke();
+    }
+    // gân giữa
+    g.fillStyle = 'rgba(210,225,170,0.95)';
+    g.fillRect(w / 2 - 3, 0, 6, h);
+    // vết rách ở mép (xoá bớt các dải mỏng)
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 9; i++) {
+      const y = 40 + r() * (h - 80), side = r() < 0.5 ? 0 : 1, depth = w * (0.2 + r() * 0.25);
+      g.fillRect(side ? w - depth : 0, y, depth, 2 + r() * 2);
+    }
+    g.globalCompositeOperation = 'source-over';
+  }, { srgb: true }));
+}
+
+// ---------- Trang trí điện thờ ----------
+// Cửa võng: khung gỗ chạm lộng thếp vàng treo trước bàn thờ — dải hoành trên, hai dải võng hai bên rủ xuống,
+// mép dưới uốn vòm để lộ tượng; hoa văn mây cuốn chạm thủng, đoá sen ở giữa. aspect = rộng / cao.
+// topFrac: bề cao dải hoành trên (phần trăm chiều cao) — Chánh điện để mỏng cho khỏi che hoành phi
+export function cuaVongTex(aspect = 2.8, topFrac = 0.2) {
+  return cached('cua-vong-' + aspect.toFixed(2) + '-' + topFrac, () => canvasTexture(1536, Math.round(1536 / aspect), (g, w, h) => {
+    const r = seeded(201);
+    const sb = w * 0.07, tb = h * topFrac, drop = h * 0.78;
+    const outline = () => {
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(w, 0);
+      g.lineTo(w, drop);
+      g.quadraticCurveTo(w - sb * 0.5, drop + h * 0.08, w - sb, drop - h * 0.02); // đầu võng cuốn
+      g.bezierCurveTo(w - sb, tb * 1.6, w * 0.64, tb, w / 2, tb * 1.05);
+      g.bezierCurveTo(w * 0.36, tb, sb, tb * 1.6, sb, drop - h * 0.02);
+      g.quadraticCurveTo(sb * 0.5, drop + h * 0.08, 0, drop);
+      g.closePath();
+    };
+    // nền vàng
+    outline();
+    const gr = g.createLinearGradient(0, 0, 0, h);
+    gr.addColorStop(0, '#f6d77c');
+    gr.addColorStop(0.5, '#d9a63c');
+    gr.addColorStop(1, '#b07a22');
+    g.fillStyle = gr;
+    g.fill();
+    g.save();
+    outline();
+    g.clip();
+    // mây cuốn chạm nổi: các xoắn ốc nét sẫm, viền sáng
+    for (let i = 0; i < 70; i++) {
+      const x = r() * w, y = r() * h, rad = 8 + r() * 22;
+      g.lineWidth = 4;
+      g.strokeStyle = 'rgba(110,60,10,0.75)';
+      g.beginPath();
+      for (let t = 0; t < 4 * Math.PI; t += 0.25) {
+        const rr = rad * (1 - t / (4 * Math.PI));
+        const px = x + Math.cos(t) * rr, py = y + Math.sin(t) * rr;
+        t === 0 ? g.moveTo(px, py) : g.lineTo(px, py);
+      }
+      g.stroke();
+      g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(255,240,180,0.7)';
+      g.stroke();
+    }
+    // chạm thủng: các lỗ hình hạt và hoa thị dọc dải trên và hai dải bên
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 260; i++) {
+      let x, y;
+      if (i % 3 === 0) { x = sb * 0.2 + r() * sb * 0.6; y = tb * 0.4 + r() * (drop - tb * 0.6); }
+      else if (i % 3 === 1) { x = w - sb * 0.8 + r() * sb * 0.6; y = tb * 0.4 + r() * (drop - tb * 0.6); }
+      else { x = sb + r() * (w - 2 * sb); y = tb * 0.15 + r() * tb * 0.65; }
+      const s = 4 + r() * 7;
+      g.beginPath();
+      g.ellipse(x, y, s, s * 0.55, r() * Math.PI, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
+    // đoá sen giữa dải trên
+    const cx = w / 2, cy = tb * 0.55, pr = tb * 0.42;
+    for (let k = 0; k < 9; k++) {
+      const a = Math.PI + (k / 8) * Math.PI;
+      g.save();
+      g.translate(cx + Math.cos(a) * pr * 0.35, cy + Math.sin(a) * pr * 0.2 + pr * 0.25);
+      g.rotate(a + Math.PI / 2);
+      g.fillStyle = k % 2 ? '#ffe7a6' : '#f0c85c';
+      g.beginPath();
+      g.ellipse(0, -pr * 0.35, pr * 0.16, pr * 0.42, 0, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = 'rgba(120,70,15,0.8)';
+      g.lineWidth = 2;
+      g.stroke();
+      g.restore();
+    }
+    g.restore();
+    // viền mép
+    outline();
+    g.lineWidth = 6;
+    g.strokeStyle = '#8a5a14';
+    g.stroke();
+  }));
+}
+
+// Tràng phan: dải lụa vàng viền đỏ, mái rủ răng cưa ở đầu, hoa sen, chữ dọc, đuôi xẻ
+export function phanTex(words = ['NAM', 'MÔ', 'A', 'DI', 'ĐÀ', 'PHẬT']) {
+  return cached('phan-' + words.join(' '), () => canvasTexture(256, 1280, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    // thân lụa
+    const gr = g.createLinearGradient(0, 0, w, 0);
+    gr.addColorStop(0, '#e8b832');
+    gr.addColorStop(0.5, '#f7d55e');
+    gr.addColorStop(1, '#e8b832');
+    g.fillStyle = gr;
+    g.fillRect(12, 60, w - 24, h - 160);
+    // đuôi xẻ hai nhánh
+    g.beginPath();
+    g.moveTo(12, h - 100);
+    g.lineTo(w / 2 - 6, h - 100);
+    g.lineTo(w / 2 - 30, h);
+    g.lineTo(12, h - 20);
+    g.moveTo(w - 12, h - 100);
+    g.lineTo(w / 2 + 6, h - 100);
+    g.lineTo(w / 2 + 30, h);
+    g.lineTo(w - 12, h - 20);
+    g.fill();
+    // viền đỏ
+    g.fillStyle = '#b3261e';
+    g.fillRect(12, 60, 18, h - 160);
+    g.fillRect(w - 30, 60, 18, h - 160);
+    // mái rủ răng cưa đỏ ở đầu
+    g.fillStyle = '#a61f18';
+    g.fillRect(0, 0, w, 60);
+    g.beginPath();
+    for (let x = 0; x <= w; x += 32) {
+      g.lineTo(x, 60);
+      g.lineTo(x + 16, 100);
+    }
+    g.lineTo(w, 60);
+    g.lineTo(0, 60);
+    g.fill();
+    g.fillStyle = '#e8b832';
+    g.fillRect(0, 18, w, 8);
+    // hoa sen
+    const cx = w / 2, cy = 190;
+    for (let k = 0; k < 7; k++) {
+      const a = Math.PI + (k / 6) * Math.PI;
+      g.save();
+      g.translate(cx + Math.cos(a) * 18, cy + Math.sin(a) * 8 + 20);
+      g.rotate(a + Math.PI / 2);
+      g.fillStyle = k % 2 ? '#f2a0b2' : '#e47b95';
+      g.beginPath();
+      g.ellipse(0, -26, 13, 34, 0, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    }
+    // chữ dọc
+    g.fillStyle = '#a61f18';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const top = 300, step = (h - 160 - top) / words.length;
+    words.forEach((wd, i) => {
+      g.font = `700 ${wd.length > 3 ? 62 : 74}px "Noto Serif", "Times New Roman", Georgia, serif`;
+      g.fillText(wd, cx, top + step * (i + 0.5));
+    });
+  }));
+}

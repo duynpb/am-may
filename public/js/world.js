@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from './textures.js';
 import { karstGeometry } from './arch.js';
-import { makeBuddha, swapToCarvedBuddha, CARVED, loadRecliningBuddha, RELIEF_NAM } from './buddha.js';
+import { makeBuddha, swapToCarvedBuddha, CARVED, loadCarved, loadRecliningBuddha, RELIEF_NAM } from './buddha.js';
 import { makeQuanAm, swapToCarvedQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
@@ -2834,16 +2834,21 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         });
         cyl(0.07, 0.09, 2.2, M.gold, P.x, y + 1.0, P.z, {}, 8);
         mesh(new THREE.SphereGeometry(0.28, 12, 10), M.gold, P.x, y + 0.2, P.z);
-        // khám thờ ở mặt tây tầng dưới: hốc tối, tượng Phật nhỏ thếp vàng
+        // khám thờ ở mặt tây tầng dưới: hốc tối viền vàng, tượng Phật đứng trên tòa sen thếp vàng (mẫu chạm khắc 7022)
         const nx = P.x - P.pagodaHalf;
-        box(0.4, 2.4, 2.0, std('#2a1612', { roughness: 0.8 }), nx + 0.1, T0 + 0.35 + 1.5, P.z);
-        box(0.12, 2.7, 2.3, M.gold, nx - 0.02, T0 + 0.35 + 1.55, P.z + 0, { cast: false });
-        const bud = buddhaLite.clone();
-        bud.scale.setScalar(0.42);
-        bud.rotation.y = -Math.PI / 2;
-        bud.position.set(nx - 0.15, T0 + 0.35 + 0.35, P.z);
-        scene.add(bud);
-        peakHead = new THREE.Vector3(nx - 0.2, T0 + 1.6, P.z);
+        box(0.4, 3.3, 2.2, std('#2a1612', { roughness: 0.8 }), nx + 0.1, T0 + 0.35 + 1.75, P.z);
+        box(0.12, 3.6, 2.5, M.gold, nx - 0.02, T0 + 0.35 + 1.8, P.z, { cast: false });
+        box(0.9, 0.3, 1.8, stoneL, nx - 0.5, T0 + 0.35 + 0.15, P.z); // bệ đá dưới chân tượng
+        const SH = 2.7; // tượng cao 2,7 m
+        loadCarved(CARVED.standing).then(({ geo, gold }) => {
+          const st = new THREE.Mesh(geo, gold);
+          st.scale.setScalar(SH);
+          st.rotation.y = -Math.PI / 2; // quay mặt về phía tây (về phía chùa)
+          st.position.set(nx - 0.55, T0 + 0.35 + 0.3, P.z);
+          st.castShadow = true;
+          scene.add(st);
+        }).catch((e) => console.warn('Không nạp được tượng Phật đứng', e));
+        peakHead = new THREE.Vector3(nx - 0.6, T0 + 0.65 + SH * 0.9, P.z);
         // lư hương trước khám thờ
         box(0.8, 0.6, 0.8, stoneL, nx - 2.6, T0 + 0.3, P.z);
         cyl(0.3, 0.24, 0.3, M.bronze, nx - 2.6, T0 + 0.75, P.z, {}, 16);
@@ -2878,10 +2883,45 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     lane.rotation.x = -Math.PI / 2;
     lane.userData.kind = 'ground';
     pickables.push(lane);
-    // khóm lúa: 6 × 6 khóm mỗi ô; cao dần, đổi màu, chín thì bông trĩu nghiêng
-    const per = 36;
-    const tuft = new THREE.ConeGeometry(0.16, 1, 5).translate(0, 0.5, 0);
-    const rice = new THREE.InstancedMesh(tuft, std('#ffffff', { roughness: 0.85, flatShading: true }), PLOTS * per);
+    // khóm lúa: 8 × 8 khóm mỗi ô; mỗi khóm 9 lá dài cong ra ngoài (gốc đậm, ngọn nhạt), cao dần và đổi màu;
+    // trổ bông thì có bông lúa xanh nhạt, chín thì bông vàng trĩu xuống
+    const per = 64, grid = 8;
+    const riceClumpGeo = (() => {
+      const geos = [];
+      const rr = (() => { let sd = 5; return () => ((sd = (sd * 16807) % 2147483647) / 2147483647); })();
+      for (let j = 0; j < 9; j++) {
+        const a = (j / 9) * Math.PI * 2 + rr() * 0.5, lean = 0.12 + rr() * 0.26, hh = 0.72 + rr() * 0.32, wb = 0.022 + rr() * 0.01;
+        const pos = [], colA = [], idx = [];
+        for (let k = 0; k <= 5; k++) {
+          const t = k / 5, y = t * hh, out = lean * t * t, wd = wb * (1 - t * 0.9);
+          const cx = Math.cos(a) * out, cz = Math.sin(a) * out, px = -Math.sin(a) * wd, pz = Math.cos(a) * wd;
+          pos.push(cx - px, y, cz - pz, cx + px, y, cz + pz);
+          const c = 0.5 + 0.5 * t;
+          colA.push(c, c, c, c, c, c);
+          if (k < 5) idx.push(k * 2, k * 2 + 1, k * 2 + 2, k * 2 + 1, k * 2 + 3, k * 2 + 2);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+        g.setIndex(idx);
+        g.computeVertexNormals();
+        geos.push(g);
+      }
+      return mergeGeometries(geos);
+    })();
+    // bông lúa: 4 bông nhỏ rủ xuống quanh ngọn khóm
+    const panicleGeo = (() => {
+      const geos = [];
+      for (let j = 0; j < 4; j++) {
+        const a = (j / 4) * Math.PI * 2 + 0.4;
+        const c = new THREE.ConeGeometry(0.02, 0.22, 4).translate(0, -0.11, 0).rotateZ(-1.0).rotateY(-a).translate(Math.cos(a) * 0.1, 0.9, Math.sin(a) * 0.1);
+        geos.push(c);
+      }
+      return mergeGeometries(geos);
+    })();
+    const rice = new THREE.InstancedMesh(riceClumpGeo, std('#ffffff', { roughness: 0.8, vertexColors: true, side: THREE.DoubleSide }), PLOTS * per);
+    const panicles = new THREE.InstancedMesh(panicleGeo, std('#ffffff', { roughness: 0.75 }), PLOTS * per);
+    scene.add(panicles);
     const sheaf = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.22, 0.7, 7).translate(0, 0.35, 0), std('#c9a24a', { roughness: 0.9 }), PLOTS * 3);
     rice.receiveShadow = true;
     sheaf.castShadow = true;
@@ -2889,8 +2929,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const STAGE_LOOK = [
       { h: 0.28, c: '#8fc45a', tilt: 0 }, // mạ
       { h: 0.6, c: '#5f9e3a', tilt: 0.05 }, // xanh
-      { h: 0.85, c: '#9fae3c', tilt: 0.12 }, // trổ bông
-      { h: 0.9, c: '#e0b43c', tilt: 0.35 }, // chín vàng, bông trĩu
+      { h: 0.85, c: '#8fae3e', tilt: 0.08 }, // trổ bông
+      { h: 0.9, c: '#d6bb4e', tilt: 0.2 }, // chín vàng, bông trĩu
     ];
     const planted = new Float64Array(PLOTS); // thời điểm cấy theo đồng hồ máy này (ms)
     const shown = new Int8Array(PLOTS).fill(-1);
@@ -2905,14 +2945,22 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const stubble = st === 0 && ageOf(i) < 45;
       for (let k = 0; k < per; k++) {
         const [jx, jz, rot, s] = jitter[i * per + k];
-        const gx = k % 6, gz = Math.floor(k / 6);
-        o.position.set(r.minX + ((gx + 0.5 + jx * 0.5) / 6) * (r.maxX - r.minX), GY2, r.minZ + ((gz + 0.5 + jz * 0.5) / 6) * (r.maxZ - r.minZ));
+        const gx = k % grid, gz = Math.floor(k / grid);
+        o.position.set(r.minX + ((gx + 0.5 + jx * 0.4) / grid) * (r.maxX - r.minX), GY2, r.minZ + ((gz + 0.5 + jz * 0.4) / grid) * (r.maxZ - r.minZ));
         o.rotation.set(L.tilt * Math.cos(rot), rot, L.tilt * Math.sin(rot));
         const h = (stubble ? 0.14 : L.h) * s;
-        o.scale.set(stubble ? 0.6 : 1, h, stubble ? 0.6 : 1);
+        o.scale.set(stubble ? 0.8 : 1.15 + h * 0.45, h, stubble ? 0.8 : 1.15 + h * 0.45);
         o.updateMatrix();
         rice.setMatrixAt(i * per + k, o.matrix);
         rice.setColorAt(i * per + k, col.set(stubble ? '#b8a36a' : L.c));
+        // bông lúa: chỉ có khi trổ bông (xanh nhạt) và khi chín (vàng óng, trĩu hơn)
+        if (st >= 2 && !stubble) {
+          o.rotation.set(L.tilt * Math.cos(rot) + (st === 3 ? 0.15 : 0), rot, L.tilt * Math.sin(rot));
+          o.scale.set(1, h, 1);
+        } else o.scale.setScalar(0.0001);
+        o.updateMatrix();
+        panicles.setMatrixAt(i * per + k, o.matrix);
+        panicles.setColorAt(i * per + k, col.set(st === 3 ? '#e7b43a' : '#c9d27c'));
       }
       // bó lúa dựng trong ô vừa gặt
       for (let k = 0; k < 3; k++) {
@@ -2922,8 +2970,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         o.updateMatrix();
         sheaf.setMatrixAt(i * 3 + k, o.matrix);
       }
-      rice.instanceMatrix.needsUpdate = sheaf.instanceMatrix.needsUpdate = true;
+      rice.instanceMatrix.needsUpdate = sheaf.instanceMatrix.needsUpdate = panicles.instanceMatrix.needsUpdate = true;
       if (rice.instanceColor) rice.instanceColor.needsUpdate = true;
+      if (panicles.instanceColor) panicles.instanceColor.needsUpdate = true;
     }
     // bù nhìn đội nón lá giữa ruộng, chòi canh ở góc ruộng
     {
@@ -3001,15 +3050,35 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       }
     }
 
-    // khóm lá rau: 4 phiến lá xòe quanh tâm
-    const blade1 = new THREE.ConeGeometry(0.18, 0.42, 5).rotateX(0.42).translate(0, 0.18, 0.08);
-    const blade2 = blade1.clone().rotateY(Math.PI / 2);
-    const blade3 = blade1.clone().rotateY(Math.PI);
-    const blade4 = blade1.clone().rotateY(-Math.PI / 2);
-    const rosetteGeo = mergeGeometries([blade1, blade2, blade3, blade4]);
+    // khóm rau: 7 lá thật xoè theo vòng xoắn, lá hình thìa có cuống, uốn cong vươn lên rồi rủ nhẹ, gân giữa sáng
+    const rosetteGeo = (() => {
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.bezierCurveTo(0.05, 0.2, 0.32, 0.45, 0.24, 0.8);
+      shape.bezierCurveTo(0.18, 1.0, -0.18, 1.0, -0.24, 0.8);
+      shape.bezierCurveTo(-0.32, 0.45, -0.05, 0.2, 0, 0);
+      const geos = [];
+      for (let j = 0; j < 7; j++) {
+        const g = new THREE.ShapeGeometry(shape, 8);
+        const p = g.attributes.position, colA = [];
+        const len = 0.42 + (j % 3) * 0.06, rise = 0.32 + (j % 2) * 0.1;
+        for (let v = 0; v < p.count; v++) {
+          const x = p.getX(v), t = p.getY(v);
+          // t: dọc theo lá (0 = cuống, 1 = chóp); lá vươn ra ngoài (z), cao lên rồi rủ, mép hơi khum lên
+          p.setXYZ(v, x * len, (rise * t - 0.26 * t * t) * len * 2.2 + Math.abs(x) * 0.08, t * len);
+          const c = 0.72 + 0.28 * t - (Math.abs(x) < 0.03 ? -0.15 : 0);
+          colA.push(c, Math.min(1, c + 0.02), c);
+        }
+        g.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+        g.rotateY(j * 2.39996); // góc vàng: lá xếp xoắn ốc không chồng nhau
+        g.computeVertexNormals();
+        geos.push(g);
+      }
+      return mergeGeometries(geos);
+    })();
     const per = 18; // 3 × 6 khóm mỗi luống
-    const leaves = new THREE.InstancedMesh(rosetteGeo, std('#ffffff', { roughness: 0.8, flatShading: true }), VEG_PLOTS * per);
-    const produce = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 10, 8).translate(0, 0.12, 0), std('#ffffff', { roughness: 0.65 }), VEG_PLOTS * per);
+    const leaves = new THREE.InstancedMesh(rosetteGeo, std('#ffffff', { roughness: 0.7, vertexColors: true, side: THREE.DoubleSide }), VEG_PLOTS * per);
+    const produce = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 16, 12).translate(0, 0.12, 0), std('#ffffff', { roughness: 0.5 }), VEG_PLOTS * per);
     const basketRim = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.28, 0.2, 0.22, 10).translate(0, 0.11, 0), std('#bfa065', { roughness: 0.9 }), VEG_PLOTS);
     const basketFull = new THREE.InstancedMesh(new THREE.SphereGeometry(0.23, 10, 7).scale(1, 0.55, 1).translate(0, 0.22, 0), std('#ffffff', { roughness: 0.8 }), VEG_PLOTS);
     leaves.receiveShadow = true;
@@ -3216,7 +3285,20 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
 
     const fruitMeshes = []; // mảng các danh sách mesh quả của từng cây để cập nhật độ lớn / màu
     const basketMeshes = [];
-    const bananaLeafMat = std('#559432', { roughness: 0.7, side: THREE.DoubleSide });
+    const bananaLeafMat = std('#6aa83c', { roughness: 0.6, side: THREE.DoubleSide, map: T.bananaLeafTex(), alphaTest: 0.5 });
+    // lá chuối: phiến dài 1,9 m, cuống thẳng rồi cong rủ xuống ở nửa ngoài
+    const bananaLeafGeo = (() => {
+      const g = new THREE.PlaneGeometry(0.62, 1.9, 1, 10).rotateX(-Math.PI / 2).translate(0, 0, 0.95);
+      const p = g.attributes.position;
+      for (let v = 0; v < p.count; v++) {
+        const z = p.getZ(v), t = z / 1.9;
+        p.setY(v, 0.55 * t - 1.05 * t * t + Math.abs(p.getX(v)) * 0.25); // vươn lên rồi rủ, phiến hơi khum
+      }
+      g.computeVertexNormals();
+      return g;
+    })();
+    // chùm lá cây ăn quả: tấm lá vẽ nhiều lá nhỏ (nền trong suốt), dùng chung cho mọi cây
+    const leafCardTex = T.leafClusterTex();
     const basketMat = std('#bfa065', { roughness: 0.9 });
 
     ORCHARD_TREES.forEach((tr, idx) => {
@@ -3241,8 +3323,10 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
           leafG.position.set(0, 2.28, 0);
           leafG.rotation.y = a;
           g.add(leafG);
-          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.025, 1.65).translate(0, 0, 0.82), bananaLeafMat);
-          blade.rotation.x = 0.32 + (k % 2) * 0.18;
+          const blade = new THREE.Mesh(bananaLeafGeo, bananaLeafMat);
+          blade.rotation.x = -0.25 - (k % 2) * 0.2;
+          blade.rotation.z = (k % 3 - 1) * 0.12;
+          blade.scale.setScalar(0.85 + (k % 3) * 0.12);
           blade.castShadow = blade.receiveShadow = true;
           leafG.add(blade);
         }
@@ -3258,21 +3342,59 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
           }
         }
       } else {
-        // thân gỗ chính và 3 nhánh lớn
+        // thân gỗ hơi nghiêng, rễ nổi ở gốc, 5 cành lớn toả lên đỡ tán
         const th = sp.crownH - 0.8;
-        cyl(0.18, 0.26, th, barkM, 0, th / 2, 0, o, 9);
-        for (let b = 0; b < 3; b++) {
-          const ba = (b * Math.PI * 2) / 3 + idx * 0.5;
-          const br = cyl(0.08, 0.13, 1.2, barkM, Math.cos(ba) * 0.38, th + 0.25, Math.sin(ba) * 0.38, o, 7);
-          br.rotation.set(Math.sin(ba) * 0.52, 0, -Math.cos(ba) * 0.52);
+        const trunk = cyl(0.16, 0.27, th, barkM, 0, th / 2, 0, o, 9);
+        trunk.rotation.z = ((idx % 3) - 1) * 0.05;
+        for (let b = 0; b < 4; b++) {
+          const ra = (b * Math.PI) / 2 + idx * 0.7;
+          const root = cyl(0.04, 0.09, 0.55, barkM, Math.cos(ra) * 0.22, 0.12, Math.sin(ra) * 0.22, o, 6);
+          root.rotation.set(Math.sin(ra) * 1.1, 0, -Math.cos(ra) * 1.1);
         }
-        // tán lá nhiều khối cầu xếp tầng
+        for (let b = 0; b < 5; b++) {
+          const ba = (b * Math.PI * 2) / 5 + idx * 0.5, tilt = 0.45 + (b % 2) * 0.25, len = 1.1 + (b % 3) * 0.25;
+          const br = cyl(0.05, 0.11, len, barkM, Math.cos(ba) * 0.32, th + 0.2 + (b % 2) * 0.15, Math.sin(ba) * 0.32, o, 7);
+          br.rotation.set(Math.sin(ba) * tilt, 0, -Math.cos(ba) * tilt);
+        }
+        // tán lá: lõi gồ ghề nhiều khối (sẫm bên trong) + hàng chục chùm lá thật phủ ngoài
         const R = sp.crownR, Hc = sp.crownH;
-        mesh(new THREE.SphereGeometry(R, 14, 10), leafM1, 0, Hc, 0, o).scale.set(1, 0.78, 1);
-        for (let c = 0; c < 4; c++) {
-          const ca = (c * Math.PI) / 2 + idx * 0.4;
-          const sub = mesh(new THREE.SphereGeometry(R * 0.68, 12, 9), c % 2 ? leafM1 : leafM2, Math.cos(ca) * R * 0.52, Hc - 0.15 + (c % 2) * 0.35, Math.sin(ca) * R * 0.52, o);
-          sub.scale.set(1, 0.82, 1);
+        const lumpy = (r, seed) => {
+          const gq = new THREE.IcosahedronGeometry(r, 2);
+          const pp = gq.attributes.position;
+          for (let v = 0; v < pp.count; v++) {
+            const x = pp.getX(v), y = pp.getY(v), z = pp.getZ(v);
+            const k = 1 + 0.16 * Math.sin(x * 4.1 + seed) * Math.sin(z * 3.7 - seed) + 0.1 * Math.sin(y * 5.3 + seed * 2);
+            pp.setXYZ(v, x * k, y * k, z * k);
+          }
+          gq.computeVertexNormals();
+          return gq;
+        };
+        // lõi tán sẫm màu (phần lá khuất bóng bên trong), nhỏ hơn lớp lá ngoài để không lộ khối
+        const shadeM = std(new THREE.Color(sp.leaf1).multiplyScalar(0.55), { roughness: 0.95 });
+        const core = mesh(lumpy(R * 0.78, idx), shadeM, 0, Hc, 0, o);
+        core.scale.set(1, 0.8, 1);
+        for (let c = 0; c < 5; c++) {
+          const ca = (c * Math.PI * 2) / 5 + idx * 0.4;
+          const sub = mesh(lumpy(R * 0.5, idx + c * 1.7), shadeM, Math.cos(ca) * R * 0.5, Hc - 0.2 + (c % 2) * 0.4, Math.sin(ca) * R * 0.5, o);
+          sub.scale.set(1, 0.85, 1);
+        }
+        {
+          const cards = [];
+          const nCard = 130;
+          for (let c = 0; c < nCard; c++) {
+            // điểm trên mặt tán (phân bố đều trên mặt cầu dẹt), hướng tấm lá ngẫu nhiên
+            const u = (c + 0.5) / nCard, phi = Math.acos(1 - 2 * u * 0.92), th2 = c * 2.39996 + idx;
+            const rr = R * (0.72 + ((c * 37) % 17) / 45);
+            const cx = Math.sin(phi) * Math.cos(th2) * rr, cy = Math.cos(phi) * rr * 0.8, cz = Math.sin(phi) * Math.sin(th2) * rr;
+            const pg = new THREE.PlaneGeometry(1.25, 1.25);
+            pg.rotateX(((c * 53) % 31) / 10);
+            pg.rotateY(((c * 71) % 29) / 10);
+            pg.translate(cx, Hc + cy, cz);
+            cards.push(pg);
+          }
+          const leafCards = new THREE.Mesh(mergeGeometries(cards), new THREE.MeshStandardMaterial({ color: sp.leaf2, map: leafCardTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8 }));
+          leafCards.castShadow = true;
+          g.add(leafCards);
         }
         // vị trí quả: mít treo quanh thân và cành thấp; các cây khác treo quanh tán lá
         const fCount = tr.kind === 'jackfruit' ? 7 : 12;
@@ -3753,6 +3875,125 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     updaters.push((t) => lanterns.forEach((g) => {
       g.rotation.z = Math.sin(t * 0.7 + g.userData.seed) * 0.015;
       g.rotation.x = Math.cos(t * 0.5 + g.userData.seed) * 0.01;
+    }));
+  }
+
+  // ---------- Trang trí các điện: cửa võng thếp vàng, tràng phan, hạc chầu trên lưng rùa, bình gốm cắm sen ----------
+  {
+    const giltM = (map) => new THREE.MeshStandardMaterial({ map, color: '#ffffff', metalness: 0.85, roughness: 0.32, envMapIntensity: 1.6, alphaTest: 0.5, side: THREE.DoubleSide });
+    // cửa võng: tấm chạm lộng treo trước bàn thờ (mặt nhìn về phía người lễ: hướng +z)
+    const cuaVong = (cx, z, yBot, yTop, halfW, topFrac = 0.2) => {
+      const wv = halfW * 2, hv = yTop - yBot;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(wv, hv), giltM(T.cuaVongTex(wv / hv, topFrac)));
+      m.position.set(cx, (yBot + yTop) / 2, z);
+      scene.add(m);
+      // xà gỗ sơn son đỡ phía trên
+      box(wv + 0.3, 0.22, 0.24, M.lacquer, cx, yTop + 0.11, z - 0.05);
+      return m;
+    };
+    // tràng phan: dải lụa treo từ trần, khẽ lay
+    const phans = [];
+    const phan = (x, yTop, z, len, wid = 0.75, words) => {
+      const g = new THREE.Group();
+      g.position.set(x, yTop, z);
+      scene.add(g);
+      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(wid, len, 1, 8).translate(0, -len / 2, 0), new THREE.MeshStandardMaterial({ map: T.phanTex(words), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.75 }));
+      g.add(cloth);
+      cyl(0.03, 0.03, wid + 0.2, M.gold, 0, 0, 0, { parent: g, cast: false }, 6).rotation.z = Math.PI / 2;
+      for (const sx of [-1, 1]) mesh(new THREE.SphereGeometry(0.05, 8, 6), M.gold, sx * (wid / 2 + 0.12), 0, 0, { parent: g, cast: false });
+      g.userData.seed = Math.random() * 6;
+      phans.push(g);
+    };
+    // hạc đồng đứng trên lưng rùa (biểu tượng trường thọ, hài hoà trời đất), quay mặt ra phía trước
+    const bronzeH = std('#7a5a2e', { metalness: 0.75, roughness: 0.38, envMapIntensity: 1.3 });
+    const hacRua = (x, y, z, sc = 1, ry = 0) => {
+      const g = new THREE.Group();
+      g.position.set(x, y, z);
+      g.rotation.y = ry;
+      g.scale.setScalar(sc);
+      scene.add(g);
+      const add = (geo, px, py, pz, rx = 0, rz = 0, sx = 1, sy = 1, sz = 1) => {
+        const m = new THREE.Mesh(geo, bronzeH);
+        m.position.set(px, py, pz);
+        m.rotation.set(rx, 0, rz);
+        m.scale.set(sx, sy, sz);
+        m.castShadow = true;
+        g.add(m);
+        return m;
+      };
+      // rùa: mai vòm, đầu ngẩng, bốn chân
+      add(new THREE.SphereGeometry(0.5, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), 0, 0.12, 0, 0, 0, 1.15, 0.65, 1.4);
+      add(new THREE.CylinderGeometry(0.62, 0.66, 0.12, 20), 0, 0.12, 0, 0, 0, 1, 1, 1.2);
+      add(new THREE.SphereGeometry(0.15, 12, 10), 0, 0.3, 0.78, 0, 0, 1, 0.85, 1.25);
+      for (const [lx, lz] of [[-0.5, 0.45], [0.5, 0.45], [-0.5, -0.45], [0.5, -0.45]]) add(new THREE.SphereGeometry(0.13, 10, 8), lx, 0.08, lz, 0, 0, 1.2, 0.6, 1.4);
+      // hạc: hai chân cao, thân thon, cánh khép, cổ dài cong, mỏ ngậm (hướng +z)
+      for (const lx of [-0.12, 0.12]) add(new THREE.CylinderGeometry(0.028, 0.035, 0.95, 8), lx, 0.75, 0.0);
+      add(new THREE.SphereGeometry(0.3, 16, 12), 0, 1.35, 0, -0.25, 0, 0.75, 0.8, 1.35);
+      for (const sx of [-1, 1]) add(new THREE.SphereGeometry(0.28, 12, 8), sx * 0.16, 1.4, -0.08, -0.35, sx * 0.25, 0.25, 0.7, 1.35);
+      const neck = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 1.5, 0.3), new THREE.Vector3(0, 1.85, 0.42), new THREE.Vector3(0, 2.2, 0.32), new THREE.Vector3(0, 2.42, 0.42)]), 16, 0.055, 8);
+      add(neck, 0, 0, 0);
+      add(new THREE.SphereGeometry(0.1, 12, 10), 0, 2.46, 0.46, 0, 0, 1, 0.9, 1.2);
+      add(new THREE.ConeGeometry(0.035, 0.32, 8), 0, 2.44, 0.68, Math.PI / 2 + 0.25);
+      add(new THREE.ConeGeometry(0.12, 0.45, 10), 0, 1.25, -0.6, -Math.PI / 2 - 0.4); // đuôi
+    };
+    // bình gốm men lam cắm sen (đặt dưới đất)
+    const vaseM = std('#eef1f2', { roughness: 0.22 }), blueM = std('#2d4f8f', { roughness: 0.3 });
+    const binhSen = (x, y, z, sc = 1) => {
+      lathe([[0, 0], [0.22 * sc, 0], [0.34 * sc, 0.25 * sc], [0.36 * sc, 0.55 * sc], [0.22 * sc, 0.85 * sc], [0.15 * sc, 1.0 * sc], [0.19 * sc, 1.08 * sc], [0.18 * sc, 1.08 * sc]], vaseM, x, y, z);
+      for (const [hy, rr] of [[0.25, 0.34], [0.55, 0.36], [0.95, 0.165]]) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(rr * sc, 0.018 * sc, 6, 28).rotateX(Math.PI / 2), blueM);
+        ring.position.set(x, y + hy * sc, z);
+        scene.add(ring);
+      }
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2, lean = 0.12 * sc, hh = (0.6 + (k % 3) * 0.12) * sc;
+        const stem = cyl(0.01 * sc, 0.012 * sc, hh, std('#5e7f3a'), x + Math.cos(a) * lean * 0.5, y + 1.08 * sc + hh / 2, z + Math.sin(a) * lean * 0.5, { cast: false }, 5);
+        stem.rotation.set(Math.sin(a) * 0.2, 0, -Math.cos(a) * 0.2);
+        lotus(x + Math.cos(a) * lean * 1.1, y + 1.08 * sc + hh, z + Math.sin(a) * lean * 1.1, 0.13 * sc);
+      }
+      // lá sen to xoè trên miệng bình
+      for (let k = 0; k < 3; k++) {
+        const a = k * 2.1;
+        const leaf = new THREE.Mesh(new THREE.CircleGeometry(0.22 * sc, 18, 0.3, Math.PI * 2 - 0.6), std('#3f7a34', { roughness: 0.6, side: THREE.DoubleSide }));
+        leaf.position.set(x + Math.cos(a) * 0.2 * sc, y + (1.3 + k * 0.08) * sc, z + Math.sin(a) * 0.2 * sc);
+        leaf.rotation.set(-Math.PI / 2 + Math.cos(a) * 0.4, 0, Math.sin(a) * 0.4);
+        scene.add(leaf);
+      }
+    };
+
+    // Chánh điện: cửa võng giữa hai cột trước bệ thờ (dải trên mỏng, treo cao hơn hoành phi), tràng phan, hạc, bình sen
+    cuaVong(0, -16.15, 3.9, 9.85, 9.15, 0.06);
+    for (const s of [-1, 1]) {
+      phan(s * 8.0, 9.6, -15.4, 4.6, 0.8);
+      binhSen(s * 8.0, 0, -14.9, 1.05);
+      hacRua(s * 6.5, 0, -14.2, 1.0, 0); // tránh thùng công đức ở x = 5,2
+      obstacles.push({ x: s * 6.5, z: -14.2, r: 0.8 }, { x: s * 8.0, z: -14.9, r: 0.5 });
+    }
+    // Điện Quan Âm: cửa võng trước bàn thờ, tràng phan "Nam Mô Quan Thế Âm Bồ Tát", hạc, bình sen
+    {
+      const QG = PORCH.courtY + 0.21;
+      cuaVong(QAHALL.cx, QAHALL.z0 + 2.65, QG + 1.85, QG + 4.25, 3.6, 0.17);
+      for (const s of [-1, 1]) {
+        phan(QAHALL.cx + s * 4.6, QG + 4.25, QAHALL.z0 + 2.3, 3.0, 0.62, ['NAM', 'MÔ', 'QUAN', 'THẾ', 'ÂM', 'BỒ', 'TÁT']);
+        binhSen(QAHALL.cx + s * 4.6, QG, QAHALL.z0 + 2.9, 0.8);
+        hacRua(QAHALL.cx + s * 3.0, QG, QAHALL.z0 + 3.5, 0.72, 0);
+        obstacles.push({ x: QAHALL.cx + s * 3.0, z: QAHALL.z0 + 3.5, r: 0.6 });
+      }
+    }
+    // Điện Tam Thế: cửa võng rộng trước ba tượng, tràng phan, hạc, bình sen
+    {
+      const TG = TERRACE.y + 0.21;
+      cuaVong(0, TAMTHE.z0 + 3.0, TG + 2.5, TG + 6.0, 10.4, 0.1);
+      for (const s of [-1, 1]) {
+        phan(s * 9.0, TG + 5.9, TAMTHE.z0 + 2.6, 3.8, 0.75);
+        binhSen(s * 9.0, TG, TAMTHE.z0 + 3.2, 0.95);
+        hacRua(s * 3.3, TG, TAMTHE.z0 + 4.8, 0.85, 0);
+        obstacles.push({ x: s * 3.3, z: TAMTHE.z0 + 4.8, r: 0.7 });
+      }
+    }
+    updaters.push((t) => phans.forEach((g) => {
+      g.rotation.x = Math.sin(t * 0.6 + g.userData.seed) * 0.025;
+      g.rotation.z = Math.sin(t * 0.43 + g.userData.seed * 1.7) * 0.015;
     }));
   }
 

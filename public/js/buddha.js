@@ -542,7 +542,7 @@ export function makeBuddha({ quality = 'high', style = 'thien' } = {}) {
 //  - buddha-thien.glb: mẫu khắc maufree.vn số 7021 (chánh điện, tượng giữa điện Tam Thế)
 //  - buddha-thien-2.glb: mẫu khắc maufree.vn số 6217 (hai tượng hai bên điện Tam Thế)
 //  - quan-am.glb: mẫu khắc maufree.vn số 6687 (tượng Quan Âm đứng trên tòa sen trong điện Quan Âm)
-export const CARVED = { main: '/models/buddha-thien.glb', side: '/models/buddha-thien-2.glb', quanam: '/models/quan-am.glb' };
+export const CARVED = { main: '/models/buddha-thien.glb', side: '/models/buddha-thien-2.glb', quanam: '/models/quan-am.glb', standing: '/models/buddha-dung.glb' }; // standing: tượng Phật đứng trên tòa sen (maufree 7022), trong khám thờ tháp trên núi đá
 // mỗi file chỉ tải một lần, các tượng cùng mẫu dùng chung khuôn và chất liệu
 const carvedCache = new Map();
 export function loadCarved(url) {
