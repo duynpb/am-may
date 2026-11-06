@@ -297,9 +297,10 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   ridgeColors.forEach((c, i) => {
     const mat = new THREE.MeshBasicMaterial({ map: T.ridge(c, i * 1.7 + 1), transparent: true, depthWrite: false });
     ridgeMats.push(mat);
-    const d = 78 + i * 28;
+    // phông núi xa: đặt ngoài hai dòng kênh (x = -47,5 và 76) và bên kia sông, để không đè lên kênh khi nhìn từ trên cao
+    const d = 125 + i * 28;
     for (const [x, z, ry] of [[d, 0, -Math.PI / 2], [-d, 0, Math.PI / 2], [0, d + 85, Math.PI]]) {
-      const p = new THREE.Mesh(new THREE.PlaneGeometry(320, 70), mat);
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(420, 80), mat);
       p.position.set(x, 18 - i * 3, z);
       p.rotation.y = ry;
       p.renderOrder = -10 + i;
