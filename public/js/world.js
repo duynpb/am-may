@@ -83,6 +83,16 @@ export const NGOA = (() => {
   };
 })();
 export const QAHALL = { x0: 25, x1: 39, z0: 5, z1: 17, cx: 32 };
+// Kênh nước: từ hai hồ dưới chân hai thác điện Tam Thế, chảy vòng hai bên khuôn viên chùa rồi đổ ra sông phía nam.
+// Mỗi kênh là đường gấp khúc (x, z), bo tròn ở góc; rộng 3 m, có bờ đá hai bên.
+export const CANALS = [
+  { w: 3, path: [[-22.8, -45.6], [-44, -45.6], [-47.5, -42], [-47.5, 116]] },
+  { w: 3, path: [[22.8, -45.6], [72.5, -45.6], [76, -42], [76, 138]] },
+];
+// Cầu đá vòm bắc qua sông trên trục chính (nối sân trước cổng Tam Quan sang khu mới bên kia sông)
+export const BRIDGE = { z0: 119, z1: 145, zc: 132, half: 1.9, rise: 2.2 };
+export const bridgeRise = (z) => Math.max(0, BRIDGE.rise * Math.cos(((z - BRIDGE.zc) / (BRIDGE.z1 - BRIDGE.zc)) * (Math.PI / 2)));
+export const NEWZONE = { x0: -13, x1: 13, z0: 145, z1: 158 }; // sân đá bên kia sông, chỗ khởi đầu khu mới
 // Nhà tự học phía sau điện Quan Âm: nhà mái ngói thoáng bốn phía, sàn gỗ cao 25 cm, 8 bàn học thấp có bồ đoàn,
 // tường sau có kệ sách. Ngồi vào bàn thì bật nhạc không lời (đổi được sang tiếng suối, mưa, lửa, gõ mõ).
 export const STUDY = (() => {
@@ -108,6 +118,9 @@ export const WALK_AREAS = [
   { minX: -44, maxX: -20.2, minZ: 82.0, maxZ: 86.0 }, // vòng qua đầu tường cổng phía tây
   { minX: 20.2, maxX: 70, minZ: 82.0, maxZ: 86.0 }, // vòng qua đầu tường cổng phía đông
   { minX: -44, maxX: 70, minZ: GATE.z + 1.6, maxZ: 102 }, // toàn bộ sân và bãi cỏ trước cổng Tam Quan
+  { minX: -1.8, maxX: 1.8, minZ: 101, maxZ: 120 }, // lối đá xuyên ruộng ra chân cầu
+  { minX: -1.5, maxX: 1.5, minZ: 119, maxZ: 146 }, // cầu đá qua sông
+  { minX: -12.5, maxX: 12.5, minZ: 145.4, maxZ: 157.5 }, // sân đá bên kia sông (khu mới)
   { minX: 16.0, maxX: 70, minZ: 17.2, maxZ: 23.2 }, // khoảng sân nối trước điện Quan Âm và vườn cây ăn trái
   { minX: QAHALL.x0 + 0.8, maxX: QAHALL.x1 - 0.8, minZ: 8.5, maxZ: 18.0 }, // trong điện Quan Âm
   { minX: 39.6, maxX: 70, minZ: -33.2, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm
@@ -146,6 +159,7 @@ export const TOWER = (() => {
 
 export function groundY(x, z) {
   const ax = Math.abs(x);
+  if (ax <= BRIDGE.half + 0.3 && z > BRIDGE.z0 && z < BRIDGE.z1) return PORCH.courtY + bridgeRise(z); // mặt cầu vòm
   if (z < -32.5) {
     // bậc thang: dốc đều từ sân sau lên nền đồi; nền đồi phẳng
     if (ax <= STAIRS.x && z > STAIRS.z0) return PORCH.courtY + (8 * Math.max(0, STAIRS.z1 - z)) / (STAIRS.z1 - STAIRS.z0);
@@ -302,9 +316,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const zt = rnd(-42, 3), west = side < 0 && zt > NGOA.z - NGOA.len / 2 - 4 && zt < NGOA.z + NGOA.len / 2 + 4;
       spots.push(
         i < 60
-          ? west ? [-rnd(44.5, 52), zt] : side > 0 && zt > STUDY.z0 - 4 && zt < STUDY.z1 + 4 ? [rnd(21.8, 27), rnd(-42, STUDY.z0 - 4)] : [side * rnd(21.8, 27), zt]
+          ? west ? [-rnd(50.5, 57), zt] : side > 0 && zt > STUDY.z0 - 4 && zt < STUDY.z1 + 4 ? [rnd(21.8, 27), rnd(-42, STUDY.z0 - 4)] : [side * rnd(21.8, 27), zt]
           : side < 0
-            ? [-rnd(45, 58), rnd(-12, 41)]
+            ? [-rnd(50.5, 60), rnd(-12, 41)]
             : Math.random() < 0.55
               ? [rnd(43, 62), rnd(-22, 2.5)]
               : [rnd(64.5, 72), rnd(4, 39)],
@@ -2238,6 +2252,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       const v = i % 3;
       if (used[v] >= 16) continue;
       const r = 9 + rr() * 12, h = 26 + rr() * 42;
+      // chừa chỗ cho hai kênh, cầu và khu mới bên kia sông
+      if ((Math.abs(x + 47.5) < r * 1.2 + 4 && z < 122) || (Math.abs(x - 76) < r * 1.2 + 4 && z < 142) || (Math.abs(x) < r * 1.2 + 16 && z > 110 && z < 175)) continue;
       o.position.set(x, GY - 1, z);
       o.rotation.set(0, rr() * 6.28, 0);
       o.scale.set(r, h, r * (0.75 + rr() * 0.5));
@@ -2376,6 +2392,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         const x = gx * 13 + 6.5, z = 106 + gz * 6.2;
         if (Math.abs(x) < 16 && z < 112) continue;
         if (z > 132 + Math.sin(x / 38) * 14 - 13) continue; // không lấn xuống sông
+        if (Math.abs(x) < 8 || Math.abs(x + 47.5) < 8.2 || Math.abs(x - 76) < 8.2) continue; // chừa lối ra cầu và hai kênh
         o.position.set(x, GY - 0.03, z);
         o.rotation.set(0, 0, 0);
         o.scale.set(12.2, 1, 5.6);
@@ -2386,6 +2403,105 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     }
     paddy.count = pi;
     scene.add(paddy);
+
+    // ---------- Kênh nước từ hai thác, chảy vòng hai bên chùa ra sông ----------
+    {
+      const flowM = (len) => {
+        const m = fallMat(len / 7);
+        m.opacity = 0.45;
+        return m;
+      };
+      const waterM = std('#3f7f86', { roughness: 0.12, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+      const curbGeo = new THREE.BoxGeometry(1, 1, 1);
+      const curbPts = [];
+      for (const C of CANALS) {
+        // bo góc: đường cong qua các điểm gấp khúc, lấy mẫu đều
+        const curve = new THREE.CatmullRomCurve3(C.path.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal', 0.1);
+        const L = curve.getLength(), n = Math.ceil(L / 1.2);
+        const pts = curve.getSpacedPoints(n);
+        const ribbon = (half, y) => {
+          const pos = [], uv = [], idx = [];
+          let acc = 0;
+          for (let i = 0; i <= n; i++) {
+            const p = pts[i], q = pts[Math.min(n, i + 1)], r0 = pts[Math.max(0, i - 1)];
+            const tx = q.x - r0.x, tz = q.z - r0.z, tl = Math.hypot(tx, tz) || 1;
+            const nx = -tz / tl, nz = tx / tl;
+            if (i) acc += p.distanceTo(pts[i - 1]);
+            pos.push(p.x + nx * half, y, p.z + nz * half, p.x - nx * half, y, p.z - nz * half);
+            uv.push(0, acc / 7, 1, acc / 7);
+            if (i < n) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3);
+            // gờ đá hai bên bờ kênh
+            if (i < n && y < GY + 0.03) {
+              for (const s of [-1, 1]) curbPts.push({ x: (p.x + q.x) / 2 + nx * s * (half + 0.22), z: (p.z + q.z) / 2 + nz * s * (half + 0.22), len: p.distanceTo(q) + 0.05, ry: Math.atan2(q.x - p.x, q.z - p.z) });
+            }
+          }
+          const g = new THREE.BufferGeometry();
+          g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+          g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+          g.setIndex(idx);
+          g.computeVertexNormals();
+          return g;
+        };
+        const water = new THREE.Mesh(ribbon(C.w / 2, GY + 0.02), waterM);
+        water.receiveShadow = true;
+        scene.add(water);
+        const flow = new THREE.Mesh(ribbon(C.w / 2 - 0.1, GY + 0.045), flowM(1));
+        flow.material.map.repeat.set(1, 1);
+        scene.add(flow);
+      }
+      const curbs = new THREE.InstancedMesh(curbGeo, stoneL, curbPts.length);
+      const o3 = new THREE.Object3D();
+      curbPts.forEach((c, i) => {
+        o3.position.set(c.x, GY + 0.1, c.z);
+        o3.rotation.set(0, c.ry, 0);
+        o3.scale.set(0.44, 0.26, c.len);
+        o3.updateMatrix();
+        curbs.setMatrixAt(i, o3.matrix);
+      });
+      curbs.receiveShadow = true;
+      scene.add(curbs);
+    }
+
+    // ---------- Lối đá xuyên ruộng, cầu đá vòm qua sông, sân đá bên kia sông (khu mới) ----------
+    {
+      const B = BRIDGE, hw = B.half;
+      const paveM2 = std('#a39a88', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+      const lane = mesh(new THREE.PlaneGeometry(3.6, B.z0 - 101 + 0.5), paveM2, 0, GY + 0.03, (101 + B.z0) / 2, { cast: false });
+      lane.rotation.x = -Math.PI / 2;
+      lane.userData.kind = 'ground';
+      pickables.push(lane);
+      // mặt cầu: các tấm đá nối theo đường vòm
+      const deckM = std('#bdb6a6', { roughness: 0.9 });
+      const N = 24, step = (B.z1 - B.z0) / N;
+      for (let i = 0; i < N; i++) {
+        const za = B.z0 + i * step, zb = za + step, ya = bridgeRise(za), yb = bridgeRise(zb);
+        const len = Math.hypot(step, yb - ya) + 0.02, ang = Math.atan2(yb - ya, step);
+        const slab = box(hw * 2 + 0.2, 0.3, len, deckM, 0, GY + (ya + yb) / 2 - 0.15, (za + zb) / 2);
+        slab.rotation.x = -ang;
+        slab.userData.kind = 'ground';
+        pickables.push(slab);
+        // lòng cầu đá dày bên dưới mặt cầu và lan can đá hai bên
+        const under = box(hw * 2, 0.7, len, stoneM, 0, GY + (ya + yb) / 2 - 0.6, (za + zb) / 2);
+        under.rotation.x = -ang;
+        for (const s of [-1, 1]) {
+          const rail = box(0.22, 0.6, len, stoneL, s * (hw + 0.05), GY + (ya + yb) / 2 + 0.3, (za + zb) / 2);
+          rail.rotation.x = -ang;
+        }
+      }
+      // trụ đá đầu cầu có quả cầu vàng
+      for (const z of [B.z0 - 0.2, B.z1 + 0.2]) for (const s of [-1, 1]) {
+        box(0.5, 1.2, 0.5, stoneL, s * (hw + 0.1), GY + 0.6, z);
+        mesh(new THREE.SphereGeometry(0.2, 12, 8), M.gold, s * (hw + 0.1), GY + 1.35, z);
+      }
+      // sân đá bên kia sông: chỗ khởi đầu khu mới, có đèn đá ở bốn góc
+      const NZ = NEWZONE;
+      const pad = mesh(new THREE.PlaneGeometry(NZ.x1 - NZ.x0, NZ.z1 - NZ.z0), paveM2, 0, GY + 0.03, (NZ.z0 + NZ.z1) / 2, { cast: false });
+      pad.rotation.x = -Math.PI / 2;
+      pad.userData.kind = 'ground';
+      pickables.push(pad);
+      for (const x of [NZ.x0 + 1.5, NZ.x1 - 1.5]) for (const z of [NZ.z0 + 1.5, NZ.z1 - 1.5]) stoneLantern(x, z);
+      // trên cầu không có vật cản; hai bên lối đi là ruộng
+    }
   }
 
   // ---------- Ruộng lúa phía đông nam sân điện Quan Âm: 20 ô, lúa lớn dần rồi chín, gặt xong cấy lại ----------

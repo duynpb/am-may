@@ -1634,6 +1634,7 @@ const PLACES = [
   { id: 'veg', name: 'Vườn rau', x: 56.8, z: 54, ry: Math.PI / 2 },
   { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
   { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: TAMTHE.z0 + 8.4, ry: Math.PI },
+  { id: 'bridge', name: 'Cầu đá qua sông', x: 0, z: 116.5, ry: 0 },
   { id: 'study', name: 'Nhà tự học', x: STUDY.door.x, z: STUDY.door.z, ry: Math.PI / 2 },
   { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.court.x1 - 0.6, z: NGOA.z, ry: -Math.PI / 2 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
@@ -1727,6 +1728,12 @@ function buildMap() {
   }
   rect(QAHALL.x0, QAHALL.x1, QAHALL.z0, QAHALL.z1, 'm-hall');
   rect(STUDY.x0, STUDY.x1, STUDY.z0, STUDY.z1, 'm-hall'); // nhà tự học sau điện Quan Âm
+  rect(-49, -46, -46.8, 116, 'm-water'); // kênh nước phía tây
+  rect(-46, -22.8, -46.8, -44.4, 'm-water');
+  rect(74.5, 77.5, -46.8, 138, 'm-water'); // kênh nước phía đông
+  rect(22.8, 74.5, -46.8, -44.4, 'm-water');
+  rect(-1.8, 1.8, 101, 145, 'm-stone'); // lối ra cầu và cầu đá
+  rect(-13, 13, 145, 158, 'm-stone'); // khu mới bên kia sông
   rect(ORCHARD.x0, ORCHARD.x1, ORCHARD.z0, ORCHARD.z1, 'm-grass'); // vườn cây ăn trái kế bên điện Quan Âm
   for (const tr of ORCHARD_TREES) el('circle', { cx: mapU(tr.z), cy: mapV(tr.x), r: 1.1, class: 'm-tree' });
   rect(30.5, 64, 39, FIELD.z0 + 1, 'm-stone'); // lối xuống ruộng và sang vườn rau
@@ -3289,7 +3296,7 @@ function updateCamera(dt) {
   cam.curPitch += (cam.pitch - cam.curPitch) * (1 - Math.exp(-4 * dt));
   // ở ngoài sân / trên thềm thì camera được lùi ra ngoài chánh điện
   const outside = zoneOfA(player) === 'out' || player.pos.z > HALL.maxZ;
-  cam.maxZ += ((outside ? 112 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
+  cam.maxZ += ((outside ? 172 : 18.6) - cam.maxZ) * (1 - Math.exp(-3 * dt));
   // sau chánh điện (sân sau, bậc thang, nền đồi): camera không lọt qua tường hậu vào trong
   if (outside && player.pos.z < -21.4 && Math.abs(player.pos.x) < 16) cam.maxZ = -21.9;
   const cp = Math.cos(cam.curPitch);
