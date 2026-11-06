@@ -1,7 +1,7 @@
 // Tượng Quan Âm Bồ Tát đứng trên tòa sen — đá trắng, tạc bằng SDF giống tượng Phật trong chánh điện.
 // Tay phải giơ trước ngực, tay trái cầm bình cam lộ cắm cành dương liễu; khăn choàng trùm đầu phủ xuống vai.
 import * as THREE from 'three';
-import { sculpt, petalGeometry, smin, smax, sph, ell, cone, smooth } from './buddha.js';
+import { sculpt, petalGeometry, smin, smax, sph, ell, cone, smooth, loadCarved, CARVED } from './buddha.js';
 
 const SPLIT_Y = 2.06; // thân dựng thưa, đầu dựng dày để rõ nét mặt
 const NECK = (x, y, z) => cone(x, y, z, [0, 1.86, -0.01], [0, 2.16, 0.01], 0.07, 0.062);
@@ -171,5 +171,28 @@ export function makeQuanAm({ quality = 'high' } = {}) {
   const halo = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.008, 8, 64), new THREE.MeshStandardMaterial({ color: '#f2dfa8', emissive: '#f6e2a6', emissiveIntensity: 0.35, roughness: 0.4 }));
   halo.position.set(0, 2.3, -0.2);
   figure.add(halo);
+  g.userData.halo = halo;
   return g;
+}
+
+// ---------- Tượng Quan Âm mẫu chạm khắc (file .glb) thay cho thân tượng dựng bằng mã ----------
+// Mẫu tượng Quan Âm Bồ Tát đứng trên tòa sen, tay cầm bình cam lộ và nhành dương liễu (nguồn: mẫu khắc miễn phí maufree.vn, số 6687),
+// đã giảm còn 120 nghìn mặt và nén Draco. File chuẩn hóa: cao 1, đáy ở y = 0, mặt tượng nhìn về +z.
+// Nạp xong thì thay thân tượng cũ, giữ vầng hào quang sau đầu; lỗi mạng / máy không đọc được thì giữ nguyên tượng cũ.
+export async function swapToCarvedQuanAm(group, { url = CARVED.quanam, height = 2.85, shadow = false } = {}) {
+  const { geo, gold } = await loadCarved(url);
+  const statue = new THREE.Mesh(geo, gold);
+  statue.scale.setScalar(height);
+  statue.castShadow = shadow;
+  statue.receiveShadow = true;
+  const halo = group.userData.halo;
+  for (const o of [...group.children]) group.remove(o);
+  if (halo) {
+    halo.removeFromParent();
+    halo.position.set(0, height * 0.87, -height * 0.095);
+    halo.scale.setScalar(height / 2.8);
+    group.add(halo);
+  }
+  group.add(statue);
+  return true;
 }

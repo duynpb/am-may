@@ -7,7 +7,7 @@ import * as T from '../textures.js';
 import { curvedRoof, dragonsOnRidge, karstGeometry, karstMaterial, ARCH } from '../arch.js';
 import { PILLARS } from './sutras.js';
 import { makeBuddha } from '../buddha.js';
-import { makeQuanAm } from '../quanam.js';
+import { makeQuanAm, swapToCarvedQuanAm } from '../quanam.js';
 
 // Mặt đất đi lại cao 0,8 m so với mặt hồ; bờ kè thẳng ở z = SHORE
 export const LAND = 0.8;
@@ -724,6 +724,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       qa.scale.setScalar(1.2);
       scene.add(qa);
       lods.push({ obj: qa, z });
+      swapToCarvedQuanAm(qa).catch((e) => console.warn('Không nạp được tượng mẫu Quan Âm, giữ tượng cũ', e));
     });
     // điện Pháp Chủ: một tượng Phật lớn ấn xúc địa; điện Tam Thế: ba tượng Phật
     const thichca = makeBuddha({ quality: 'low', style: 'thichca' });

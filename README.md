@@ -32,6 +32,7 @@ public/
   js/buddha.js       Tượng Phật tạc bằng SDF (dùng cho điện Tam Thế, tháp) và nạp tượng mẫu chạm khắc cho chánh điện
   models/buddha-thien.glb  Tượng Phật ngồi thiền trên tòa sen trong chánh điện và giữa điện Tam Thế (mẫu khắc maufree.vn số 7021, giảm còn 120 nghìn mặt, nén Draco)
   models/buddha-thien-2.glb  Hai tượng hai bên điện Tam Thế (mẫu khắc maufree.vn số 6217, giảm còn 100 nghìn mặt, nén Draco)
+  models/quan-am.glb       Tượng Quan Âm đứng trên tòa sen trong điện Quan Âm (mẫu khắc maufree.vn số 6687, giảm còn 120 nghìn mặt, nén Draco)
   js/quanam.js       Tượng Quan Âm đứng trên tòa sen (dát vàng, trong điện Quan Âm)
   js/lahan.js        Tượng La Hán đá (ba tư thế, vẽ hàng loạt)
   js/dog.js          Chó nhỏ của nhà chùa (dáng, đi, ngồi, vẫy đuôi)

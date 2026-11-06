@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from './textures.js';
 import { makeBuddha, swapToCarvedBuddha, CARVED } from './buddha.js';
-import { makeQuanAm } from './quanam.js';
+import { makeQuanAm, swapToCarvedQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
 import { lahanSpot, LAHAN_IDS } from './statues.js';
@@ -1945,6 +1945,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     qa2.rotation.y = 0;
     qa2.scale.setScalar(1.12);
     scene.add(qa2);
+    // thay bằng tượng Quan Âm mẫu chạm khắc khi tải xong (giữ tượng dựng bằng mã nếu lỗi)
+    swapToCarvedQuanAm(qa2).catch((e) => console.warn('Không nạp được tượng mẫu Quan Âm, giữ tượng cũ', e));
     for (const sx of [-1, 1]) {
       cyl(0.08, 0.1, 0.06, M.bronze, QH.cx + sx * 2.0, GY + 1.29, QH.z0 + 1.9);
       cyl(0.045, 0.045, 0.24, M.candle, QH.cx + sx * 2.0, GY + 1.44, QH.z0 + 1.9);
