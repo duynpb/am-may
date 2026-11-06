@@ -3440,6 +3440,8 @@ for (const t of STUDY_SOUNDS) studySel.append(new Option(t.name, t.id));
 studySel.append(new Option('Tắt âm thanh', 'off'));
 studySel.addEventListener('change', () => {
   const id = studySel.value;
+  studySel.blur(); // bỏ con trỏ khỏi ô chọn để phím đi lại không đổi bài
+  if (!wasStudying) return; // chỉ phát khi đang ngồi ở bàn học
   if (id === 'off') {
     sound.setStudy(null);
     return;
@@ -3460,6 +3462,8 @@ function showStudyBar() {
 let wasStudying = false;
 function studyTick() {
   const studying = player.seat != null && seats[player.seat]?.place === 'study';
+  // không ngồi ở bàn học mà vẫn còn âm thanh học (vì bất cứ lý do gì) thì tắt ngay
+  if (!studying && sound.studyId) sound.setStudy(null);
   if (studying === wasStudying) return;
   wasStudying = studying;
   studyBar.hidden = !studying;
@@ -3477,6 +3481,7 @@ function studyTick() {
     toast(`Bạn ngồi vào bàn học — ${settings.muted ? 'đang tắt tiếng' : `đang phát ${STUDY_SOUNDS.find((t) => t.id === id).name.toLowerCase()}`}; chọn âm thanh ở góc phải trên`, 3800);
   } else {
     sound.setStudy(null);
+    studySel.blur();
   }
 }
 // nút đổi bài nhạc thiền: chỉ hiện khi đang ở trên đài thiền

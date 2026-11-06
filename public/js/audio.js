@@ -438,7 +438,10 @@ export class Sound {
         this.studyEl.crossOrigin = 'anonymous';
         ctx.createMediaElementSource(this.studyEl).connect(out);
       }
-      this.studyEl.play().catch(() => {});
+      // nhạc tải chậm: nếu trong lúc chờ đã đứng dậy (token đổi) thì dừng ngay khi bắt đầu phát
+      this.studyEl.play().then(() => {
+        if (!alive()) this.studyEl.pause();
+      }).catch(() => {});
       return;
     }
     const g = (this.studyGain = ctx.createGain());
@@ -526,7 +529,7 @@ export class Sound {
 
   stopStudy() {
     this.studyToken = null;
-    if (this.studyEl && !this.studyEl.paused) this.studyEl.pause();
+    this.studyEl?.pause();
     const g = this.studyGain, nodes = this.studyNodes || [];
     this.studyGain = null;
     this.studyNodes = null;
