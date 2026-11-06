@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, PEAK, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { Dog } from './dog.js';
 import {
@@ -406,17 +406,17 @@ const inTamThe = (a) => Math.abs(a.pos.x) <= TERRACE.x && a.pos.z >= TERRACE.z0 
 // Nơi thắp nhang: trong chánh điện, trên tháp, trong điện Quan Âm hay điện Tam Thế (ngoài sân thì tới điện Quan Âm)
 // khu tượng Phật nằm phía tây chánh điện: từ sân trước tượng tới bệ tượng
 const inNgoa = (a) => Math.abs(a.pos.z - NGOA.z) <= NGOA.len / 2 + 3.5 && a.pos.x > NGOA.back - 1 && a.pos.x < NGOA.court.x1 + 1.5;
-const placeOf = (a) => (onTower(a) ? 'tower' : inTamThe(a) ? 'tamthe' : inNgoa(a) ? 'ngoa' : zoneOfA(a) === 'out' ? 'qahall' : 'in');
-const PLACE_KINDS = ['tower', 'qahall', 'tamthe', 'ngoa'];
+const placeOf = (a) => (onTower(a) ? 'tower' : inTamThe(a) ? 'tamthe' : inNgoa(a) ? 'ngoa' : Math.hypot(a.pos.x - PEAK.x, a.pos.z - PEAK.z) < PEAK.platR ? 'peak' : zoneOfA(a) === 'out' ? 'qahall' : 'in');
+const PLACE_KINDS = ['tower', 'qahall', 'tamthe', 'ngoa', 'peak'];
 
 // Hướng mặt về nơi thờ: tượng Phật trong chánh điện, xá lợi trên tháp, tượng trong điện Quan Âm (cả khi ở ngoài sân), điện Tam Thế
-const SHRINES = { tower: () => world.tower.relic, qahall: () => world.qaHall.head, tamthe: () => world.tamThe.head, ngoa: () => world.ngoa.head, in: () => BUDDHA };
+const SHRINES = { tower: () => world.tower.relic, qahall: () => world.qaHall.head, tamthe: () => world.tamThe.head, ngoa: () => world.ngoa.head, peak: () => world.peak.head, in: () => BUDDHA };
 const shrineOf = (a) => SHRINES[placeOf(a)]();
 const faceShrineRy = (a) => {
   const t = shrineOf(a);
   return Math.atan2(t.x - a.pos.x, t.z - a.pos.z);
 };
-const burnerOf = (place) => ({ tower: world.incenseTop, qahall: world.incenseQH, tamthe: world.incenseTT, ngoa: world.incenseNgoa })[place] ?? world.incense;
+const burnerOf = (place) => ({ tower: world.incenseTop, qahall: world.incenseQH, tamthe: world.incenseTT, ngoa: world.incenseNgoa, peak: world.incensePeak })[place] ?? world.incense;
 const faceRy = (a, b) => Math.atan2(b.pos.x - a.pos.x, b.pos.z - a.pos.z);
 
 // ---------- Toast ----------
@@ -740,6 +740,69 @@ async function zenDown(a) {
   return true;
 }
 
+// ---------- Núi đá có tháp phía đông kênh: leo cầu thang uốn quanh vách núi lên sàn đỉnh ----------
+const PK = PEAK;
+const onPeakXZ = (x, z) => Math.hypot(x - PK.x, z - PK.z) < PK.platR;
+const onPeak = (a) => onPeakXZ(a.pos.x, a.pos.z);
+const PAGODA_R = PK.pagodaHalf * 1.42 + 0.5; // vòng quanh chân tháp, không đi xuyên vào tháp
+function clampPeak(x, z) {
+  let dx = x - PK.x, dz = z - PK.z;
+  let d = Math.hypot(dx, dz);
+  const maxR = PK.platR - 1.0;
+  if (d > maxR) {
+    dx *= maxR / d;
+    dz *= maxR / d;
+    d = maxR;
+  }
+  if (d < PAGODA_R) {
+    if (d < 1e-3) [dx, dz, d] = [-1, 0, 1];
+    dx *= PAGODA_R / d;
+    dz *= PAGODA_R / d;
+  }
+  return [PK.x + dx, PK.z + dz];
+}
+const peakPath = (ax, az, bx, bz) => detour(ax, az, bx, bz, 0, [{ x: PK.x, z: PK.z, r: PAGODA_R - 0.2 }]).map(([px, pz]) => clampPeak(px, pz));
+// các điểm trên cầu thang, từ chân núi lên đỉnh
+const PEAK_PTS = Array.from({ length: 81 }, (_, i) => {
+  const p = PK.at(i / 80);
+  return [PK.x + Math.cos(p.th) * p.R, PK.z + Math.sin(p.th) * p.R];
+});
+async function walkPeak(a, x, z) {
+  [x, z] = clampPeak(x, z);
+  const token = (a.route = {});
+  a.routeTo = { x, z, seat: null };
+  for (const [px, pz] of peakPath(a.pos.x, a.pos.z, x, z)) {
+    await a.walk(px, pz);
+    if (a.route !== token) return false;
+  }
+  a.routeTo = null;
+  a.walkTo(x, z);
+  return new Promise((res) => (a.onArrive = () => res(a.route === token)));
+}
+async function peakUp(a) {
+  const token = (a.script = {});
+  await walkRoute(a, PK.foot.x, PK.foot.z);
+  if (!alive(a, token)) return false;
+  for (const [px, pz] of [...PEAK_PTS, [PK.entry.x, PK.entry.z]]) {
+    await a.walk(px, pz);
+    if (!alive(a, token)) return false;
+  }
+  a.script = null;
+  if (a === player) {
+    cam.dist = Math.max(cam.dist, 12);
+  }
+  return true;
+}
+async function peakDown(a) {
+  const token = (a.script = {});
+  for (const [px, pz] of [...peakPath(a.pos.x, a.pos.z, PK.entry.x, PK.entry.z), [PK.entry.x, PK.entry.z], ...PEAK_PTS.slice().reverse(), [PK.foot.x, PK.foot.z]]) {
+    await a.walk(px, pz);
+    if (!alive(a, token)) return false;
+  }
+  a.script = null;
+  return true;
+}
+
 // Những chỗ trên cao: tầng 13 của tháp, sàn gác chuông và đài thiền
 const LOFTS = {
   tower: {
@@ -754,6 +817,12 @@ const LOFTS = {
     upMsg: 'Lên cầu thang gác chuông…', downMsg: 'Xuống gác chuông…',
     arrived: 'Bạn đang ở trên gác chuông — chạm vào chuông để nắm dây kéo chày thỉnh đại hồng chung',
   },
+  peak: {
+    clamp: clampPeak, up: peakUp, down: peakDown, door: PK.foot, y: PK.top,
+    go: walkPeak,
+    upMsg: 'Leo cầu thang đá lên đỉnh núi…', downMsg: 'Xuống núi theo cầu thang đá…',
+    arrived: 'Bạn đã lên tới đỉnh núi — lạy Phật, thắp nhang ở khám thờ trước tháp và ngắm toàn cảnh chùa',
+  },
   zen: {
     clamp: clampZen, up: zenUp, down: zenDown, door: ZL.foot, y: ZL.y,
     go: walkZen,
@@ -761,7 +830,7 @@ const LOFTS = {
     arrived: 'Bạn đang ở trên đài thiền — chạm một bồ đoàn quanh đài sen để ngồi thiền, ngắm toàn cảnh chùa',
   },
 };
-const loftAt = (x, z) => (onTowerXZ(x, z) ? 'tower' : onBellXZ(x, z) ? 'bell' : onZenXZ(x, z) ? 'zen' : null);
+const loftAt = (x, z) => (onTowerXZ(x, z) ? 'tower' : onBellXZ(x, z) ? 'bell' : onZenXZ(x, z) ? 'zen' : onPeakXZ(x, z) ? 'peak' : null);
 const loftOf = (a) => loftAt(a.pos.x, a.pos.z);
 
 // Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn.
@@ -1635,6 +1704,8 @@ const PLACES = [
   { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
   { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: TAMTHE.z0 + 8.4, ry: Math.PI },
   { id: 'bridge', name: 'Cầu đá qua sông', x: 0, z: 116.5, ry: 0 },
+  { id: 'peak', name: 'Tháp trên núi đá', x: PEAK.x - PEAK.pagodaHalf - 5, z: PEAK.z + 2, ry: Math.PI / 2 },
+  { id: 'peakfoot', name: 'Chân núi đá (lối lên tháp)', x: PEAK.foot.x - 3, z: PEAK.foot.z, ry: Math.PI / 2 },
   { id: 'study', name: 'Nhà tự học', x: STUDY.door.x, z: STUDY.door.z, ry: Math.PI / 2 },
   { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.court.x1 - 0.6, z: NGOA.z, ry: -Math.PI / 2 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
@@ -1734,6 +1805,9 @@ function buildMap() {
   rect(22.8, 74.5, -46.8, -44.4, 'm-water');
   rect(-1.8, 1.8, 101, 145, 'm-stone'); // lối ra cầu và cầu đá
   rect(-13, 13, 145, 158, 'm-stone'); // khu mới bên kia sông
+  rect(PEAK.lane.x0, PEAK.lane.x1, PEAK.lane.z0, PEAK.lane.z1, 'm-stone'); // lối sang núi đá có tháp
+  el('circle', { cx: mapU(PEAK.z), cy: mapV(PEAK.x), r: PEAK.r, class: 'm-grass' });
+  rect(PEAK.x - PEAK.pagodaHalf, PEAK.x + PEAK.pagodaHalf, PEAK.z - PEAK.pagodaHalf, PEAK.z + PEAK.pagodaHalf, 'm-hall');
   rect(ORCHARD.x0, ORCHARD.x1, ORCHARD.z0, ORCHARD.z1, 'm-grass'); // vườn cây ăn trái kế bên điện Quan Âm
   for (const tr of ORCHARD_TREES) el('circle', { cx: mapU(tr.z), cy: mapV(tr.x), r: 1.1, class: 'm-tree' });
   rect(30.5, 64, 39, FIELD.z0 + 1, 'm-stone'); // lối xuống ruộng và sang vườn rau
@@ -2640,12 +2714,13 @@ function openIncenseDialog() {
   const st = incenseStats();
   $('#inc-stats').textContent = st.today ? `Hôm nay bạn đã thắp ${st.today} nén nhang.` : '';
   const place = placeOf(player);
-  $('#inc-title').textContent = { tower: 'Thắp nhang dâng xá lợi Phật trên tháp', qahall: 'Thắp nhang trong điện Quan Âm', tamthe: 'Thắp nhang dâng Tam Thế Phật', ngoa: 'Thắp nhang trước tượng Phật nằm' }[place] ?? 'Thắp nhang';
+  $('#inc-title').textContent = { tower: 'Thắp nhang dâng xá lợi Phật trên tháp', qahall: 'Thắp nhang trong điện Quan Âm', tamthe: 'Thắp nhang dâng Tam Thế Phật', ngoa: 'Thắp nhang trước tượng Phật nằm', peak: 'Thắp nhang trên đỉnh núi' }[place] ?? 'Thắp nhang';
   $('#modal-incense .muted').textContent = {
     tower: 'Bạn sẽ bước tới trước bàn thờ xá lợi Phật trên tầng 13, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
     qahall: 'Bạn sẽ bước tới trước bàn thờ Quan Âm Bồ Tát trong điện, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
     tamthe: 'Bạn sẽ bước tới lư hương giữa điện Tam Thế, chắp tay vái lạy ba đức Phật rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
     ngoa: 'Bạn sẽ bước tới lư hương đồng trước tượng Phật nằm (Phật nhập Niết bàn), chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
+    peak: 'Bạn sẽ bước tới lư hương trước khám thờ của tháp trên đỉnh núi, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
   }[place] ?? 'Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.';
   openModal('#modal-incense');
 }
@@ -3033,6 +3108,13 @@ function handleTap(x, y) {
     hideHint();
     return;
   }
+  if (kind === 'peak-stair') {
+    // chạm cầu thang núi đá: đang ở trên đỉnh thì xuống chân núi, ở dưới thì leo lên đỉnh
+    if (onPeak(player)) movePlayerTo(PK.foot.x, PK.foot.z);
+    else movePlayerTo(PK.entry.x, PK.entry.z);
+    hideHint();
+    return;
+  }
   if (kind === 'zen-stair') {
     if (onZen(player)) movePlayerTo(ZL.foot.x, ZL.foot.z);
     else movePlayerTo(ZL.arrive.x, ZL.arrive.z);
@@ -3100,7 +3182,7 @@ canvas.addEventListener('pointermove', (e) => {
   } else if (pointers.size === 2 && pinch) {
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y);
-    const maxD = onZen(player) ? 38 : 18;
+    const maxD = onZen(player) || onPeak(player) ? 38 : 18;
     cam.dist = ov.on ? clamp((pinch.dist * pinch.d) / Math.max(d, 1), OV.distMin, OV.distMax) : clamp((pinch.dist * pinch.d) / Math.max(d, 1), 2.8, maxD);
   }
 });
@@ -3115,7 +3197,7 @@ canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const k = 1 + Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 120) * 0.0012;
-  const maxD = onZen(player) ? 38 : 18;
+  const maxD = onZen(player) || onPeak(player) ? 38 : 18;
   cam.dist = ov.on ? clamp(cam.dist * k, OV.distMin, OV.distMax) : clamp(cam.dist * k, 2.8, maxD);
 }, { passive: false });
 
@@ -3178,7 +3260,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'veg' || k === 'orchard' || k === 'tower' || k === 'greatbell' || k === 'zen' || k === 'zen-stair' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'veg' || k === 'orchard' || k === 'tower' || k === 'greatbell' || k === 'zen' || k === 'zen-stair' || k === 'peak-stair' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
 }
 
 // Bàn phím (máy tính)
@@ -3279,6 +3361,7 @@ function updateCamera(dt) {
   cam.target.lerp(want, k);
   const high = onTower(player);
   const zenHigh = onZen(player);
+  const peakHigh = onPeak(player);
   // trên đài thiền: đẩy xa màn sương để nhìn rõ toàn cảnh khuôn viên chùa
   // mái nhà tự học mờ đi khi camera cao hơn chân mái mà người chơi đang ở trong nhà
   const inStudy = player.pos.x > STUDY.x0 - 0.3 && player.pos.x < STUDY.x1 + 0.3 && player.pos.z > STUDY.z0 && player.pos.z < STUDY.z1 + 0.3;
@@ -3286,8 +3369,8 @@ function updateCamera(dt) {
   // mái đài thiền mờ đi khi camera bay cao hơn chân mái mà người chơi đang ở dưới mái
   world.zenRoof?.setFade(zenHigh && camera.position.y > world.zenRoof.eaveY - 0.3 ? 0.18 : 1);
   if (!ov.on) {
-    scene.fog.near = zenHigh ? 140 : 60;
-    scene.fog.far = zenHigh ? 480 : 230;
+    scene.fog.near = zenHigh || peakHigh ? 140 : 60;
+    scene.fog.far = zenHigh || peakHigh ? 480 : 230;
   }
   // trong gác chuông: trên cầu thang thì camera thấp dưới mái tầng dưới, trên gác thì giữa lan can và mái trên
   const inBell = Math.abs(player.pos.x - BL.x) < 4.8 && Math.abs(player.pos.z - BL.z) < 4.8;
@@ -3301,8 +3384,8 @@ function updateCamera(dt) {
   if (outside && player.pos.z < -21.4 && Math.abs(player.pos.x) < 16) cam.maxZ = -21.9;
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
-    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : zenHigh ? -72 : outside ? -46 : -14.5, outside ? 76 : 14.5),
-    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : zenHigh ? ZL.y + 0.5 : 0.4, high ? TOWER.topY + 3.6 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : zenHigh ? ZL.y + 24 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
+    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : zenHigh ? -72 : outside ? -46 : -14.5, outside ? 135 : 14.5),
+    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : zenHigh ? ZL.y + 0.5 : peakHigh ? PEAK.top + 0.6 : 0.4, high ? TOWER.topY + 3.6 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : zenHigh ? ZL.y + 24 : peakHigh ? PEAK.top + 26 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);

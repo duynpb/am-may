@@ -299,7 +299,7 @@ wss.on('connection', (ws, req) => {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
       const wide = siteOf(roomId) === 'tamchuc';
-      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 75);
+      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 125);
       me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 160);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 128 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
@@ -307,7 +307,7 @@ wss.on('connection', (ws, req) => {
     } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense', 'greatbell', 'wipe'].includes(m.a)) {
       const to = typeof m.to === 'string' ? m.to.slice(0, 12) : undefined;
       const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
-      const place = m.a === 'incense' && ['out', 'tower', 'qahall', 'tamthe', 'ngoa'].includes(m.place) ? m.place : undefined;
+      const place = m.a === 'incense' && ['out', 'tower', 'qahall', 'tamthe', 'ngoa', 'peak'].includes(m.place) ? m.place : undefined;
       const statue = m.a === 'wipe' && DUST_IDS.includes(m.id) ? m.id : undefined; // đang lau tượng nào
       broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n, place, statue }, me.id);
       if (m.a === 'bow') award(ws, uid, 'bow');

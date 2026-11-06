@@ -95,6 +95,42 @@ export const bridgeRise = (z) => Math.max(0, BRIDGE.rise * Math.cos(((z - BRIDGE
 export const NEWZONE = { x0: -13, x1: 13, z0: 145, z1: 158 }; // sân đá bên kia sông, chỗ khởi đầu khu mới
 // Nhà tự học phía sau điện Quan Âm: nhà mái ngói thoáng bốn phía, sàn gỗ cao 25 cm, 8 bàn học thấp có bồ đoàn,
 // tường sau có kệ sách. Ngồi vào bàn thì bật nhạc không lời (đổi được sang tiếng suối, mưa, lửa, gõ mõ).
+// Núi đá phía đông kênh, sát bờ sông: đỉnh bằng có sàn đá bát giác chìa ra ngoài vách, tháp ba tầng ở giữa;
+// cầu thang đá uốn lượn vòng quanh vách núi từ chân lên đỉnh (0,9 vòng). Toạ độ góc: x = cos, z = sin.
+export const PEAK = (() => {
+  const x = 106.5, z = 118.6, r = 15, h = 34;
+  const prof = [[1, 0], [1.02, 0.18], [0.96, 0.38], [0.92, 0.55], [0.85, 0.72], [0.76, 0.86], [0.68, 0.95], [0.64, 1.0]];
+  // bán kính vách núi ở độ cao y (thêm 6% cho phần gồ ghề)
+  const rockR = (y) => {
+    const t = Math.min(1, Math.max(0, y / h));
+    for (let i = 1; i < prof.length; i++) {
+      if (t <= prof[i][1]) {
+        const [r0, y0] = prof[i - 1], [r1, y1] = prof[i];
+        return r * 1.06 * (r0 + ((r1 - r0) * (t - y0)) / (y1 - y0));
+      }
+    }
+    return r * 1.06 * prof[prof.length - 1][0];
+  };
+  const th0 = -Math.PI / 2, span = Math.PI * 2 * 0.9, W = 1.8, platR = 12.4;
+  // điểm trên đường thang ở tham số s (0 = chân núi, 1 = đỉnh)
+  const at = (s) => {
+    // lên tới mặt sàn đỉnh (cao h + 0,3) ở 93% đường, đoạn cuối là lối đi bằng nối vào sàn
+    const y = Math.min(h + 0.3, ((h + 0.3) * s) / 0.93);
+    // chưa lên tới mặt sàn thì đi vòng ngoài mép sàn; lên đủ cao mới rẽ vào sàn
+    const R = s < 0.93 ? Math.max(rockR(y) + 1.8, platR + 1.0) : platR + 1.0 - ((s - 0.93) / 0.07) * 2.5;
+    return { th: th0 + span * s, R, y };
+  };
+  const p0 = at(0), p1 = at(1);
+  const end = { x: x + Math.cos(p1.th) * p1.R, z: z + Math.sin(p1.th) * p1.R };
+  return {
+    x, z, r, h, prof, rockR, th0, span, W, platR, at,
+    top: PORCH.courtY + h + 0.3, // mặt sàn trên đỉnh
+    pagodaHalf: 3.6, // nửa cạnh tầng dưới của tháp
+    foot: { x: x + Math.cos(p0.th) * (p0.R + 1.6), z: z + Math.sin(p0.th) * (p0.R + 1.6) }, // chân thang, trên lối đá
+    entry: { x: x + (end.x - x) * 0.86, z: z + (end.z - z) * 0.86 }, // bước lên sàn đỉnh
+    lane: { x0: 68, x1: x + 1.6, z0: 99.2, z1: 102.6 }, // lối đá từ sân trước cổng sang chân núi, qua cầu nhỏ trên kênh
+  };
+})();
 export const STUDY = (() => {
   const x0 = 26.5, x1 = 38.5, z0 = -15, z1 = -4, floor = 0.25;
   const cols = [28.5, 31.2, 33.8, 36.5], rows = [-11.4, -7.6]; // chỗ ngồi (bồ đoàn); bàn ở phía trước 0,62 m
@@ -121,6 +157,7 @@ export const WALK_AREAS = [
   { minX: -1.8, maxX: 1.8, minZ: 101, maxZ: 120 }, // lối đá xuyên ruộng ra chân cầu
   { minX: -1.5, maxX: 1.5, minZ: 119, maxZ: 146 }, // cầu đá qua sông
   { minX: -12.5, maxX: 12.5, minZ: 145.4, maxZ: 157.5 }, // sân đá bên kia sông (khu mới)
+  { minX: 66, maxX: 108, minZ: 99.4, maxZ: 102.4 }, // lối đá sang chân núi đá có tháp (qua cầu nhỏ trên kênh phía đông)
   { minX: 16.0, maxX: 70, minZ: 17.2, maxZ: 23.2 }, // khoảng sân nối trước điện Quan Âm và vườn cây ăn trái
   { minX: QAHALL.x0 + 0.8, maxX: QAHALL.x1 - 0.8, minZ: 8.5, maxZ: 18.0 }, // trong điện Quan Âm
   { minX: 39.6, maxX: 70, minZ: -33.2, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm
@@ -160,6 +197,20 @@ export const TOWER = (() => {
 export function groundY(x, z) {
   const ax = Math.abs(x);
   if (ax <= BRIDGE.half + 0.3 && z > BRIDGE.z0 && z < BRIDGE.z1) return PORCH.courtY + bridgeRise(z); // mặt cầu vòm
+  {
+    // núi đá có tháp: sàn trên đỉnh, cầu thang uốn quanh vách núi, cầu nhỏ qua kênh phía đông
+    const dx = x - PEAK.x, dz = z - PEAK.z, d = Math.hypot(dx, dz);
+    if (d < PEAK.r + 6) {
+      if (d < PEAK.platR) return PEAK.top;
+      const a = (((Math.atan2(dz, dx) - PEAK.th0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const s = a / PEAK.span;
+      if (s <= 1) {
+        const p = PEAK.at(s);
+        if (Math.abs(d - p.R) <= PEAK.W / 2 + 0.45) return PORCH.courtY + p.y;
+      }
+    }
+    if (Math.abs(x - 76) < 2.6 && z > PEAK.lane.z0 - 0.2 && z < PEAK.lane.z1 + 0.2) return PORCH.courtY + 0.3; // cầu đá nhỏ qua kênh
+  }
   if (z < -32.5) {
     // bậc thang: dốc đều từ sân sau lên nền đồi; nền đồi phẳng
     if (ax <= STAIRS.x && z > STAIRS.z0) return PORCH.courtY + (8 * Math.max(0, STAIRS.z1 - z)) / (STAIRS.z1 - STAIRS.z0);
@@ -2219,6 +2270,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
 
   batching = false;
 
+  let peak = { head: new THREE.Vector3(PEAK.x, PEAK.top + 1.6, PEAK.z) }, incensePeak = null;
   // ---------- Núi đá vôi, sông, ruộng lúa quanh chùa (cảnh xa kiểu Tràng An) ----------
   {
     // khối núi đá vôi: vách dựng đứng, đỉnh tròn, cây phủ trên đỉnh và các gờ đá
@@ -2254,7 +2306,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       if (used[v] >= 16) continue;
       const r = 9 + rr() * 12, h = 26 + rr() * 42;
       // chừa chỗ cho hai kênh, cầu và khu mới bên kia sông
-      if ((Math.abs(x + 47.5) < r * 1.2 + 4 && z < 122) || (Math.abs(x - 76) < r * 1.2 + 4 && z < 142) || (Math.abs(x) < r * 1.2 + 16 && z > 110 && z < 175)) continue;
+      if (Math.hypot(x - PEAK.x, z - PEAK.z) < r * 1.1 + PEAK.r + 8 || (Math.abs(x + 47.5) < r * 1.2 + 4 && z < 122) || (Math.abs(x - 76) < r * 1.2 + 4 && z < 142) || (Math.abs(x) < r * 1.2 + 16 && z > 110 && z < 175)) continue;
       o.position.set(x, GY - 1, z);
       o.rotation.set(0, rr() * 6.28, 0);
       o.scale.set(r, h, r * (0.75 + rr() * 0.5));
@@ -2393,7 +2445,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         const x = gx * 13 + 6.5, z = 106 + gz * 6.2;
         if (Math.abs(x) < 16 && z < 112) continue;
         if (z > 132 + Math.sin(x / 38) * 14 - 13) continue; // không lấn xuống sông
-        if (Math.abs(x) < 8 || Math.abs(x + 47.5) < 8.2 || Math.abs(x - 76) < 8.2) continue; // chừa lối ra cầu và hai kênh
+        if (Math.abs(x) < 8 || Math.abs(x + 47.5) < 8.2 || Math.abs(x - 76) < 8.2 || Math.hypot(x - PEAK.x, z - PEAK.z) < PEAK.r + 12) continue; // chừa lối ra cầu, hai kênh, núi đá có tháp
         o.position.set(x, GY - 0.03, z);
         o.rotation.set(0, 0, 0);
         o.scale.set(12.2, 1, 5.6);
@@ -2583,6 +2635,193 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       pickables.push(pad);
       for (const x of [NZ.x0 + 1.5, NZ.x1 - 1.5]) for (const z of [NZ.z0 + 1.5, NZ.z1 - 1.5]) stoneLantern(x, z);
       // trên cầu không có vật cản; hai bên lối đi là ruộng
+    }
+
+    // ---------- Núi đá có tháp: vách núi, cầu thang uốn lượn, sàn đỉnh chìa ra ngoài, tháp ba tầng ----------
+    {
+      const P = PEAK, PY = GY;
+      // khối núi riêng: vách dựng, đỉnh bằng, cây phủ trên đỉnh và các gờ đá
+      {
+        const g = new THREE.LatheGeometry(P.prof.map(([r, y]) => new THREE.Vector2(r, y)).concat([new THREE.Vector2(0, 1.0)]), 28).toNonIndexed();
+        const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
+        const n = (x, y, z) => Math.sin(x * 3.1 + 2.3) * Math.sin(z * 2.7 - 3) + 0.5 * Math.sin(y * 9 + x * 5 + 4.6);
+        for (let i = 0; i < p.count; i++) {
+          const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+          const k = y > 0.99 ? 1 : 1 + 0.05 * n(x, y, z);
+          p.setXYZ(i, x * k, y, z * k);
+          const leafy = (y > 0.8 && y < 0.99) || (Math.sin(y * 26 + 2.3) > 0.72 && y > 0.12);
+          c.copy(leafy ? (n(x, z, y) > 0 ? green : green2) : n(y, x, z) > 0.3 ? dark : cliff);
+          col.set([c.r, c.g, c.b], i * 3);
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        g.computeVertexNormals();
+        const rock = new THREE.Mesh(g, karstM);
+        rock.position.set(P.x, PY - 0.5, P.z);
+        rock.scale.set(P.r, P.h + 0.5, P.r);
+        rock.castShadow = rock.receiveShadow = true;
+        scene.add(rock);
+      }
+      // lối đá từ sân trước cổng sang chân núi, cầu đá nhỏ bắc qua kênh phía đông
+      {
+        const L = P.lane;
+        const laneM = std('#a39a88', { roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+        for (const [x0, x1] of [[L.x0, 73.6], [78.4, L.x1]]) {
+          const m = mesh(new THREE.PlaneGeometry(x1 - x0, L.z1 - L.z0), laneM, (x0 + x1) / 2, PY + 0.03, (L.z0 + L.z1) / 2, { cast: false });
+          m.rotation.x = -Math.PI / 2;
+          m.userData.kind = 'ground';
+          pickables.push(m);
+        }
+        const fb = box(5.2, 0.3, L.z1 - L.z0 + 0.2, std('#bdb6a6', { roughness: 0.9 }), 76, PY + 0.15, (L.z0 + L.z1) / 2);
+        fb.userData.kind = 'ground';
+        pickables.push(fb);
+        for (const s of [-1, 1]) box(5.2, 0.45, 0.18, stoneL, 76, PY + 0.52, (L.z0 + L.z1) / 2 + s * ((L.z1 - L.z0) / 2 + 0.05));
+      }
+      // cầu thang đá uốn quanh vách núi: bậc đá, lan can phía ngoài, cột chống bên dưới
+      {
+        const N = 170;
+        const stepG = new THREE.BoxGeometry(1, 1, 1);
+        const steps = new THREE.InstancedMesh(stepG, std('#c9c1b0', { roughness: 0.9 }), N);
+        const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.07, 1, 6).translate(0, 0.5, 0), std('#7a5a3a', { roughness: 0.8 }), Math.ceil(N / 3) + 1);
+        const props = new THREE.InstancedMesh(new THREE.BoxGeometry(0.28, 1, 0.28).translate(0, -0.5, 0), stoneM, Math.ceil(N / 10) + 1);
+        const o3 = new THREE.Object3D();
+        const railPts = [];
+        let pi2 = 0, qi = 0;
+        for (let i = 0; i < N; i++) {
+          const s0 = i / N, s1 = (i + 1) / N, sm = (s0 + s1) / 2;
+          const a = P.at(sm), b = P.at(s1);
+          const depth = Math.abs(P.at(s1).th - P.at(s0).th) * a.R + 0.06;
+          o3.position.set(P.x + Math.cos(a.th) * a.R, PY + b.y - 0.15, P.z + Math.sin(a.th) * a.R);
+          o3.rotation.set(0, -a.th, 0);
+          o3.scale.set(P.W, 0.3 + 0.2, depth);
+          o3.position.y -= 0.1;
+          o3.updateMatrix();
+          steps.setMatrixAt(i, o3.matrix);
+          const ox = P.x + Math.cos(a.th) * (a.R + P.W / 2 + 0.05), oz = P.z + Math.sin(a.th) * (a.R + P.W / 2 + 0.05);
+          if (i % 3 === 0) {
+            o3.position.set(ox, PY + b.y, oz);
+            o3.rotation.set(0, 0, 0);
+            o3.scale.set(1, 1.0, 1);
+            o3.updateMatrix();
+            posts.setMatrixAt(pi2++, o3.matrix);
+          }
+          if (i % 10 === 5 && b.y > 2.5) {
+            o3.position.set(ox - Math.cos(a.th) * 0.2, PY + b.y - 0.3, oz - Math.sin(a.th) * 0.2);
+            o3.rotation.set(0, 0, 0);
+            o3.scale.set(1, Math.min(4.5, b.y), 1);
+            o3.updateMatrix();
+            props.setMatrixAt(qi++, o3.matrix);
+          }
+          railPts.push(new THREE.Vector3(ox, PY + b.y + 1.0, oz));
+        }
+        posts.count = pi2;
+        props.count = qi;
+        steps.castShadow = steps.receiveShadow = true;
+        steps.userData.kind = 'peak-stair';
+        pickables.push(steps);
+        scene.add(steps, posts, props);
+        const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(railPts), N * 2, 0.05, 6), std('#7a5a3a', { roughness: 0.8 }));
+        scene.add(rail);
+      }
+      // sàn đá bát giác trên đỉnh, chìa ra ngoài vách núi, lan can đá quanh mép (chừa lối lên cầu thang)
+      const T0 = P.top;
+      {
+        const plat = new THREE.Mesh(new THREE.CylinderGeometry(P.platR, P.platR - 0.6, 0.9, 8), std('#b8b0a0', { roughness: 0.9 }));
+        plat.position.set(P.x, T0 - 0.45, P.z);
+        plat.rotation.y = Math.PI / 8;
+        plat.castShadow = plat.receiveShadow = true;
+        plat.userData.kind = 'ground';
+        scene.add(plat);
+        pickables.push(plat);
+        // dầm đá đỡ dưới sàn
+        for (let k = 0; k < 8; k++) {
+          const a = (k / 8) * Math.PI * 2;
+          const br = box(0.5, 2.4, 0.5, stoneM, P.x + Math.cos(a) * (P.platR - 1.6), T0 - 1.9, P.z + Math.sin(a) * (P.platR - 1.6));
+          br.rotation.z = 0.25 * Math.cos(a);
+          br.rotation.x = -0.25 * Math.sin(a);
+        }
+        // lan can: tám cạnh, chừa khoảng trống nơi cầu thang lên sàn
+        const ea = Math.atan2(P.entry.z - P.z, P.entry.x - P.x);
+        const railR = P.platR - 0.35;
+        for (let k = 0; k < 8; k++) {
+          const a0 = (k / 8) * Math.PI * 2, a1 = ((k + 1) / 8) * Math.PI * 2;
+          const n = 10;
+          for (let j = 0; j < n; j++) {
+            const t0 = a0 + ((a1 - a0) * j) / n, t1 = a0 + ((a1 - a0) * (j + 1)) / n, tm = (t0 + t1) / 2;
+            let da = Math.abs(((tm - ea + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+            if (da < 0.16) continue; // lối lên
+            const x0 = P.x + Math.cos(t0) * railR, z0 = P.z + Math.sin(t0) * railR, x1 = P.x + Math.cos(t1) * railR, z1 = P.z + Math.sin(t1) * railR;
+            const len = Math.hypot(x1 - x0, z1 - z0);
+            const seg = box(len + 0.02, 0.12, 0.16, stoneL, (x0 + x1) / 2, T0 + 0.95, (z0 + z1) / 2);
+            seg.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
+            const lower = box(len + 0.02, 0.5, 0.1, std('#8e877a', { roughness: 0.9 }), (x0 + x1) / 2, T0 + 0.5, (z0 + z1) / 2);
+            lower.rotation.y = seg.rotation.y;
+            cyl(0.08, 0.08, 1.0, stoneL, x0, T0 + 0.5, z0, {}, 6);
+          }
+        }
+      }
+      // tháp ba tầng: tường đỏ, cửa sổ chấn song, mái ngói xám đầu đao cong, khám thờ tượng Phật mặt trước (quay về phía chùa)
+      let peakHead = new THREE.Vector3(P.x - P.pagodaHalf, T0 + 1.6, P.z);
+      {
+        const redM = std('#a8432e', { roughness: 0.7 }), tileM = std('#4a4744', { roughness: 0.8 }), latM = std('#6e2a1c', { roughness: 0.6 });
+        const roofP = (y, w, h, top) => {
+          const m = mesh(new THREE.CylinderGeometry(Math.SQRT1_2 * top, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).scale(w, h, w), tileM, P.x, y + h / 2, P.z);
+          m.castShadow = true;
+          for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+            const tip = mesh(new THREE.ConeGeometry(0.14, 1.1, 6), tileM, P.x + sx * (w / 2 + 0.15), y + 0.35, P.z + sz * (w / 2 + 0.15));
+            tip.rotation.set(sz * 0.8, 0, -sx * 0.8);
+          }
+        };
+        const tiers = [
+          { w: P.pagodaHalf * 2, h: 4.2, roofW: 10.6, roofH: 1.7 },
+          { w: 5.6, h: 3.2, roofW: 8.6, roofH: 1.5 },
+          { w: 4.4, h: 2.9, roofW: 7.2, roofH: 2.3, top: 0.12 },
+        ];
+        let y = T0;
+        box(P.pagodaHalf * 2 + 1.2, 0.35, P.pagodaHalf * 2 + 1.2, stoneL, P.x, y + 0.17, P.z);
+        y += 0.35;
+        tiers.forEach((t, k) => {
+          box(t.w, t.h, t.w, redM, P.x, y + t.h / 2, P.z);
+          // cửa sổ chấn song mỗi mặt (mặt tây tầng dưới là khám thờ)
+          for (const [nx, nz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            if (k === 0 && nx === -1) continue;
+            for (const off of k === 0 ? [-1.6, 1.6] : [0]) {
+              const wx = P.x + nx * (t.w / 2 + 0.03) + (nz ? off : 0), wz = P.z + nz * (t.w / 2 + 0.03) + (nx ? off : 0);
+              box(nx ? 0.06 : 1.1, 1.3, nz ? 0.06 : 1.1, latM, wx, y + t.h * 0.55, wz, { cast: false });
+            }
+          }
+          if (k > 0) {
+            // ban công lan can quanh tầng trên
+            for (const [nx, nz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) box(nx ? 0.1 : t.w + 0.9, 0.55, nz ? 0.1 : t.w + 0.9, std('#8a3524', { roughness: 0.7 }), P.x + nx * (t.w / 2 + 0.45), y + 0.28, P.z + nz * (t.w / 2 + 0.45));
+          }
+          y += t.h;
+          roofP(y - 0.25, t.roofW, t.roofH, t.top ?? 0.58);
+          y += t.roofH * (t.top ? 1 : 0.62) - 0.2;
+        });
+        cyl(0.07, 0.09, 2.2, M.gold, P.x, y + 1.0, P.z, {}, 8);
+        mesh(new THREE.SphereGeometry(0.28, 12, 10), M.gold, P.x, y + 0.2, P.z);
+        // khám thờ ở mặt tây tầng dưới: hốc tối, tượng Phật nhỏ thếp vàng
+        const nx = P.x - P.pagodaHalf;
+        box(0.4, 2.4, 2.0, std('#2a1612', { roughness: 0.8 }), nx + 0.1, T0 + 0.35 + 1.5, P.z);
+        box(0.12, 2.7, 2.3, M.gold, nx - 0.02, T0 + 0.35 + 1.55, P.z + 0, { cast: false });
+        const bud = buddhaLite.clone();
+        bud.scale.setScalar(0.42);
+        bud.rotation.y = -Math.PI / 2;
+        bud.position.set(nx - 0.15, T0 + 0.35 + 0.35, P.z);
+        scene.add(bud);
+        peakHead = new THREE.Vector3(nx - 0.2, T0 + 1.6, P.z);
+        // lư hương trước khám thờ
+        box(0.8, 0.6, 0.8, stoneL, nx - 2.6, T0 + 0.3, P.z);
+        cyl(0.3, 0.24, 0.3, M.bronze, nx - 2.6, T0 + 0.75, P.z, {}, 16);
+        incensePeak = makeBurner({
+          center: new THREE.Vector3(nx - 2.6, T0 + 0.9, P.z),
+          radius: 0.22,
+          spots: [-1, 0, 1].map((dz) => ({ x: nx - 4.0, z: P.z + dz })),
+          target: peakHead,
+          smoke: 20,
+          min: 2,
+        });
+      }
+      peak = { head: peakHead };
     }
   }
 
@@ -3923,6 +4162,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     qaHall: { head: QH_HEAD },
     tamThe: { head: TT_HEAD },
     ngoa: { head: NGOA.head },
+    peak,
+    incensePeak,
     studyRoof,
     incenseNgoa,
     falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
