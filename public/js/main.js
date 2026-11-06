@@ -281,7 +281,7 @@ const ROUND_OBSTACLES = [
   { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
   // bệ tượng Phật nằm và vách núi sau lưng, lư hương trước tượng
-  { x: NGOA.x, z: NGOA.z - 2.6, rx: NGOA.len / 2 + 2.4, rz: 5.4 },
+  { x: NGOA.x - 2.6, z: NGOA.z, rx: 7.5, rz: NGOA.len / 2 + 5 },
   { x: NGOA.burner.x, z: NGOA.burner.z, r: 0.9 },
   // chân đài thiền và bậc thang: đi vòng qua, chỉ lên đài bằng cầu thang (người và chó không đi xuyên lên mặt đài)
   { x: ZEN_LOFT.x, z: ZEN_LOFT.z - 1.5, rx: 9.6, rz: 11.2 },
@@ -403,7 +403,7 @@ const inQaHall = (a) => a.pos.x > QAHALL.x0 && a.pos.x < QAHALL.x1 && a.pos.z > 
 const inTamThe = (a) => Math.abs(a.pos.x) <= TERRACE.x && a.pos.z >= TERRACE.z0 && a.pos.z < TERRACE.z1 + 0.5;
 // Nơi thắp nhang: trong chánh điện, trên tháp, trong điện Quan Âm hay điện Tam Thế (ngoài sân thì tới điện Quan Âm)
 // khu tượng Phật nằm phía tây chánh điện: từ sân trước tượng tới bệ tượng
-const inNgoa = (a) => Math.abs(a.pos.x - NGOA.x) <= NGOA.len / 2 + 3.5 && a.pos.z > NGOA.back - 1 && a.pos.z < NGOA.court.z1 + 1.5;
+const inNgoa = (a) => Math.abs(a.pos.z - NGOA.z) <= NGOA.len / 2 + 3.5 && a.pos.x > NGOA.back - 1 && a.pos.x < NGOA.court.x1 + 1.5;
 const placeOf = (a) => (onTower(a) ? 'tower' : inTamThe(a) ? 'tamthe' : inNgoa(a) ? 'ngoa' : zoneOfA(a) === 'out' ? 'qahall' : 'in');
 const PLACE_KINDS = ['tower', 'qahall', 'tamthe', 'ngoa'];
 
@@ -1623,7 +1623,7 @@ const PLACES = [
   { id: 'veg', name: 'Vườn rau', x: 56.8, z: 54, ry: Math.PI / 2 },
   { id: 'stairs', name: 'Bậc thang lên đồi', x: 0, z: -30.2, ry: Math.PI },
   { id: 'tamthe', name: 'Điện Tam Thế', x: 0, z: TAMTHE.z0 + 8.4, ry: Math.PI },
-  { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.x, z: NGOA.court.z1 - 0.6, ry: Math.PI },
+  { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.court.x1 - 0.6, z: NGOA.z, ry: -Math.PI / 2 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
 ];
 
