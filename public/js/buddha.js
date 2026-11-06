@@ -554,7 +554,7 @@ export function loadCarved(url) {
   }
   return carvedCache.get(url);
 }
-async function loadCarvedOnce(url) {
+async function loadGlbGeometry(url) {
   const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
     import('three/addons/loaders/GLTFLoader.js'),
     import('three/addons/loaders/DRACOLoader.js'),
@@ -569,6 +569,10 @@ async function loadCarvedOnce(url) {
   if (!src) throw new Error('file tượng không có khối nào');
   const geo = src.geometry;
   if (!geo.attributes.normal) geo.computeVertexNormals();
+  return geo;
+}
+async function loadCarvedOnce(url) {
+  const geo = await loadGlbGeometry(url);
   // màu đỉnh: chỗ lõm (nếp áo, kẽ cánh sen) sẫm hơn, chỗ nhô sáng hơn — giả bóng kẽ cho tượng thếp vàng
   const pos = geo.attributes.position, nor = geo.attributes.normal, n = pos.count;
   const col = new Float32Array(n * 3), lo = new THREE.Color('#9a6a24'), hi = new THREE.Color('#ffe7a0'), c = new THREE.Color();
@@ -598,4 +602,30 @@ export async function swapToCarvedBuddha(group, { url = CARVED.main, height = 2.
   big.position.set(0, height * 0.6, -Math.min(height * 0.4, 1.1));
   group.add(statue);
   return true;
+}
+
+// ---------- Tượng Phật nằm chạm nổi (mẫu khắc maufree.vn số 7020, đọc từ file relief ArtCAM) ----------
+// File chuẩn hóa: cao 1, dài ~2,07, đáy ở y = 0, mặt chạm nhìn về +z, mặt phẳng sau lưng ở z ≈ -0,216.
+// Tạc trong đá trắng: chỗ nhô ra trước sáng hơn, chỗ lõm sâu sẫm hơn.
+export const RELIEF_NAM = { url: '/models/buddha-nam.glb', length: 2.075, depth: 0.433 };
+let namPromise = null;
+export function loadRecliningBuddha() {
+  namPromise ??= loadGlbGeometry(RELIEF_NAM.url).then((geo) => {
+    const pos = geo.attributes.position, nor = geo.attributes.normal, n = pos.count;
+    const col = new Float32Array(n * 3), lo = new THREE.Color('#8f8676'), hi = new THREE.Color('#fbf6ec'), c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      const front = (pos.getZ(i) + RELIEF_NAM.depth / 2) / RELIEF_NAM.depth; // 0 = sát vách, 1 = nhô ra nhất
+      const up = nor.getY(i) * 0.5 + 0.5;
+      const t = Math.min(1, Math.max(0, 0.25 + front * 0.6 + up * 0.2));
+      c.copy(lo).lerp(hi, t);
+      col.set([c.r, c.g, c.b], i * 3);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const stone = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.62, metalness: 0.0, envMapIntensity: 0.6 });
+    return new THREE.Mesh(geo, stone);
+  }).catch((e) => {
+    namPromise = null;
+    throw e;
+  });
+  return namPromise;
 }

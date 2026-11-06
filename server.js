@@ -307,7 +307,7 @@ wss.on('connection', (ws, req) => {
     } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense', 'greatbell', 'wipe'].includes(m.a)) {
       const to = typeof m.to === 'string' ? m.to.slice(0, 12) : undefined;
       const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
-      const place = m.a === 'incense' && ['out', 'tower', 'qahall', 'tamthe'].includes(m.place) ? m.place : undefined;
+      const place = m.a === 'incense' && ['out', 'tower', 'qahall', 'tamthe', 'ngoa'].includes(m.place) ? m.place : undefined;
       const statue = m.a === 'wipe' && DUST_IDS.includes(m.id) ? m.id : undefined; // đang lau tượng nào
       broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n, place, statue }, me.id);
       if (m.a === 'bow') award(ws, uid, 'bow');

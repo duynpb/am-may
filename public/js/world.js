@@ -3,12 +3,13 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from './textures.js';
-import { makeBuddha, swapToCarvedBuddha, CARVED } from './buddha.js';
+import { karstGeometry } from './arch.js';
+import { makeBuddha, swapToCarvedBuddha, CARVED, loadRecliningBuddha, RELIEF_NAM } from './buddha.js';
 import { makeQuanAm, swapToCarvedQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
 import { lahanSpot, LAHAN_IDS } from './statues.js';
-import { FIELD, PLOTS, plotRect, riceStage, VEG, VEG_PLOTS, vegRect, vegStage, ORCHARD, ORCHARD_TREES, ORCHARD_COUNT, fruitStage } from './field.js';
+import { FIELD, PLOTS, plotRect, riceStage, VEG, VEG_PLOTS, VEG_RIPE_AGE, vegRect, vegStage, ORCHARD, ORCHARD_TREES, ORCHARD_COUNT, fruitStage } from './field.js';
 
 // Vùng được đi lại bên trong chánh điện
 export const HALL = { minX: -13.2, maxX: 13.2, minZ: -12.8, maxZ: 17.6 };
@@ -61,6 +62,19 @@ export const ZEN_LOFT = (() => {
     entry: { x, z: 41.8 },  // bậc đầu tiên
     top: { x, z: 47.9 },    // đầu cầu thang
     arrive: { x, z: 49.4 }, // bước lên mặt đài thiền
+  };
+})();
+// Khu tượng Phật nằm ngoài trời phía tây (bên trái) chánh điện: tượng chạm đá trắng dài 15 m tựa vách núi,
+// bệ đá, sân lát đá phía trước có lư hương; mặt tượng nhìn về phía nam (ra sân trước)
+export const NGOA = (() => {
+  const x = -30, z = -12, len = 15, S = len / RELIEF_NAM.length; // z: đường giữa thân tượng
+  const plinthH = 0.7;
+  return {
+    x, z, len, S, plinthH,
+    back: z - (RELIEF_NAM.depth / 2) * S, front: z + (RELIEF_NAM.depth / 2) * S,
+    head: new THREE.Vector3(x - 0.73 * S, PORCH.courtY + plinthH + 0.6 * S, z + 0.1 * S),
+    burner: { x, z: -5.6 },
+    court: { x0: x - 8.5, x1: x + 8.5, z0: -9.2, z1: -1.4 },
   };
 })();
 export const QAHALL = { x0: 25, x1: 39, z0: 5, z1: 17, cx: 32 };
@@ -267,9 +281,11 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     const spots = [];
     for (let i = 0; i < 110; i++) {
       const side = i % 2 ? 1 : -1;
+      // bên tây, đoạn trước khu tượng Phật nằm: dời tre ra sau vách núi sau lưng tượng
+      const zt = rnd(-42, 3), west = side < 0 && zt > NGOA.back - 6 && zt < 3;
       spots.push(
         i < 60
-          ? [side * rnd(21.8, 27), rnd(-42, 3)]
+          ? west ? [-rnd(21.8, 41), rnd(NGOA.back - 16, NGOA.back - 6.5)] : [side * rnd(21.8, 27), zt]
           : side < 0
             ? [-rnd(45, 58), rnd(-12, 41)]
             : Math.random() < 0.55
@@ -1894,6 +1910,74 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     );
   }
 
+  // ---------- Khu tượng Phật nằm phía tây chánh điện ----------
+  let incenseNgoa = null;
+  {
+    const NG = NGOA;
+    const g = new THREE.Group();
+    g.position.set(NG.x, GY, 0);
+    scene.add(g);
+    const o = { parent: g };
+    // bệ đá dài dưới tượng, viền đá sáng
+    box(NG.len + 1.2, NG.plinthH, NG.front - NG.back + 1.4, stoneM, 0, NG.plinthH / 2, NG.z, o);
+    box(NG.len + 1.5, 0.14, NG.front - NG.back + 1.7, stoneL, 0, NG.plinthH - 0.07, NG.z, o);
+    box(NG.len + 1.8, 0.2, NG.front - NG.back + 2.0, stoneL, 0, 0.1, NG.z, o);
+    // tượng: tải xong mới gắn vào (lỗi tải thì khu vẫn có bệ, vách núi, lư hương)
+    loadRecliningBuddha().then((m) => {
+      const t = m.clone();
+      t.scale.setScalar(NG.S);
+      t.position.set(NG.x, GY + NG.plinthH, NG.z);
+      t.castShadow = t.receiveShadow = true;
+      scene.add(t);
+      lodAdd(t, NG.x, NG.z, 140);
+    }).catch((e) => console.warn('Không nạp được tượng Phật nằm', e));
+    // vách núi đá vôi phía sau lưng tượng (che mặt sau phẳng của bức chạm)
+    const rockM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
+    for (const [dx, dz, sx, sy, sz, seed] of [
+      [-7.5, -3.6, 4.2, 10.5, 3.4, 1.3], [-3.2, -4.4, 5.0, 13.0, 3.8, 2.7], [1.8, -4.0, 4.6, 11.5, 3.6, 4.1],
+      [6.4, -3.7, 4.4, 9.5, 3.3, 5.6], [9.6, -2.4, 3.0, 6.5, 2.8, 7.2], [-10.4, -2.2, 3.0, 7.0, 2.8, 8.4],
+    ]) {
+      const r = new THREE.Mesh(karstGeometry(seed, 0.2), rockM);
+      r.scale.set(sx, sy, sz);
+      r.position.set(dx, -0.2, NG.z + dz);
+      r.rotation.y = seed;
+      r.castShadow = r.receiveShadow = true;
+      g.add(r);
+    }
+    // sân lát đá phía trước tượng
+    const C = NG.court;
+    const courtM = mesh(new THREE.PlaneGeometry(C.x1 - C.x0, C.z1 - C.z0), pave, NG.x, GY + 0.008, (C.z0 + C.z1) / 2, { cast: false });
+    courtM.rotation.x = -Math.PI / 2;
+    courtM.userData.kind = 'ground';
+    pickables.push(courtM);
+    // lư hương đồng ba chân trên đôn đá giữa sân, hai đèn đá hai bên
+    const B = NG.burner;
+    box(1.1, 0.7, 1.1, stoneL, B.x, GY + 0.35, B.z);
+    cyl(0.42, 0.32, 0.42, M.bronze, B.x, GY + 0.95, B.z, {}, 18);
+    cyl(0.46, 0.46, 0.05, M.bronze, B.x, GY + 1.16, B.z, {}, 18);
+    incenseNgoa = makeBurner({
+      center: new THREE.Vector3(B.x, GY + 1.12, B.z),
+      radius: 0.3,
+      spots: [-1, 0, 1].map((dx) => ({ x: B.x + dx, z: B.z + 1.5 })),
+      target: NG.head,
+      smoke: 26,
+      min: 3,
+    });
+    stoneLantern(NG.x - 6.5, -3.0);
+    stoneLantern(NG.x + 6.5, -3.0);
+    // bồn sen hai bên bệ tượng
+    for (const s of [-1, 1]) {
+      cyl(1.0, 1.1, 0.5, stoneL, NG.x + s * (NG.len / 2 + 2.0), GY + 0.25, NG.front + 0.6, {}, 20);
+      cyl(0.92, 0.92, 0.04, std('#3d5a3a', { roughness: 0.4 }), NG.x + s * (NG.len / 2 + 2.0), GY + 0.48, NG.front + 0.6, { cast: false }, 20);
+      for (let k = 0; k < 4; k++) {
+        const a = k * 1.7 + s;
+        mesh(new THREE.SphereGeometry(0.14, 8, 6), std('#f2a7b8', { roughness: 0.7 }), NG.x + s * (NG.len / 2 + 2.0) + Math.cos(a) * 0.5, GY + 0.62, NG.front + 0.6 + Math.sin(a) * 0.5);
+      }
+    }
+    obstacles.push({ minX: NG.x - NG.len / 2 - 1.2, maxX: NG.x + NG.len / 2 + 1.2, minZ: NG.back - 5.0, maxZ: NG.front + 0.9 });
+    obstacles.push({ x: B.x, z: B.z, r: 0.85 });
+  }
+
   // ---------- Điện Quan Âm: hai tầng mái, tượng Quan Âm dát vàng, lư hương, nến ----------
   const QH = QAHALL;
   let incenseQH = null;
@@ -3494,6 +3578,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     incenseQH,
     qaHall: { head: QH_HEAD },
     tamThe: { head: TT_HEAD },
+    ngoa: { head: NGOA.head },
+    incenseNgoa,
     falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
     incenseTT,
     zenRoof,
