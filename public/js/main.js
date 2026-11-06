@@ -1727,17 +1727,17 @@ function buildMap() {
   }
   el('circle', { cx: mapU(WELL.z), cy: mapV(WELL.x), r: WELL.r, class: 'm-water' });
   el('circle', { cx: mapU(31.8), cy: mapV(11.3), r: 6.6, class: 'm-grass' });
-  el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 6.2, class: 'm-grass' });
+  el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 8.2, class: 'm-grass' });
   el('ellipse', { cx: mapU(35.6), cy: mapV(10.9), rx: 1.7, ry: 2.6, class: 'm-water' });
   rect(-15, 15, -21, 19, 'm-hall'); // chánh điện
   rect(-9, 9, 19, 21.6, 'm-porch'); // thềm
   rect(-20, 20, GATE.z - 0.4, GATE.z + 0.4, 'm-wall'); // tường cổng
-  el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 3.4, class: 'm-tower' });
+  el('circle', { cx: mapU(TOWER.z), cy: mapV(TOWER.x), r: 4.9, class: 'm-tower' });
   el('circle', { cx: mapU(29.4), cy: mapV(10.6), r: 1.4, class: 'm-tree' });
   const labels = [
     ['hall', 0, 2, 'Chánh điện'],
     ['banyan', 15.4, 29.4, 'Cây đa'],
-    ['tower', -15.2, 30, 'Tháp 13 tầng'],
+    ['tower', TOWER.x - 5.2, TOWER.z, 'Tháp 13 tầng'],
     ['gate', 0, GATE.z + 5.5, 'Tam Quan'],
     ['well', 0, WELL.z, 'Giếng Ngọc'],
     ['bell', BELLTOWER.x, BELLTOWER.z, 'Gác chuông'],
@@ -3266,7 +3266,7 @@ function updateCamera(dt) {
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
     clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : zenHigh ? -72 : outside ? -46 : -14.5, outside ? 76 : 14.5),
-    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : zenHigh ? ZL.y + 0.5 : 0.4, high ? TOWER.topY + 3.2 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : zenHigh ? ZL.y + 24 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
+    clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : zenHigh ? ZL.y + 0.5 : 0.4, high ? TOWER.topY + 3.6 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : zenHigh ? ZL.y + 24 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );
   camera.lookAt(cam.target);
