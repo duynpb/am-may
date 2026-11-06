@@ -16,8 +16,8 @@ const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const MAX_PER_ROOM = 120;
 // Phòng của hai khu: Am Mây (chánh điện) và Tam Chúc (hồ lớn) — giống public/js/net.js
 const ROOMS = [
-  ...Array.from({ length: 8 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
-  ...Array.from({ length: 4 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
+  ...Array.from({ length: 2 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
+  ...Array.from({ length: 2 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
 ];
 const siteOf = (roomId) => ROOMS.find((r) => r.id === roomId)?.site || 'ammay';
 const rooms = new Map(ROOMS.map((r) => [r.id, new Map()]));

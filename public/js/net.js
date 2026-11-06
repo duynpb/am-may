@@ -5,8 +5,8 @@ export const SITES = {
   tamchuc: { name: 'Tam Chúc', page: 'tamchuc.html', roomLabel: 'Tam Chúc' },
 };
 export const ROOMS = [
-  ...Array.from({ length: 8 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
-  ...Array.from({ length: 4 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
+  ...Array.from({ length: 2 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
+  ...Array.from({ length: 2 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
 ];
 export const siteRooms = (site) => ROOMS.filter((r) => r.site === site);
 // đường dẫn tới một phòng (sang trang của khu đó)
