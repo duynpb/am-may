@@ -52,15 +52,15 @@ export const ZEN_LOFT = (() => {
   const base = PORCH.courtY, y = PORCH.courtY + 9.6;
   return {
     x, z, y, base,
-    stair: { x0: x - 1.4, x1: x + 1.4, zFoot: 41.6, zTop: 48.2 },
+    stair: { x0: x - 1.4, x1: x + 1.4, zFoot: 41.6, zTop: 47.8 },
     floor: { x0: x - 5.6, x1: x + 5.6, z0: z - 5.6, z1: z + 5.6 },
     centerR: 1.35, // đài sen đá & lư trầm ở tâm đài
     orbitR: 3.1,   // vòng bồ đoàn ngồi thiền quanh đài sen
     roofH: 3.6,    // mái che: chân mái cao 3,6 m trên mặt đài
     foot: { x, z: 40.8 },   // ngoài sân, trước chân cầu thang đài thiền (đối diện gác chuông)
     entry: { x, z: 41.8 },  // bậc đầu tiên
-    top: { x, z: 48.3 },    // đầu cầu thang
-    arrive: { x, z: 49.6 }, // bước lên mặt đài thiền
+    top: { x, z: 47.9 },    // đầu cầu thang
+    arrive: { x, z: 49.4 }, // bước lên mặt đài thiền
   };
 })();
 export const QAHALL = { x0: 25, x1: 39, z0: 5, z1: 17, cx: 32 };
@@ -277,7 +277,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
               : [rnd(64.5, 72), rnd(4, 39)],
       );
     }
-    for (let i = 0; i < 44; i++) spots.push([(Math.random() < 0.5 ? -1 : 1) * rnd(19.5, 26), rnd(48, 82)]);
+    for (let i = 0; i < 44; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const z = rnd(48, 82);
+      // bên tây chừa khoảng trống quanh đài thiền (x = -32, z = 54) để cành lá tre không xuyên vào sàn đài
+      const x = side < 0 && z < 65 ? -rnd(19.5, 21.8) : side * rnd(19.5, 26);
+      spots.push([x, z]);
+    }
     const stalkGeo = new THREE.CylinderGeometry(0.07, 0.1, 11, 6);
     stalkGeo.translate(0, 5.5, 0);
     const stalks = new THREE.InstancedMesh(stalkGeo, std('#7d9a4c', { roughness: 0.6 }), spots.length);
@@ -1697,37 +1703,43 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     stoneLantern(Z.x + 2.6, 41.2);
 
     // 3 tầng thân đài đá & cột gỗ cổ kính nâng sàn thiền hành lên độ cao 9,6 m
+    // (tầng trên cùng kết thúc ở y = 9,34 m — thấp hơn đáy sàn gỗ 9,36 m để không bị trùng mặt phẳng gây nhấp nháy Z-fighting)
     const tiers = [
-      { w: 15.0, h: 3.2, y0: 0, roofW: 16.2 },
-      { w: 13.6, h: 3.2, y0: 3.2, roofW: 14.8 },
-      { w: 12.4, h: 3.2, y0: 6.4, roofW: 13.8 },
+      { w: 15.0, h: 3.2, y0: 0, roofW: 16.2, ry: 2.65 },
+      { w: 13.6, h: 3.2, y0: 3.2, roofW: 14.8, ry: 5.85 },
+      { w: 12.4, h: 2.94, y0: 6.4, roofW: 13.8, ry: 9.05 },
     ];
     for (const t of tiers) {
-      // khối đài đá vững chãi ở giữa
-      box(t.w - 0.6, t.h, t.w - 0.6, retainM, 0, t.y0 + t.h / 2, 0, o);
+      // khối đài đá vững chãi ở giữa (tách biệt độ cao giữa chân đế, thân và gờ đá để không trùng mặt)
+      const coreH = t.h - 0.48, coreY = t.y0 + 0.26 + coreH / 2;
+      box(t.w - 0.6, coreH, t.w - 0.6, retainM, 0, coreY, 0, o);
       box(t.w, 0.26, t.w, stoneL, 0, t.y0 + 0.13, 0, o);
       box(t.w + 0.2, 0.22, t.w + 0.2, stoneM, 0, t.y0 + t.h - 0.11, 0, o);
       // cột son quanh 4 mặt tầng đài
       const cOff = t.w / 2 - 0.15;
       for (const u of [-cOff, -cOff * 0.35, cOff * 0.35, cOff]) {
         for (const s of [-1, 1]) {
-          cyl(0.18, 0.21, t.h - 0.2, sideCol, u, t.y0 + t.h / 2, s * cOff, o, 10);
-          cyl(0.18, 0.21, t.h - 0.2, sideCol, s * cOff, t.y0 + t.h / 2, u, o, 10);
+          cyl(0.18, 0.21, coreH, sideCol, u, coreY, s * cOff, o, 10);
+          cyl(0.18, 0.21, coreH, sideCol, s * cOff, coreY, u, o, 10);
         }
       }
       // diềm mái ngói cổ truyền ở ranh giới mỗi tầng (thấp hơn mặt sàn trên cùng để không che tầm nhìn)
-      const ry = t.y0 + t.h - 0.55;
-      rectRoof(Z.x, GY + ry, Z.z, t.roofW, t.roofW, 0.52, sideTile, { top: 0.82, ridge: false, hollow: true });
+      rectRoof(Z.x, GY + t.ry, Z.z, t.roofW, t.roofW, 0.52, sideTile, { top: 0.82, ridge: false, hollow: true });
     }
 
-    // mặt sàn rộng trên đỉnh đài thiền (cao 9,6 m so với mặt sân, nhìn toàn cảnh khuôn viên chùa)
-    const deckW = 12.4;
-    const deckFloor = box(deckW, 0.24, deckW, deckWoodM, 0, 9.6 - 0.12, 0, o);
+    // mặt sàn rộng trên đỉnh đài thiền (cao 9,6 m so với mặt sân, nhìn toàn cảnh khuôn viên chùa;
+    // tắt castShadow trên sàn để tránh bóng răng cưa tự đổ lên mặt sàn khi xoay góc nhìn)
+    const deckW = 12.6;
+    const deckFloor = box(deckW, 0.24, deckW, deckWoodM, 0, 9.6 - 0.12, 0, { parent: g, cast: false });
     deckFloor.userData.kind = 'ground';
     pickables.push(deckFloor);
 
     // vòng đá sáng dưới hàng bồ đoàn ngồi thiền quanh đài sen (bồ đoàn dựng chung với bồ đoàn trong các điện)
-    const pathRing = mesh(new THREE.RingGeometry(Z.orbitR - 0.6, Z.orbitR + 0.6, 48).rotateX(-Math.PI / 2), stoneL, 0, 9.608, 0, { parent: g, cast: false });
+    const ringMat = stoneL.clone();
+    ringMat.polygonOffset = true;
+    ringMat.polygonOffsetFactor = -1;
+    ringMat.polygonOffsetUnits = -2;
+    const pathRing = mesh(new THREE.RingGeometry(Z.orbitR - 0.6, Z.orbitR + 0.6, 48).rotateX(-Math.PI / 2), ringMat, 0, 9.615, 0, { parent: g, cast: false });
     pathRing.userData.kind = 'ground';
     pickables.push(pathRing);
 
@@ -1838,16 +1850,17 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       mesh(new THREE.SphereGeometry(0.11, 10, 8), M.gold, sx * rOff, 9.6 + 1.12, sz * rOff, o);
     }
 
-    // cầu thang đá 32 bậc từ sân trước gác chuông (zFoot = 41.6) lên mặt đài (zTop = 48.2)
-    const nSteps = 32, run = S.zTop - S.zFoot, rise = Z.y - Z.base, sw = S.x1 - S.x0;
+    // cầu thang đá 32 bậc từ sân trước gác chuông (zFoot = 41.6) lên mép bắc mặt đài (zTop = 47.8)
+    const nSteps = 32, run = S.zTop - S.zFoot, rise = Z.y - Z.base, sw = S.x1 - S.x0, stepD = run / nSteps;
     const stairsG = new THREE.Group();
     stairsG.userData.kind = 'zen-stair';
     g.add(stairsG);
     pickables.push(stairsG);
     for (let i = 0; i < nSteps; i++) {
-      const h = ((i + 1) / nSteps) * rise;
-      const sz = S.zFoot - Z.z + ((i + 0.5) / nSteps) * run;
-      box(sw, h, run / nSteps + 0.03, stepM, 0, h / 2, sz, { parent: stairsG });
+      // bậc cuối thấp hơn mặt sàn 0,04 m và dừng đúng mép bắc sàn gỗ để không đè lên mặt sàn
+      const h = ((i + 1) / nSteps) * (rise - 0.04);
+      const sz = S.zFoot - Z.z + (i + 0.5) * stepD;
+      box(sw, h, stepD, stepM, 0, h / 2, sz, { parent: stairsG });
     }
     const slope = Math.atan2(rise, run), sLen = Math.hypot(rise, run), sMidZ = (S.zFoot + S.zTop) / 2 - Z.z;
     for (const sx of [-1, 1]) {
