@@ -101,6 +101,7 @@ Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam C
 
 - Chọn khu trong hộp chọn phòng (nút tên chùa góc trái): 2 phòng Chánh điện của khu Am Mây và 2 phòng Tam Chúc. Pháp danh, áo, dép và điểm phước dùng chung ở mọi khu.
 - Đã có: đi lại (chạm đất / W A S D), chắp tay, lạy Phật, chat, gặp người cùng phòng.
+- Như khu Am Mây: Cài đặt (pháp danh, ngôn ngữ, âm lượng, giọng tụng, đồ họa — đổi đồ họa thì trang tự tải lại), Nghe tụng kinh có chữ chạy, Thắp nhang, Công đức, Tràng hạt, Hồ sơ Phật tử (chạm pháp danh), Chụp ảnh, Giới thiệu, Nhìn toàn cảnh (V). Mỗi điện có lư hương trước bàn thờ và thùng công đức cạnh bàn thờ; ở ngoài sân, bờ hồ, vườn kinh thì thắp nhang và góp công đức ở lư hương đá, thùng công đức trước đỉnh đồng giữa sân lớn. Sổ công đức và điểm phước dùng chung với khu Am Mây.
 - Bến thuyền và đi thuyền: bến gỗ chìa ra hồ giữa bờ kè; ba thuyền gỗ có mái che cong, cô lái đội nón lá chèo ở đuôi. Thuyền chạy theo giờ chung (mỗi vòng 150 giây: đậu bến 24 giây rồi đi một vòng quanh các đảo) nên mọi người thấy thuyền ở cùng chỗ. Đứng trên bến bấm "Lên thuyền" (hoặc chạm vào thuyền); thuyền về bến thì tự lên bờ. Người khác thấy bạn ngồi trên thuyền nào.
 - Vườn kinh: phía tây sân lớn, qua cổng đá "VƯỜN KINH". 32 cột đá khắc chữ (16 cột Bát Nhã Tâm Kinh âm Hán-Việt, 16 cột lời dạy ngắn), đầu cột hoa sen; cuối vườn có phù điêu sáu cảnh đời Đức Phật. Chạm vào cột để đi tới đọc; đọc xong chắp tay hồi hướng được +1 phước (tối đa 16 lần/ngày).
 - Ba điện trên sườn núi: sau sân lớn có bậc thang đá lên ba nền đá cao dần (6 m, 14 m, 24 m). Điện Quan Âm (tượng Quan Âm dát vàng), điện Pháp Chủ (một tượng Phật lớn), điện Tam Thế (ba tượng Phật); mỗi điện mái chồng diêm có lưỡng long chầu nguyệt, bàn thờ, nến, đèn ấm. Lối lên nền trên đi vòng hai bên hông điện.
@@ -109,7 +110,7 @@ Khu thứ hai, trang riêng `tamchuc.html`, phỏng theo không khí chùa Tam C
 - Khách mô phỏng: khi phòng còn vắng (dưới 10 người) có khách đi tham quan: dạo sân, chắp tay trước đỉnh đồng, đọc kinh ở vườn kinh, lên các điện lạy Phật, ngắm hồ, ra bến chờ thuyền và đi một vòng quanh hồ; nhường chỗ dần khi có người thật.
 - Tối ưu: vật đứng yên được gộp theo vật liệu lúc dựng cảnh; tượng trong điện chỉ vẽ khi ở gần.
 
-Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `public/js/arch.js` (mái cong, núi đá vôi dùng chung).
+Mã nguồn: `public/js/tamchuc/` (cảnh và điều khiển của khu), `public/js/arch.js` (mái cong, núi đá vôi dùng chung), `public/js/rituals.js` (lư hương có nhang cháy, thùng công đức).
 
 ## Giọng tụng kinh
 

@@ -33,8 +33,12 @@
 <main id="app">
   <canvas id="scene" aria-label="Khu Tam Chúc 3D"></canvas>
   <div id="labels" aria-hidden="true"></div>
+  <div id="flash" class="flash"></div>
 
   <header class="hud hud-tl">
+    <button class="pill round" id="btn-info" aria-label="Giới thiệu">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+    </button>
     <button class="pill brand" id="btn-room" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" class="logo"><path d="M12 3 3.5 8h17Z"/><path d="M6 8.5v1.2h12V8.5M7.5 10v9M16.5 10v9M4 19.5h16M10.5 19.5v-4h3v4"/></svg>
       <strong>Am Mây</strong>
@@ -60,10 +64,20 @@
         <svg viewBox="0 0 24 24" class="on"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
         <svg viewBox="0 0 24 24" class="off"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>
       </button>
+      <button class="icon-btn" id="btn-settings" aria-label="Cài đặt">
+        <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-shot" aria-label="Chụp ảnh">
+        <svg viewBox="0 0 24 24"><path d="M4 8.5h3l1.5-2.5h7L17 8.5h3V19H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>
+      </button>
     </div>
+    <button class="pill chant-btn" id="btn-chant" aria-pressed="false">
+      <span class="dot"></span><span class="txt">Nghe tụng kinh</span>
+    </button>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="chant-caption" class="chant-caption" hidden></div>
   <p id="hint" class="hint"></p>
 
   <form id="chat" class="chat-box pill" autocomplete="off">
@@ -82,6 +96,18 @@
     <button data-act="bow">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.4"/><path d="M5 20c0-4 2.2-8.5 7-8.5s7 4.5 7 8.5"/><path d="M9.5 15.5h5"/></svg>
       <span>Lạy Phật</span>
+    </button>
+    <button data-act="incense">
+      <svg viewBox="0 0 24 24"><path d="M9 21V11M12 21V9.5M15 21V11"/><path d="M12 7c-1.2-1.1-1.2-2.4 0-3.5M9 9c-1-1-1-2 0-3M15 9c1-1 1-2 0-3"/><path d="M6.5 21h11"/></svg>
+      <span>Thắp nhang</span>
+    </button>
+    <button data-act="merit">
+      <svg viewBox="0 0 24 24"><rect x="4.5" y="8" width="15" height="12" rx="1.5"/><path d="M9.5 8V6.8h5V8M10 11.5h4"/><path d="M12 3.2v2.4"/></svg>
+      <span>Công đức</span>
+    </button>
+    <button data-act="beads">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="1.6"/><circle cx="17.2" cy="6.8" r="1.6"/><circle cx="19.4" cy="12" r="1.6"/><circle cx="17.2" cy="17.2" r="1.6"/><circle cx="6.8" cy="6.8" r="1.6"/><circle cx="4.6" cy="12" r="1.6"/><circle cx="6.8" cy="17.2" r="1.6"/><circle cx="12" cy="19.6" r="2.1"/></svg>
+      <span>Tràng hạt</span>
     </button>
     <button data-act="boat" hidden>
       <svg viewBox="0 0 24 24"><path d="M2.5 15h19l-3 4.5h-13Z"/><path d="M6.5 15c0-3.2 2.5-5.5 5.5-5.5s5.5 2.3 5.5 5.5"/><path d="M12 9.5V4"/></svg>
@@ -114,6 +140,145 @@
       <button class="btn-primary" id="sutra-done">Đọc xong · chắp tay hồi hướng</button>
     </div>
   </div>
+
+  <!-- Cài đặt -->
+  <div class="modal" id="modal-settings" hidden role="dialog" aria-modal="true" aria-labelledby="set-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="set-title">Cài đặt</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <label class="field">
+        <span>Pháp danh <em>(được lưu trên trình duyệt này)</em></span>
+        <div class="name-row">
+          <input id="set-name" maxlength="20" autocomplete="off">
+          <button type="button" class="ghost" id="btn-my-profile">Hồ sơ của tôi</button>
+        </div>
+      </label>
+      <!-- ghi cả hai thứ tiếng để người không đọc được tiếng Việt vẫn tìm ra -->
+      <label class="select-row lang-row">
+        <span>🌐 Ngôn ngữ · Language</span>
+        <select id="set-lang"></select>
+      </label>
+      <div class="card row">
+        <div><b>Hiện pháp danh mọi người</b><small>Tên nhỏ trên đầu những người trong chùa</small></div>
+        <input type="checkbox" class="switch" id="set-names">
+      </div>
+      <div class="card">
+        <div class="row"><div><b>Âm thanh thiên nhiên</b><small>Gió và chuông gió</small></div><input type="checkbox" class="switch" id="set-ambient"></div>
+        <input type="range" id="set-ambient-vol" min="0" max="1" step="0.01">
+      </div>
+      <div class="card">
+        <div class="row"><div><b>Tụng kinh</b><small>Nam mô A Di Đà Phật, có mõ và chuông</small></div></div>
+        <label class="select-row">
+          <span>Giọng tụng</span>
+          <select id="set-chant-voice"></select>
+        </label>
+        <small class="voice-status" id="voice-status"></small>
+        <input type="range" id="set-chant-vol" min="0" max="1" step="0.01">
+      </div>
+      <div class="card">
+        <div class="row"><div><b>Hiệu ứng</b><small>Chuông khi lạy, tiếng hạt, trống</small></div><input type="checkbox" class="switch" id="set-fx"></div>
+        <input type="range" id="set-fx-vol" min="0" max="1" step="0.01">
+      </div>
+      <div class="card row">
+        <div><b>Phát khi chuyển tab</b><small>Vẫn nghe tiếng khi bạn mở ứng dụng khác</small></div>
+        <input type="checkbox" class="switch" id="set-bg">
+      </div>
+      <div class="card row">
+        <div><b>Đồ họa</b><small>Chọn “Nhẹ” nếu máy bị nóng hoặc giật</small></div>
+        <div class="seg" id="set-quality"><button data-q="low">Nhẹ</button><button data-q="high">Đẹp</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Thắp nhang -->
+  <div class="modal" id="modal-incense" hidden role="dialog" aria-modal="true" aria-labelledby="inc-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="inc-title">Thắp nhang</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p class="muted">Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.</p>
+      <div class="card row">
+        <div><b>Số nén</b><small>Thường thắp 1 hoặc 3 nén</small></div>
+        <div class="seg" id="inc-count"><button data-n="1">1 nén</button><button data-n="3" class="on">3 nén</button></div>
+      </div>
+      <label class="field">
+        <span>Lời nguyện <em>(chỉ mình bạn thấy, không gửi đi đâu)</em></span>
+        <textarea id="inc-wish" rows="3" maxlength="200" placeholder="Nguyện cho gia đình bình an…"></textarea>
+      </label>
+      <button class="btn-primary" id="inc-go">Thắp nhang</button>
+      <p class="muted center" id="inc-stats"></p>
+    </div>
+  </div>
+
+  <!-- Thùng công đức -->
+  <div class="modal" id="modal-merit" hidden role="dialog" aria-modal="true" aria-labelledby="merit-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="merit-title">Thùng công đức</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p class="muted">Góp công đức là gieo một hạt giống lành. Ở Am Mây, công đức mang ý nghĩa tượng trưng — không dùng tiền thật.</p>
+      <div class="merit-stat"><b id="merit-total">0</b><span>lượt góp công đức của chùa hôm nay</span></div>
+      <div class="card row">
+        <div><b>Lượt của bạn hôm nay</b><small id="merit-left"></small></div>
+        <div class="merit-dots" id="merit-dots"><i></i><i></i><i></i></div>
+      </div>
+      <div class="card row">
+        <div><b>Ẩn danh</b><small>Không ghi tên bạn vào sổ công đức</small></div>
+        <input type="checkbox" class="switch" id="merit-anon">
+      </div>
+      <label class="field">
+        <span>Hồi hướng <em>(chỉ mình bạn thấy, không gửi đi đâu)</em></span>
+        <input id="merit-dedic" maxlength="80" autocomplete="off" placeholder="Hồi hướng cho ông bà, cha mẹ…">
+      </label>
+      <button class="btn-primary" id="merit-go">Góp công đức</button>
+      <div class="merit-book">
+        <b>Sổ công đức hôm nay</b>
+        <ul id="merit-recent"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hồ sơ Phật tử -->
+  <div class="modal" id="modal-profile" hidden role="dialog" aria-modal="true" aria-labelledby="pf-name">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div class="pf-id">
+          <span class="pf-avatar" id="pf-avatar"></span>
+          <div><h2 id="pf-name"></h2><small id="pf-since"></small></div>
+        </div>
+        <button class="x" data-close aria-label="Đóng">×</button>
+      </div>
+      <div id="pf-body"></div>
+    </div>
+  </div>
+
+  <!-- Giới thiệu -->
+  <div class="modal" id="modal-info" hidden role="dialog" aria-modal="true" aria-labelledby="info-title">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="info-title">Về khu Tam Chúc</h2><button class="x" data-close aria-label="Đóng">×</button></div>
+      <p>Khu Tam Chúc của Am Mây: hồ lớn giữa núi đá vôi, cổng Tam Quan sát mặt nước, sân lớn có đỉnh đồng, vườn kinh và ba điện trên sườn núi.</p>
+      <ul class="howto">
+        <li><b>Đi lại</b> Chạm / nhấp lên sàn. Trên máy tính có thể dùng phím W A S D.</li>
+        <li><b>Nhìn quanh</b> Kéo màn hình. Cuộn chuột hoặc chụm hai ngón để phóng to.</li>
+        <li><b>Chào nhau</b> Chạm vào một người để chắp tay chào.</li>
+        <li><b>Hồ sơ Phật tử</b> Chạm vào pháp danh trên đầu một người (hoặc tên của mình) để xem điểm phước / nghiệp và lịch sử.</li>
+        <li><b>Thắp nhang</b> Bấm “Thắp nhang”, chọn số nén và (nếu muốn) viết lời nguyện riêng. Nhang cháy trong lư khoảng ba phút.</li>
+        <li><b>Góp công đức</b> Bấm “Công đức” hoặc chạm vào thùng công đức cạnh bàn thờ. Mỗi người được góp 3 lần mỗi ngày (mang ý nghĩa tượng trưng).</li>
+        <li><b>Thắp nhang ở Tam Chúc</b> Trong một điện thì thắp ở lư hương trước bàn thờ điện đó; ở ngoài sân, bờ hồ hay vườn kinh thì thắp ở lư hương đá trước đỉnh đồng giữa sân lớn.</li>
+        <li><b>Đi thuyền, đọc kinh</b> Ra bến thuyền để đi một vòng quanh hồ; vào vườn kinh, chạm một cột đá để đọc kinh khắc trên đó.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Tràng hạt -->
+  <section id="beads" class="beads" hidden aria-label="Lần tràng hạt">
+    <canvas></canvas>
+    <button class="pill light back" data-bead-back>
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg> Quay lại
+    </button>
+    <div class="beads-count">
+      <div><b data-bead-n>0</b><span> / 108</span></div>
+      <small data-bead-round>Chuỗi thứ 1</small>
+      <small data-bead-today></small>
+    </div>
+    <p class="beads-hint">Vuốt xuống hoặc chạm để lần hạt</p>
+    <p class="beads-msg" data-bead-msg></p>
+  </section>
 
   <div id="loader" class="loader">
     <svg viewBox="0 0 24 24"><path d="M12 3 3.5 8h17Z"/><path d="M6 8.5v1.2h12V8.5M7.5 10v9M16.5 10v9M4 19.5h16M10.5 19.5v-4h3v4"/></svg>

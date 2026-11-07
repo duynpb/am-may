@@ -1,13 +1,16 @@
 // Trang khu Tam Chúc: đi dạo bờ hồ, qua cổng Tam Quan vào sân lớn, gặp mọi người cùng phòng.
 // Dùng chung nhân vật, kết nối mạng, âm thanh, pháp danh và điểm phước với khu Am Mây.
-import '../i18n.js'; // tự dịch chữ trên trang theo ngôn ngữ đã chọn
+import { lang, LANGS, setLang } from '../i18n.js'; // nạp trước để tự dịch chữ trên trang
 import * as THREE from 'three';
 import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND, BOARD, BOATS, PIER, PILLAR_POS, TERRACES, STAIRS, PLAZA, SUTRA_GARDEN, SHORE, GATE, CAULDRON } from './world.js';
 import { PILLARS } from './sutras.js';
 import { Avatar, ROBES } from '../avatar.js';
 import { SANDAL_COLORS } from '../sandals.js';
-import { Sound } from '../audio.js';
-import { connect, fetchRooms, ROOMS, SITES, siteRooms, roomUrl } from '../net.js';
+import { Sound, CHANT_SYLLABLES, vietnameseVoices } from '../audio.js';
+import { Beads } from '../beads.js';
+import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } from '../net.js';
+import { applyEvent, newProfile, publicProfile, vnDate, RULES, CLIENT_KINDS } from '../karma.js';
+import { festivalOf, FESTIVAL_PHUOC } from '../lunar.js';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -44,7 +47,7 @@ const store = {
 };
 const NOUNS = ['Mây', 'Sen', 'Trăng', 'Gió', 'Suối', 'Lá', 'Sương', 'Nắng', 'Trúc', 'Sóng'];
 const ADJS = ['an nhiên', 'lặng lẽ', 'thong thả', 'dịu dàng', 'hiền hòa', 'thanh tịnh', 'bình yên'];
-const myName = store.get('name', null) || `${pick(NOUNS)} ${pick(ADJS)}`;
+let myName = store.get('name', null) || `${pick(NOUNS)} ${pick(ADJS)}`;
 store.set('name', myName);
 const myRobe = store.get('robe', Math.floor(Math.random() * ROBES.length));
 store.set('robe', myRobe);
@@ -107,6 +110,7 @@ function addAvatar(a) {
     a.nameEl = document.createElement('div');
     a.nameEl.className = 'label name';
     a.nameEl.textContent = a.name;
+    a.nameEl.addEventListener('click', () => openProfile(a)); // xem hồ sơ Phật tử
     labelsEl.append(a.nameEl);
   }
   return a;
@@ -316,7 +320,7 @@ function doGassho(target = null) {
   net?.send({ t: 'act', a: 'gassho', to: target?.id?.startsWith('n') ? target.id.slice(1) : undefined });
   if (target) {
     toast(`Bạn chắp tay chào ${target.name}`);
-    net?.send({ t: 'karma', kind: 'greet' });
+    earn('greet');
   }
 }
 // lạy về phía núi (các điện sẽ dựng trên sườn núi phía bắc)
@@ -325,6 +329,7 @@ function doBow() {
   player.act('bow', Math.PI);
   sound.bow();
   net?.send({ t: 'act', a: 'bow' });
+  earn('bow');
 }
 document.querySelectorAll('.actions button').forEach((b) => b.addEventListener('click', () => {
   if (b.dataset.act === 'gassho') {
@@ -333,6 +338,16 @@ document.querySelectorAll('.actions button').forEach((b) => b.addEventListener('
     if (!near) toast('Chưa có ai ở gần để chào — bạn lại gần một người nhé');
   } else if (b.dataset.act === 'bow') doBow();
   else if (b.dataset.act === 'boat') goBoard();
+  else if (b.dataset.act === 'incense') {
+    sound.init();
+    openIncenseDialog();
+  } else if (b.dataset.act === 'merit') {
+    sound.init();
+    openMeritDialog();
+  } else if (b.dataset.act === 'beads') {
+    sound.init();
+    beads.open();
+  }
 }));
 
 // ---------- Vườn kinh: chạm vào cột kinh để đi tới đọc ----------
@@ -370,8 +385,8 @@ $('#sutra-done').addEventListener('click', () => {
   player.act('gassho');
   sound.gassho();
   net?.send({ t: 'act', a: 'gassho' });
-  if (net) net.send({ t: 'karma', kind: 'sutra' });
-  else toast('Bạn đã đọc xong một cột kinh — nguyện an lạc', 3000);
+  earn('sutra');
+  toast('Bạn đã đọc xong một cột kinh — nguyện an lạc', 3000);
   reading = -1;
 });
 
@@ -664,6 +679,503 @@ function boatsTick(dt) {
   }
 }
 
+// ---------- Hồ sơ Phật tử: điểm phước / nghiệp (như khu Am Mây) ----------
+// Trực tuyến: máy chủ tính điểm và gửi lại ('karma'). Ngoại tuyến: tính ngay trên máy theo cùng quy tắc.
+let localProfile = store.get('profile', null) || newProfile(myName);
+const saveSettings = () => store.set('settings', settings);
+const isBot = (a) => bots.has(a) || String(a.id).startsWith('bot');
+
+function earn(kind, opts) {
+  if (net) {
+    if (CLIENT_KINDS.includes(kind)) net.send({ t: 'karma', kind });
+    return;
+  }
+  localProfile.name = myName;
+  const entry = applyEvent(localProfile, kind, { ...opts, fest: festivalOf(Date.now()) });
+  if (!entry) return;
+  store.set('profile', localProfile);
+  if (!entry.silent) showGain(entry);
+}
+
+// Điểm vừa được cộng: nhãn nhỏ bay lên trên đầu mình
+const gains = [];
+function showGain(entry) {
+  if (!entry) return;
+  const el = document.createElement('div');
+  el.className = 'label gain' + (entry.nghiep ? ' bad' : '');
+  el.textContent = entry.phuoc ? `+${entry.phuoc} phước · ${entry.label}` : `+${entry.nghiep} nghiệp · ${entry.label}`;
+  labelsEl.append(el);
+  gains.push({ el, born: performance.now() });
+}
+function updateGains(now) {
+  for (let i = gains.length - 1; i >= 0; i--) {
+    const g = gains[i];
+    const k = (now - g.born) / 2200;
+    if (k >= 1) {
+      g.el.remove();
+      gains.splice(i, 1);
+      continue;
+    }
+    placeLabel(g.el, player, { lift: 30 + k * 46 + (gains.length - 1 - i) * 22 });
+    g.el.style.opacity = k < 0.7 ? 1 : (1 - k) / 0.3;
+  }
+}
+
+// Chờ máy chủ trả hồ sơ theo mã yêu cầu
+let profileReq = 0;
+const profileWaiters = new Map();
+function requestProfile(id) {
+  return new Promise((resolve) => {
+    const req = ++profileReq;
+    profileWaiters.set(req, resolve);
+    net.send({ t: 'profile', id, req });
+    setTimeout(() => profileWaiters.delete(req) && resolve(undefined), 5000);
+  });
+}
+const fmtDate = (t) => new Date(t).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+const fmtTime = (t) => new Date(t).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+function renderProfile(name, p, note) {
+  $('#pf-avatar').textContent = (name || '?').trim().charAt(0).toUpperCase();
+  $('#pf-name').textContent = name;
+  $('#pf-since').textContent = p ? `Phật tử từ ${fmtDate(p.created)} · ${p.visits} ngày đến chùa` : '';
+  const body = $('#pf-body');
+  body.innerHTML = '';
+  if (!p) {
+    body.append(el('p', 'pf-note', note));
+    return;
+  }
+  const scores = el('div', 'pf-scores');
+  const score = p.phuoc - p.nghiep;
+  const box = el('div', 'pf-score ' + (score < 0 ? 'nghiep' : 'phuoc'));
+  box.append(el('b', null, score.toLocaleString('vi-VN')), el('span', null, 'Điểm phước nghiệp'));
+  scores.append(box);
+  const s = p.stats;
+  const stats = el('div', 'pf-stats');
+  for (const [label, val] of [
+    ['Lạy Phật', s.bow], ['Chào bạn đạo', s.greet], ['Nén nhang', s.incense],
+    ['Góp công đức', s.merit], ['Chuỗi 108 hạt', s.beads], ['Phút tụng kinh', s.chantMin ?? (s.chant || 0) * 10],
+    ['Lá đã quét', s.leaves], ['Tượng La Hán đã lau', s.wipe || 0], ['Thỉnh chuông, trống', s.bell], ['Lần vào chùa', p.visits],
+  ]) {
+    const d = el('div', null, label);
+    d.prepend(el('b', null, (val || 0).toLocaleString('vi-VN')));
+    stats.append(d);
+  }
+  const hist = el('div', 'pf-history');
+  hist.append(el('h3', null, 'Lịch sử phước / nghiệp'));
+  const ul = el('ul');
+  if (!p.history.length) ul.append(el('li', 'empty', 'Chưa có — mọi người mới vào đều bắt đầu từ 0 điểm'));
+  for (const h of p.history) {
+    const li = el('li');
+    li.append(el('span', null, h.label), el('small', null, fmtTime(h.at)), el('em', h.nghiep ? 'bad' : null, h.phuoc ? `+${h.phuoc} phước` : `+${h.nghiep} nghiệp`));
+    ul.append(li);
+  }
+  hist.append(ul);
+  const rules = el('details', 'pf-rules');
+  rules.append(el('summary', null, 'Cách tính điểm'));
+  const rl = el('ul');
+  for (const r of Object.values(RULES)) rl.append(el('li', null, `${r.label}: +${r.phuoc || r.nghiep} ${r.phuoc ? 'phước' : 'nghiệp'} (tối đa ${r.cap} lần/ngày)`));
+  const fest = festivalOf(Date.now());
+  rl.append(el('li', null, `Ngày mùng một và ngày Rằm (âm lịch): điểm phước ×${FESTIVAL_PHUOC}, điểm nghiệp và giới hạn mỗi ngày giữ nguyên${fest ? ` — hôm nay là ${fest.name}` : ''}`));
+  rules.append(rl);
+  body.append(scores, stats, hist, rules);
+}
+async function openProfile(a) {
+  renderProfile(a.name, null, 'Đang mở hồ sơ…');
+  openModal('#modal-profile');
+  if (isBot(a)) {
+    renderProfile(a.name, null, 'Đây là khách mô phỏng nên chưa có hồ sơ Phật tử.');
+    return;
+  }
+  if (!net) {
+    if (a === player) renderProfile(myName, publicProfile(localProfile));
+    return;
+  }
+  const p = await requestProfile(a === player ? 'me' : a.id.slice(1));
+  if ($('#modal-profile').hidden) return;
+  if (p) renderProfile(p.name, p);
+  else renderProfile(a.name, null, p === null ? 'Chưa có hồ sơ.' : 'Không tải được hồ sơ, bạn thử lại nhé.');
+}
+player.labelEl.addEventListener('click', () => openProfile(player));
+function renderMyLabel() {
+  player.labelEl.innerHTML = '<i>Tôi</i>';
+  player.labelEl.append(myName);
+}
+function setMyName(v) {
+  myName = v;
+  player.name = v;
+  store.set('name', v);
+  renderMyLabel();
+  net?.send({ t: 'name', name: v });
+}
+
+// ---------- Thắp nhang: trong điện thì ở lư hương trước bàn thờ, ngoài sân thì ở lư hương đá trước đỉnh đồng ----------
+// Nơi thắp theo chỗ đang đứng: nền của điện nào thì điện đó, còn lại (bờ hồ, sân lớn, vườn kinh) là đỉnh đồng
+function placeOf(a) {
+  for (const T of TERRACES) if (a.pos.z <= T.front && a.pos.z > T.back && Math.abs(a.pos.x) <= T.halfX) return T.key;
+  return 'dinh';
+}
+const burnerOf = (place) => world.burners[place] ?? world.burners.dinh;
+const PLACE_TITLE = {
+  quanam: 'Thắp nhang trong điện Quan Âm',
+  phapchu: 'Thắp nhang dâng Phật trong điện Pháp Chủ',
+  tamthe: 'Thắp nhang dâng Tam Thế Phật',
+  dinh: 'Thắp nhang trước đỉnh đồng giữa sân',
+};
+const PLACE_TEXT = {
+  quanam: 'Bạn sẽ bước tới trước bàn thờ Quan Âm Bồ Tát trong điện, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
+  phapchu: 'Bạn sẽ bước tới lư hương trước bàn thờ điện Pháp Chủ, chắp tay vái lạy đức Phật rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
+  tamthe: 'Bạn sẽ bước tới lư hương giữa điện Tam Thế, chắp tay vái lạy ba đức Phật rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
+  dinh: 'Bạn sẽ bước tới lư hương đá trước đỉnh đồng giữa sân lớn, chắp tay vái lạy rồi cắm nhang. Nhang cháy khoảng ba phút, mọi người đều thấy.',
+};
+const PLACE_DONE = { quanam: ' dâng Quan Âm Bồ Tát', phapchu: ' dâng Phật', tamthe: ' dâng Tam Thế Phật', dinh: '' };
+// Chọn chỗ đứng ít người nhất
+function leastCrowded(list, except) {
+  const crowd = (s) => {
+    let n = 0;
+    for (const o of avatars.values()) {
+      const p = o.goal ?? o.pos;
+      if (o !== except && Math.hypot(p.x - s.x, p.z - s.z) < 0.5) n++;
+    }
+    return n;
+  };
+  const spots = [...list].sort(() => Math.random() - 0.5);
+  return spots.reduce((b, s) => (crowd(s) < crowd(b) ? s : b));
+}
+// Cầm nhang, vái lạy, rồi cắm vào lư hương
+function offerIncense(a, n, onDone, place = placeOf(a)) {
+  const burner = burnerOf(place);
+  a.busy = true;
+  a.holdIncense(n);
+  a.act('bow', Math.atan2(burner.target.x - a.pos.x, burner.target.z - a.pos.z));
+  if (a !== player) bubble(a, 'thắp nhang', 3600);
+  setTimeout(() => {
+    a.busy = false;
+    if (!avatars.has(a.id)) return;
+    a.holdIncense(0);
+    burner.add(n, { mine: a === player });
+    onDone?.();
+  }, 3300);
+}
+const incBtn = $('[data-act=incense]');
+let ritual = null;
+let incN = 3;
+function incenseStats() {
+  const today = new Date().toISOString().slice(0, 10);
+  const st = store.get('incense', {});
+  return st.date === today ? st : { date: today, today: 0, total: st.total || 0 };
+}
+function busyMsg() {
+  if (ride) return 'Bạn đang ngồi thuyền — thuyền về bến sẽ lên bờ';
+  return null;
+}
+function openIncenseDialog() {
+  if (ritual) return;
+  const b = busyMsg();
+  if (b) return toast(b, 2600);
+  const st = incenseStats();
+  $('#inc-stats').textContent = st.today ? `Hôm nay bạn đã thắp ${st.today} nén nhang.` : '';
+  const place = placeOf(player);
+  $('#inc-title').textContent = PLACE_TITLE[place];
+  $('#modal-incense .muted').textContent = PLACE_TEXT[place];
+  openModal('#modal-incense');
+}
+$('#inc-count').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  incN = +b.dataset.n;
+  $('#inc-count').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+});
+$('#inc-go').addEventListener('click', () => {
+  closeModal($('#modal-incense'));
+  const wishEl = $('#inc-wish');
+  const wish = wishEl.value.trim(); // lời nguyện chỉ ở máy người dùng, không gửi đi
+  wishEl.value = '';
+  const place = placeOf(player);
+  const spot = leastCrowded(burnerOf(place).spots, player);
+  movePlayerTo(spot.x, spot.z);
+  ritual = { n: incN, wish, spot, place, started: false };
+  incBtn.disabled = true;
+});
+// mỗi khung hình: tới nơi thì bắt đầu nghi thức; đi chỗ khác thì hủy
+const goalOf = (a) => a.routeTo ?? a.goal;
+function incenseRitual() {
+  if (!ritual || ritual.started) return;
+  const g = goalOf(player);
+  if (g && Math.hypot(g.x - ritual.spot.x, g.z - ritual.spot.z) > 0.05) {
+    ritual = null;
+    incBtn.disabled = false;
+    toast('Đã hủy thắp nhang');
+    return;
+  }
+  if (player.moving || player.routeTo) return;
+  ritual.started = true;
+  const { n, wish, place } = ritual;
+  sound.incense();
+  net?.send({ t: 'act', a: 'incense', n, place });
+  offerIncense(player, n, () => {
+    earn('incense', { n });
+    ritual = null;
+    incBtn.disabled = false;
+    const st = incenseStats();
+    st.today += n;
+    st.total += n;
+    store.set('incense', st);
+    toast(wish ? 'Lời nguyện của bạn đã theo làn khói hương bay lên' : `Bạn đã thắp ${n} nén nhang${PLACE_DONE[place]}`, 4200);
+  }, place);
+}
+
+// ---------- Thùng công đức (tượng trưng, mỗi người 3 lần/ngày; sổ công đức chung với khu Am Mây) ----------
+const MERIT_PER_DAY = 3;
+const meritBoard = { total: 0, recent: [] };
+let meritRun = null;
+function meritStats() {
+  const st = store.get('merit', {});
+  return st.date === vnDate() ? st : { date: vnDate(), used: 0, total: st.total || 0 };
+}
+function setMeritUsed(used) {
+  const st = meritStats();
+  if (used > st.used) st.total = (st.total || 0) + (used - st.used);
+  st.used = Math.min(MERIT_PER_DAY, used);
+  store.set('merit', st);
+}
+// thùng gần nhất: trong điện nào thì thùng điện đó, ngoài sân thì thùng cạnh đỉnh đồng
+const meritOf = (a) => world.merits.find((m) => m.place === placeOf(a)) ?? world.merits[world.merits.length - 1];
+function renderMerit() {
+  const used = meritStats().used, left = MERIT_PER_DAY - used;
+  $('#merit-total').textContent = meritBoard.total.toLocaleString('vi-VN');
+  $('#merit-left').textContent = left > 0 ? `Còn ${left} lần` : 'Đã góp đủ — hẹn bạn ngày mai';
+  $('#merit-dots').querySelectorAll('i').forEach((d, k) => d.classList.toggle('used', k < used));
+  const go = $('#merit-go');
+  go.disabled = left <= 0;
+  go.textContent = left > 0 ? 'Góp công đức' : 'Hôm nay bạn đã góp đủ 3 lần';
+  const ul = $('#merit-recent');
+  ul.innerHTML = '';
+  if (!meritBoard.recent.length) ul.append(el('li', 'empty', 'Chưa có ai góp hôm nay'));
+  for (const r of meritBoard.recent.slice(0, 8)) {
+    const li = el('li');
+    li.append(el('span', null, r.name || 'Một người ẩn danh'), el('small', null, new Date(r.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })));
+    ul.append(li);
+  }
+}
+async function openMeritDialog() {
+  if (meritRun) return toast('Bạn đang đi tới thùng công đức…');
+  const b = busyMsg();
+  if (b) return toast(b, 2600);
+  renderMerit();
+  openModal('#modal-merit');
+  if (net) {
+    const m = await fetchMerit();
+    if (m) {
+      Object.assign(meritBoard, { total: m.total, recent: m.recent });
+      renderMerit();
+    }
+  }
+}
+$('#merit-go').addEventListener('click', () => {
+  if (meritStats().used >= MERIT_PER_DAY) return;
+  closeModal($('#modal-merit'));
+  const dedicEl = $('#merit-dedic');
+  const dedic = dedicEl.value.trim(); // lời hồi hướng chỉ ở máy người dùng
+  dedicEl.value = '';
+  const box = meritOf(player);
+  const spot = leastCrowded(box.spots, player);
+  movePlayerTo(spot.x, spot.z);
+  meritRun = { spot, box, anon: $('#merit-anon').checked, dedic, started: false };
+});
+// Cầm phong bì, chắp tay, phong bì bay vào khe thùng
+function offerMerit(a, onDone, box = meritOf(a)) {
+  a.busy = true;
+  a.holdEnvelope(true);
+  const c = box.center;
+  a.act('gassho', Math.atan2(c.x - a.pos.x, c.z - a.pos.z));
+  if (a !== player) bubble(a, 'góp công đức', 3000);
+  setTimeout(() => {
+    if (!avatars.has(a.id)) return;
+    box.drop(a.envelope.getWorldPosition(new THREE.Vector3()));
+    a.holdEnvelope(false);
+    setTimeout(() => {
+      a.busy = false;
+      if (a === player || a.pos.distanceTo(player.pos) < 9) sound.merit();
+      onDone?.();
+    }, 750);
+  }, 1300);
+}
+function meritRitual() {
+  if (!meritRun || meritRun.started) return;
+  const g = goalOf(player);
+  if (g && Math.hypot(g.x - meritRun.spot.x, g.z - meritRun.spot.z) > 0.05) {
+    meritRun = null;
+    toast('Đã hủy góp công đức');
+    return;
+  }
+  if (player.moving || player.routeTo) return;
+  meritRun.started = true;
+  const { anon, dedic, box } = meritRun;
+  offerMerit(player, () => {
+    meritRun = null;
+    const used = meritStats().used + 1;
+    setMeritUsed(used);
+    if (net) net.send({ t: 'merit', anon });
+    else {
+      earn('merit');
+      meritBoard.total++;
+      meritBoard.recent.unshift({ name: anon ? null : myName, at: Date.now() });
+      meritBoard.recent.length = Math.min(meritBoard.recent.length, 12);
+    }
+    renderMerit();
+    const left = MERIT_PER_DAY - used;
+    toast(dedic ? `Nguyện hồi hướng: ${dedic}` : 'Công đức của bạn đã được ghi vào sổ', 4000);
+    setTimeout(() => {
+      toast(left > 0 ? `Hôm nay bạn còn ${left} lần góp công đức` : 'Bạn đã góp đủ 3 lần hôm nay. Hẹn bạn ngày mai.', 3600);
+    }, 4200);
+  }, box);
+}
+
+// ---------- Tràng hạt ----------
+const beads = new Beads($('#beads'), { sound, store, onClose: () => {} });
+beads.onRound = () => earn('beads');
+
+// ---------- Nghe tụng kinh: chữ chạy theo lời tụng; mỗi phút đang phát được ghi vào hồ sơ ----------
+const chantBtn = $('#btn-chant');
+const caption = $('#chant-caption');
+caption.innerHTML = CHANT_SYLLABLES.map((s) => `<span data-text="${s}">${s}</span>`).join('');
+const capSpans = [...caption.querySelectorAll('span')];
+function updateCaption() {
+  if (caption.hidden) return;
+  const pos = sound.karaoke();
+  capSpans.forEach((s, k) => {
+    const p = !pos ? 0 : pos.all ? 1 : k < pos.i ? 1 : k === pos.i ? pos.k : 0;
+    s.style.setProperty('--p', p.toFixed(3));
+    s.classList.toggle('on', !!pos && !pos.all && k === pos.i);
+  });
+}
+const syncMute = () => muteBtn.classList.toggle('muted', settings.muted);
+chantBtn.addEventListener('click', () => {
+  const on = chantBtn.getAttribute('aria-pressed') !== 'true';
+  sound.init();
+  sound.setChant(on);
+  if (on && settings.muted) {
+    settings.muted = false;
+    sound.apply();
+    syncMute();
+    saveSettings();
+  }
+  chantBtn.setAttribute('aria-pressed', on);
+  chantBtn.querySelector('.txt').textContent = on ? 'Dừng tụng kinh' : 'Nghe tụng kinh';
+  caption.hidden = !on;
+  hideHint();
+});
+const chanting = () => chantBtn.getAttribute('aria-pressed') === 'true';
+let chantSec = 0, chantTick = Date.now();
+setInterval(() => {
+  const now = Date.now();
+  if (sound.chanting && sound.ctx?.state === 'running' && !settings.muted) chantSec += Math.min(60, (now - chantTick) / 1000);
+  chantTick = now;
+  if (chantSec >= 60) {
+    chantSec -= 60;
+    earn('chant');
+  }
+}, 10000);
+
+// ---------- Chụp ảnh ----------
+$('#btn-shot').addEventListener('click', () => {
+  renderer.render(scene, camera);
+  canvas.toBlob((b) => {
+    if (!b) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = `am-may-tam-chuc-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }, 'image/png');
+  const f = $('#flash');
+  f.classList.add('on');
+  requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on')));
+  toast('Đã lưu ảnh chụp');
+});
+$('#btn-info').addEventListener('click', () => openModal('#modal-info'));
+
+// ---------- Cài đặt (như khu Am Mây; dùng chung cài đặt đã lưu) ----------
+{
+  const nameIn = $('#set-name');
+  const bind = (sel, key, prop = 'checked') => {
+    const e = $(sel);
+    e[prop] = settings[key];
+    e.addEventListener('input', () => {
+      settings[key] = prop === 'checked' ? e.checked : parseFloat(e.value);
+      sound.init();
+      sound.apply();
+      saveSettings();
+    });
+  };
+  bind('#set-ambient', 'ambient');
+  bind('#set-ambient-vol', 'ambientVol', 'value');
+  bind('#set-chant-vol', 'chantVol', 'value');
+  bind('#set-fx', 'fx');
+  bind('#set-fx-vol', 'fxVol', 'value');
+  bind('#set-bg', 'bg');
+  bind('#set-names', 'showNames');
+  const seg = $('#set-quality');
+  const syncQ = () => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.q === settings.quality));
+  syncQ();
+  seg.addEventListener('click', (e) => {
+    const q = e.target.closest('button')?.dataset.q;
+    if (!q || q === settings.quality) return;
+    settings.quality = q;
+    syncQ();
+    saveSettings();
+    // khu Tam Chúc dựng cảnh theo mức đồ họa lúc mở trang: tải lại để đổi
+    toast('Đang tải lại trang để đổi đồ họa…', 2000);
+    setTimeout(() => location.reload(), 600);
+  });
+  const voiceSel = $('#set-chant-voice');
+  const voiceStatus = $('#voice-status');
+  const renderVoices = () => {
+    const opts = [['auto', 'Tự động (tốt nhất có sẵn)']];
+    if (sound.hasRecording) opts.push(['record', 'Bản ghi âm tụng kinh']);
+    for (const v of vietnameseVoices()) opts.push([`tts:${v.name}`, `Giọng đọc: ${v.name.replace(/^Microsoft |\s*\(.*\)$/g, '')}`]);
+    opts.push(['synth', 'Giọng ngân tổng hợp']);
+    voiceSel.innerHTML = '';
+    for (const [value, label] of opts) voiceSel.append(new Option(label, value));
+    voiceSel.value = opts.some(([v]) => v === settings.chantVoice) ? settings.chantVoice : 'auto';
+    voiceStatus.textContent = sound.chantModeLabel();
+  };
+  sound.onVoices = renderVoices;
+  sound.recordingChecked?.then(renderVoices);
+  voiceSel.addEventListener('change', () => {
+    settings.chantVoice = voiceSel.value;
+    saveSettings();
+    voiceStatus.textContent = sound.chantModeLabel();
+    if (chanting()) sound.setChant(true);
+  });
+  const langSel = $('#set-lang');
+  for (const [k, name] of Object.entries(LANGS)) langSel.append(new Option(name, k));
+  langSel.value = lang;
+  langSel.addEventListener('change', () => setLang(langSel.value));
+  $('#btn-my-profile').addEventListener('click', () => {
+    closeModal($('#modal-settings'));
+    openProfile(player);
+  });
+  $('#btn-settings').addEventListener('click', () => {
+    nameIn.value = myName;
+    renderVoices();
+    openModal('#modal-settings');
+  });
+  nameIn.addEventListener('change', () => {
+    const v = nameIn.value.trim().slice(0, 20);
+    if (!v || v === myName) return;
+    setMyName(v);
+    toast(`Pháp danh của bạn: ${v}`);
+  });
+}
+document.addEventListener('visibilitychange', () => sound.setHidden?.(document.hidden));
+
 // ---------- Chat ----------
 const chatInput = $('#chat-input');
 let lastChat = 0;
@@ -714,6 +1226,7 @@ function handleTap(x, y) {
   if (boatHit) return goBoard();
   const pillarHit = ray.intersectObjects(world.pillars, false)[0];
   if (pillarHit) return goRead(pillarHit.object.userData.index);
+  if (ray.intersectObjects(world.merits.map((m) => m.group), true)[0]) return openMeritDialog();
   const hit = ray.intersectObjects(world.pickables, false)[0];
   if (hit) movePlayerTo(hit.point.x, hit.point.z);
 }
@@ -831,7 +1344,7 @@ function ovMarkerLift() {
 
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest('input, textarea') || document.querySelector('.modal.show')) return;
+  if (e.target.closest('input, textarea, select') || document.querySelector('.modal.show') || beads.isOpen) return;
   const k = e.key.toLowerCase();
   if (k === 'enter') {
     e.preventDefault();
@@ -982,6 +1495,8 @@ function wireNet(n) {
     } else if (m.a === 'bow') {
       a.act('bow', Math.PI);
       bubble(a, 'lạy Phật');
+    } else if (m.a === 'incense') {
+      offerIncense(a, m.n === 3 ? 3 : 1, null, world.burners[m.place] ? m.place : placeOf(a));
     }
   });
   n.on('chat', (m) => {
@@ -992,10 +1507,28 @@ function wireNet(n) {
     const a = avatars.get('n' + m.id);
     if (a) a.nameEl.textContent = a.name = m.name;
   });
-  n.on('karma', (m) => {
-    const e = m.entry;
-    if (e?.phuoc) toast(`+${e.phuoc} phước · ${e.label}`, 2600);
-    else if (e?.nghiep) toast(`+${e.nghiep} nghiệp · ${e.label}`, 2600);
+  n.on('karma', (m) => showGain(m.entry));
+  n.on('profile', (m) => {
+    const resolve = profileWaiters.get(m.req);
+    if (!resolve) return;
+    profileWaiters.delete(m.req);
+    resolve(m.profile);
+  });
+  n.on('merit', (m) => {
+    Object.assign(meritBoard, { total: m.total, recent: m.recent });
+    renderMerit();
+    const a = avatars.get('n' + m.id);
+    if (a) offerMerit(a);
+  });
+  n.on('merit-ok', (m) => {
+    Object.assign(meritBoard, { total: m.total, recent: m.recent });
+    setMeritUsed(m.used);
+    renderMerit();
+  });
+  n.on('merit-denied', (m) => {
+    setMeritUsed(m.used);
+    renderMerit();
+    toast('Hôm nay bạn đã góp đủ 3 lần công đức. Hẹn bạn ngày mai.');
   });
   n.on('count', (m) => {
     onlineCount = m.n;
@@ -1013,6 +1546,7 @@ async function join() {
   const n = await connect({ room: roomId, name: myName, robe: myRobe, sandals: mySandals, uid: myUid });
   if (!n) {
     toast('Đang chạy ngoại tuyến — chưa kết nối được máy chủ', 4000);
+    earn('visit'); // ngoại tuyến: tự ghi lượt vào chùa (trực tuyến thì máy chủ ghi)
     syncBots();
     return;
   }
@@ -1020,6 +1554,11 @@ async function join() {
   net = n;
   wireNet(n);
   n.welcome.peers.forEach(addRemote);
+  if (n.welcome.merit) {
+    const { total, recent, used } = n.welcome.merit;
+    Object.assign(meritBoard, { total, recent });
+    setMeritUsed(used);
+  }
   onlineCount = n.welcome.peers.length + 1;
   updateCount();
   sendMove();
@@ -1090,7 +1629,11 @@ renderer.setAnimationLoop(() => {
   if (!ov.on) world.setFocus(player.pos.x, player.pos.z); // nhìn toàn cảnh thì giữ nguyên vùng bóng đổ
   updateCamera(dt);
   renderer.render(scene, camera);
+  incenseRitual();
+  meritRitual();
   updateLabels(performance.now());
+  updateGains(performance.now());
+  updateCaption();
 });
 renderer.compile(scene, camera);
 setTimeout(() => $('#loader').classList.add('done'), 400);

@@ -8,6 +8,7 @@ import { curvedRoof, dragonsOnRidge, karstGeometry, karstMaterial, ARCH } from '
 import { PILLARS } from './sutras.js';
 import { makeBuddha } from '../buddha.js';
 import { makeQuanAm, swapToCarvedQuanAm } from '../quanam.js';
+import { ritualKit } from '../rituals.js';
 
 // Mặt đất đi lại cao 0,8 m so với mặt hồ; bờ kè thẳng ở z = SHORE
 export const LAND = 0.8;
@@ -61,6 +62,12 @@ for (const T of TERRACES) {
     { minX: -H.hx + 1, maxX: H.hx - 1, minZ: H.back + 3.0, maxZ: H.front - 0.6 }, // trong điện (bàn thờ ở phía sau)
   );
 }
+// Lư hương và thùng công đức: trước bàn thờ mỗi điện, và trước đỉnh đồng giữa sân lớn (dựng trong buildTamChuc)
+export const RITUALS = [
+  ...TERRACES.map((T) => ({ place: T.key, y: T.y + 0.25, burner: { x: 0, z: T.hall.back + 3.6 }, merit: { x: T.hall.hx - 2.4, z: T.hall.back + 3.4 }, face: { x: 0, y: T.y + 2.8, z: T.hall.back + 1.7 } })),
+  { place: 'dinh', y: LAND, burner: { x: CAULDRON.x, z: CAULDRON.z + 4.6 }, merit: { x: CAULDRON.x + 3.4, z: CAULDRON.z + 4.4 }, face: { x: CAULDRON.x, y: LAND + 2.4, z: CAULDRON.z } },
+];
+for (const R of RITUALS) ROUND_OBSTACLES.push({ x: R.burner.x, z: R.burner.z, r: 0.8 }, { x: R.merit.x, z: R.merit.z, r: 0.7 });
 for (const S of STAIRS) WALK_AREAS.push({ minX: -S.x + 0.8, maxX: S.x - 0.8, minZ: S.top - 1.0, maxZ: S.bottom + 0.4 });
 export const SPAWN = { x: 0, z: 47, ry: Math.PI };
 
@@ -856,9 +863,27 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     }
   }
 
+  // ---------- Lư hương có nhang cháy và thùng công đức (vị trí ở RITUALS) ----------
+  const kit = ritualKit({ scene, updaters, pickables });
+  const burners = {};
+  const merits = [];
+  for (const R of RITUALS) {
+    const { x: bx, z: bz } = R.burner, { x: mx, z: mz } = R.merit;
+    burners[R.place] = kit.incenseStand({
+      x: bx, y: R.y, z: bz, kind: R.place === 'dinh' ? 'stone' : 'stand',
+      spots: [-1, 0, 1].map((dx) => ({ x: bx + dx, z: bz + 1.25 })),
+      target: new THREE.Vector3(R.face.x, R.face.y, R.face.z),
+    });
+    const mb = kit.meritBox({ x: mx, y: R.y, z: mz, spots: [-0.45, 0, 0.45].map((dx) => ({ x: mx + dx, z: mz + 0.85 })) });
+    mb.place = R.place;
+    merits.push(mb);
+  }
+
   return {
     scene,
     pickables,
+    burners,
+    merits,
     boats,
     boatState,
     pillars,
