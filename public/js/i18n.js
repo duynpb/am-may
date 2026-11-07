@@ -97,6 +97,12 @@ const BOARDS = {
   'VƯỜN RAU': [['VEGETABLES'], ['菜园'], ['GEMÜSE']],
   'VƯỜN QUẢ': [['ORCHARD'], ['果园'], ['OBSTGARTEN']],
   'LÀNG MÂY': [['CLOUD VILLAGE'], ['云村'], ['WOLKENDORF']],
+  'TIẾNG ANH': [['ENGLISH'], ['英语'], ['ENGLISCH']],
+  'TIẾNG TRUNG': [['CHINESE'], ['中文'], ['CHINESISCH']],
+  'TIẾNG ĐỨC': [['GERMAN'], ['德语'], ['DEUTSCH']],
+  'TIẾNG HÀN': [['KOREAN'], ['韩语'], ['KOREANISCH']],
+  'PHẬT HỌC': [['BUDDHIST STUDIES'], ['佛学'], ['BUDDHISMUS']],
+  'TÀNG KINH CÁC': [['SUTRA LIBRARY'], ['藏经阁'], ['SUTRENBIBLIOTHEK']],
 };
 export function tBoard(lines) {
   if (col == null) return lines;
@@ -105,7 +111,10 @@ export function tBoard(lines) {
 
 // ---------- Tự dịch chữ hiện lên trang ----------
 const done = new WeakMap(); // nút chữ → chữ đã dịch gần nhất (để không dịch lặp)
+// chữ nằm trong phần có data-no-i18n (nội dung bài học ngoại ngữ…) giữ nguyên
+const skip = (el) => !!el?.closest?.('[data-no-i18n]');
 function fixText(node) {
+  if (skip(node.parentElement)) return;
   const v = node.nodeValue;
   if (!v || done.get(node) === v) return;
   const core = v.trim();
@@ -119,6 +128,7 @@ function fixText(node) {
 }
 const ATTRS = ['title', 'placeholder', 'aria-label', 'alt'];
 function fixAttrs(el) {
+  if (skip(el)) return;
   for (const a of ATTRS) {
     const v = el.getAttribute?.(a);
     if (!v) continue;

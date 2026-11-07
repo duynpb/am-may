@@ -1,6 +1,6 @@
 import { lang, LANGS, setLang } from './i18n.js'; // nạp trước để tự dịch chữ trên trang
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, PEAK, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, LIB, PEAK, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { Dog } from './dog.js';
 import {
@@ -10,6 +10,7 @@ import {
 } from './field.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
+import { createLearn } from './learn.js';
 import { VILLAGE, VILLAGE_TASKS, VILLAGE_ROUND, HOUSES, HAYS, yardOf } from './village.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS, STUDY_SOUNDS } from './audio.js';
 import { Beads } from './beads.js';
@@ -283,7 +284,9 @@ const ROUND_OBSTACLES = [
   { x: TOWER.x, z: TOWER.z, r: TOWER.plinthR + 0.7 },
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
   // bàn học trong nhà tự học (bồ đoàn ở ngay sau bàn nên đi tới bồ đoàn không bị vòng)
-  ...STUDY.rows.flatMap((z) => STUDY.cols.map((x) => ({ x, z: z + STUDY.deskDz, rx: 0.72, rz: 0.4 }))),
+  ...STUDY.desks.map((k) => ({ x: k.x, z: k.z + STUDY.deskDz, rx: 0.72, rz: 0.4 })),
+  // lầu Phật pháp: tầng dưới đóng cửa, cầu thang ngoài — lên lầu đi bằng cầu thang
+  { x: (LIB.x0 + LIB.stair.x1) / 2, z: (LIB.z0 + LIB.stair.zFoot) / 2, rx: 7.6, rz: 6.9 },
   // bệ tượng Phật nằm và vách núi sau lưng, lư hương trước tượng
   { x: NGOA.x - 2.6, z: NGOA.z, rx: 7.5, rz: NGOA.len / 2 + 5 },
   { x: NGOA.burner.x, z: NGOA.burner.z, r: 0.9 },
@@ -806,7 +809,50 @@ async function peakDown(a) {
   return true;
 }
 
-// Những chỗ trên cao: tầng 13 của tháp, sàn gác chuông và đài thiền
+// ---------- Lầu Phật pháp (tầng 2 khu tự học): cầu thang đá ngoài trời dọc mặt đông ----------
+const LB = LIB;
+const onLibXZ = (x, z) => (x >= LB.x0 && x <= LB.x1 && z >= LB.z0 && z <= LB.z1) || inBox(LB.landing, x, z);
+const LIB_DESKS = LB.desks.map((k) => ({ x: k.x, z: k.z + STUDY.deskDz, rx: 0.72, rz: 0.4 }));
+const clampLib = (x, z) => [clamp(x, LB.floor.x0, LB.floor.x1), clamp(z, LB.floor.z0, LB.floor.z1)];
+const libPath = (ax, az, bx, bz) => detour(ax, az, bx, bz, 0, LIB_DESKS).map(([px, pz]) => clampLib(px, pz));
+async function walkLib(a, x, z, seat = null) {
+  [x, z] = seat ? [seat.x, seat.z] : clampLib(x, z);
+  const token = (a.route = {});
+  a.routeTo = { x, z, seat };
+  for (const [px, pz] of libPath(a.pos.x, a.pos.z, x, z)) {
+    await a.walk(px, pz);
+    if (a.route !== token) return false;
+  }
+  a.routeTo = null;
+  a.walkTo(x, z, seat);
+  return new Promise((res) => (a.onArrive = () => res(a.route === token)));
+}
+async function libUp(a) {
+  const token = (a.script = {});
+  await walkRoute(a, LB.foot.x, LB.foot.z);
+  if (!alive(a, token)) return false;
+  for (const p of [LB.entry, LB.top, LB.arrive]) {
+    await a.walk(p.x, p.z);
+    if (!alive(a, token)) return false;
+  }
+  a.script = null;
+  return true;
+}
+async function libDown(a) {
+  const token = (a.script = {});
+  for (const [px, pz] of [...libPath(a.pos.x, a.pos.z, LB.arrive.x, LB.arrive.z), [LB.arrive.x, LB.arrive.z]]) {
+    await a.walk(px, pz);
+    if (!alive(a, token)) return false;
+  }
+  for (const p of [LB.top, LB.entry, LB.foot]) {
+    await a.walk(p.x, p.z);
+    if (!alive(a, token)) return false;
+  }
+  a.script = null;
+  return true;
+}
+
+// Những chỗ trên cao: tầng 13 của tháp, sàn gác chuông, đài thiền, đỉnh núi đá, lầu Phật pháp
 const LOFTS = {
   tower: {
     clamp: clampTower, up: towerUp, down: towerDown, door: TOWER.door, y: TOWER.topY,
@@ -826,6 +872,12 @@ const LOFTS = {
     upMsg: 'Leo cầu thang đá lên đỉnh núi…', downMsg: 'Xuống núi theo cầu thang đá…',
     arrived: 'Bạn đã lên tới đỉnh núi — lạy Phật, thắp nhang ở khám thờ trước tháp và ngắm toàn cảnh chùa',
   },
+  lib: {
+    clamp: clampLib, up: libUp, down: libDown, door: LB.foot, y: LB.y,
+    go: walkLib,
+    upMsg: 'Lên cầu thang lầu Phật pháp…', downMsg: 'Xuống cầu thang lầu Phật pháp…',
+    arrived: 'Bạn đang ở tầng 2 — lầu học Phật pháp: bấm kệ sách để chọn cách học, ngồi vào bàn để học',
+  },
   zen: {
     clamp: clampZen, up: zenUp, down: zenDown, door: ZL.foot, y: ZL.y,
     go: walkZen,
@@ -833,7 +885,7 @@ const LOFTS = {
     arrived: 'Bạn đang ở trên đài thiền — chạm một bồ đoàn quanh đài sen để ngồi thiền, ngắm toàn cảnh chùa',
   },
 };
-const loftAt = (x, z) => (onTowerXZ(x, z) ? 'tower' : onBellXZ(x, z) ? 'bell' : onZenXZ(x, z) ? 'zen' : onPeakXZ(x, z) ? 'peak' : null);
+const loftAt = (x, z) => (onTowerXZ(x, z) ? 'tower' : onBellXZ(x, z) ? 'bell' : onZenXZ(x, z) ? 'zen' : onPeakXZ(x, z) ? 'peak' : onLibXZ(x, z) ? 'lib' : null);
 const loftOf = (a) => loftAt(a.pos.x, a.pos.z);
 
 // Đi qua thềm giữa trong và ngoài chánh điện: ra thì mang dép, vào thì cởi dép xếp ngay ngắn.
@@ -1710,7 +1762,8 @@ const PLACES = [
   { id: 'bridge', name: 'Cầu đá qua sông', x: 0, z: 116.5, ry: 0 },
   { id: 'peak', name: 'Tháp trên núi đá', x: PEAK.x - PEAK.pagodaHalf - 5, z: PEAK.z + 2, ry: Math.PI / 2 },
   { id: 'peakfoot', name: 'Chân núi đá (lối lên tháp)', x: PEAK.foot.x - 3, z: PEAK.foot.z, ry: Math.PI / 2 },
-  { id: 'study', name: 'Nhà tự học', x: STUDY.door.x, z: STUDY.door.z, ry: Math.PI / 2 },
+  { id: 'study', name: 'Nhà tự học', x: STUDY.door.x, z: STUDY.door.z, ry: Math.PI },
+  { id: 'lib', name: 'Lầu Phật pháp (tầng 2)', x: LIB.cx, z: LIB.z1 - 1.2, ry: Math.PI },
   { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.court.x1 - 0.6, z: NGOA.z, ry: -Math.PI / 2 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
   { id: 'village', name: 'Làng Mây', x: VILLAGE.gate.x - 5, z: VILLAGE.road.z, ry: Math.PI / 2 },
@@ -1813,7 +1866,9 @@ function buildMap() {
     rect(s > 0 ? 15.5 : -21.5, s > 0 ? 21.5 : -15.5, 22.6, 24.4, 'm-stone'); // lối sang sân bên
   }
   rect(QAHALL.x0, QAHALL.x1, QAHALL.z0, QAHALL.z1, 'm-hall');
-  rect(STUDY.x0, STUDY.x1, STUDY.z0, STUDY.z1, 'm-hall'); // nhà tự học sau điện Quan Âm
+  rect(STUDY.x0, STUDY.x1, STUDY.z0, STUDY.z1, 'm-hall'); // dãy 4 phòng học ngoại ngữ sau điện Quan Âm
+  rect(LIB.x0, LIB.x1, LIB.z0, LIB.z1, 'm-hall'); // lầu Phật pháp
+  rect(LIB.stair.x0, LIB.stair.x1, LIB.z0, LIB.stair.zFoot, 'm-stairs');
   rect(-49, -46, -46.8, 116, 'm-water'); // kênh nước phía tây
   rect(-46, -22.8, -46.8, -44.4, 'm-water');
   rect(74.5, 77.5, -46.8, 138, 'm-water'); // kênh nước phía đông
@@ -1878,6 +1933,7 @@ function buildMap() {
     ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['ngoa', NGOA.x, NGOA.z, 'Phật nằm'],
     ['study', STUDY.cx, STUDY.cz, 'Tự học'],
+    ['lib', LIB.cx, LIB.cz, 'Phật học'],
     ['peak', PEAK.x, PEAK.z - PEAK.r - 3, 'Tháp núi đá'],
     ['bridge', -6, 128, 'Cầu đá'],
     ['stairs', 6.5, -40, 'Bậc thang'],
@@ -3353,6 +3409,14 @@ function handleTap(x, y) {
     clickVillage(firstHit, o);
     return;
   }
+  if (kind === 'shelf') {
+    learn.openShelf(o.userData.room);
+    return;
+  }
+  if (kind === 'board') {
+    learn.openBoard(o.userData.room);
+    return;
+  }
   if (kind === 'broom') {
     clickBroom();
     return;
@@ -3645,6 +3709,7 @@ function updateCamera(dt) {
   // mái nhà tự học mờ đi khi camera cao hơn chân mái mà người chơi đang ở trong nhà
   const inStudy = player.pos.x > STUDY.x0 - 0.3 && player.pos.x < STUDY.x1 + 0.3 && player.pos.z > STUDY.z0 && player.pos.z < STUDY.z1 + 0.3;
   world.studyRoof?.setFade(inStudy && camera.position.y > world.studyRoof.eaveY - 0.3 ? 0.18 : 1);
+  world.libRoof?.setFade(loftOf(player) === 'lib' && camera.position.y > world.libRoof.eaveY - 0.3 ? 0.18 : 1);
   // mái đài thiền mờ đi khi camera bay cao hơn chân mái mà người chơi đang ở dưới mái
   world.zenRoof?.setFade(zenHigh && camera.position.y > world.zenRoof.eaveY - 0.3 ? 0.18 : 1);
   if (!ov.on) {
@@ -3741,6 +3806,13 @@ function openModal(id) {
   m.hidden = false;
   requestAnimationFrame(() => m.classList.add('show'));
 }
+// Bảng học ở khu tự học: kệ sách chọn cách học, bảng đen (vẽ lại bảng đen trong cảnh theo bài đang học)
+const learn = createLearn({
+  openModal: (id) => openModal(id),
+  closeModal: (m) => closeModal(m),
+  toast: (m, ms) => toast(m, ms),
+  setBoard: (room, head, lines) => world.studyBoards?.get(room)?.draw(head, lines.filter(Boolean)),
+});
 function closeModal(m) {
   m.classList.remove('show');
   // chỉ ẩn nếu chưa được mở lại trong lúc đang đóng
