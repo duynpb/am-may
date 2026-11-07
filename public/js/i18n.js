@@ -96,6 +96,7 @@ const BOARDS = {
   'NHÀ TỰ HỌC': [['STUDY HALL'], ['自习堂'], ['LERNHALLE']],
   'VƯỜN RAU': [['VEGETABLES'], ['菜园'], ['GEMÜSE']],
   'VƯỜN QUẢ': [['ORCHARD'], ['果园'], ['OBSTGARTEN']],
+  'LÀNG MÂY': [['CLOUD VILLAGE'], ['云村'], ['WOLKENDORF']],
 };
 export function tBoard(lines) {
   if (col == null) return lines;

@@ -51,11 +51,13 @@ function dampAngle(a, b, k, dt) {
 }
 
 export class Avatar {
-  constructor({ id, name, robe = 0, skin, isPlayer = false, speed, novice = false }) {
+  // look (tuỳ chọn): người đời thường / sư / ni — { shirt, pants, hat: 'non' | 'khan' | 'hair' | 'bun' | 'bald', scale }
+  constructor({ id, name, robe = 0, skin, isPlayer = false, speed, novice = false, look = null }) {
     this.id = id;
     this.name = name;
     this.isPlayer = isPlayer;
     this.novice = novice;
+    this.look = look;
     this.speed = speed ?? (isPlayer ? 2.8 : novice ? 2.3 : 1.7);
     this.pos = new THREE.Vector3();
     this.ry = Math.PI;
@@ -73,9 +75,10 @@ export class Avatar {
     this.time = 0;
     this.onArrive = null;
     this.wearing = false;
-    const colors = novice ? { robe: '#c47a2b', sash: '#7a2618' } : ROBES[robe % ROBES.length];
+    const colors = look ? { robe: look.shirt, sash: look.sash ?? look.shirt, pants: look.pants } : novice ? { robe: '#c47a2b', sash: '#7a2618' } : ROBES[robe % ROBES.length];
     this.build(colors, skin ?? SKINS[Math.floor(Math.random() * SKINS.length)]);
     if (novice) this.root.scale.setScalar(0.82);
+    if (look?.scale) this.root.scale.setScalar(look.scale);
   }
 
   // Đôi dép của nhân vật (màu [đế, quai]); wearSandals(true) = đang mang
@@ -110,7 +113,7 @@ export class Avatar {
 
     this.lower = new THREE.Group();
     root.add(this.lower);
-    this.skirt = add(g.skirt, robe, this.lower);
+    this.skirt = add(g.skirt, colors.pants ? mat(colors.pants) : robe, this.lower);
     this.feet = [-1, 1].map((s) => {
       const f = add(g.foot, mat('#3d3833'), this.lower, s * 0.13, 0.04, 0.1);
       f.scale.set(1, 0.6, 1.4);
@@ -123,6 +126,7 @@ export class Avatar {
     add(g.torso, robe, this.upper);
     const s1 = add(g.sash, sash, this.upper, 0.02, 0.22, 0.27);
     s1.rotation.set(-0.12, 0, 0.62);
+    if (this.look && !this.look.sash) s1.visible = false; // áo bà ba không có dải y
     add(g.collar, sash, this.upper, 0, 0.43, 0);
 
     this.head = new THREE.Group();
@@ -133,6 +137,22 @@ export class Avatar {
     if (this.novice) {
       // chỏm tóc trái đào của chú tiểu
       add(g.topknot, eyeM, this.head, 0, 0.35, 0.1);
+    }
+    const hat = this.look?.hat;
+    if (hat && hat !== 'bald') {
+      // tóc đen phủ nửa trên đầu
+      const hair = add(new THREE.SphereGeometry(0.375, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), mat('#1d1916', 0.7), this.head, 0, 0.02, -0.03);
+      hair.rotation.x = -0.25;
+      if (hat === 'bun') add(new THREE.SphereGeometry(0.12, 12, 10), mat('#1d1916', 0.7), this.head, 0, 0.12, -0.36); // búi tóc sau gáy
+      if (hat === 'non') {
+        // nón lá
+        const non = add(new THREE.ConeGeometry(0.66, 0.4, 28, 1, true), mat('#e3cf98', 0.9), this.head, 0, 0.42, 0);
+        non.material.side = THREE.DoubleSide;
+        add(new THREE.TorusGeometry(0.64, 0.015, 4, 28).rotateX(Math.PI / 2), mat('#c9b37a', 0.9), this.head, 0, 0.23, 0);
+      } else if (hat === 'khan') {
+        // khăn xếp / khăn rằn quấn đầu
+        add(new THREE.TorusGeometry(0.33, 0.07, 8, 22).rotateX(Math.PI / 2), mat(this.look.khan ?? '#3a3236', 0.8), this.head, 0, 0.2, 0);
+      }
     }
     for (const s of [-1, 1]) {
       add(g.eye, eyeM, this.head, s * 0.12, 0.0, 0.33).scale.set(1.3, 0.5, 0.6);

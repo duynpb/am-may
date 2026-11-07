@@ -9,6 +9,7 @@ import { makeQuanAm, swapToCarvedQuanAm } from './quanam.js';
 import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
 import { lahanSpot, LAHAN_IDS } from './statues.js';
+import { VILLAGE, VILLAGE_WALK, VILLAGE_BLOCKS, buildVillage } from './village.js';
 import { FIELD, PLOTS, plotRect, riceStage, VEG, VEG_PLOTS, VEG_RIPE_AGE, vegRect, vegStage, ORCHARD, ORCHARD_TREES, ORCHARD_COUNT, fruitStage } from './field.js';
 
 // Vùng được đi lại bên trong chánh điện
@@ -172,6 +173,7 @@ export const WALK_AREAS = [
   { minX: -25.2, maxX: 25.2, minZ: TERRACE.z0 + 1.2, maxZ: TAMTHE.z0 - 0.6 }, // lối sau lưng điện Tam Thế trên nền đồi
   { minX: -4, maxX: 4, minZ: TAMTHE.z1 - 1.2, maxZ: TAMTHE.z1 + 0.8 }, // cửa giữa điện Tam Thế
   { minX: TAMTHE.x0 + 0.8, maxX: TAMTHE.x1 - 0.8, minZ: TAMTHE.z0 + 3.6, maxZ: TAMTHE.z1 - 0.6 }, // trong điện Tam Thế
+  ...VILLAGE_WALK, // đường đất sang Làng Mây và trong làng
 ];
 // Tháp 13 tầng phía bên kia sân, đối diện tượng Quan Âm. Mỗi tầng nhỏ và thấp dần lên trên.
 const TOWER_LEVELS = Array.from({ length: 13 }, (_, i) => ({ r: 4.8 - i * 0.1, h: 2.15 - i * 0.03 }));
@@ -208,6 +210,7 @@ export function groundY(x, z) {
         if (Math.abs(d - p.R) <= PEAK.W / 2 + 0.45) return PORCH.courtY + p.y;
       }
     }
+    if (Math.abs(x - VILLAGE.bridgeX) < 2.6 && z > VILLAGE.road.z0 - 0.2 && z < VILLAGE.road.z1 + 0.2) return PORCH.courtY + 0.3; // cầu đá nhỏ sang làng
     if (Math.abs(x - 76) < 2.6 && z > PEAK.lane.z0 - 0.2 && z < PEAK.lane.z1 + 0.2) return PORCH.courtY + 0.3; // cầu đá nhỏ qua kênh
   }
   if (z < -32.5) {
@@ -352,7 +355,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     ridgeMats.push(mat);
     // phông núi xa: đặt ngoài hai dòng kênh (x = -47,5 và 76) và bên kia sông, để không đè lên kênh khi nhìn từ trên cao
     const d = 125 + i * 28;
-    for (const [x, z, ry] of [[d, 0, -Math.PI / 2], [-d, 0, Math.PI / 2], [0, d + 85, Math.PI]]) {
+    // phía đông lùi ra sau Làng Mây
+    for (const [x, z, ry] of [[246 + i * 6, 0, -Math.PI / 2], [-d, 0, Math.PI / 2], [0, d + 85, Math.PI]]) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(420, 80), mat);
       p.position.set(x, 18 - i * 3, z);
       p.rotation.y = ry;
@@ -2308,6 +2312,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       if (used[v] >= 16) continue;
       const r = 9 + rr() * 12, h = 26 + rr() * 42;
       // chừa chỗ cho hai kênh, cầu và khu mới bên kia sông
+      // chừa chỗ cho Làng Mây và đường đất sang làng (vẫn rút số ngẫu nhiên để các núi khác giữ nguyên chỗ)
+      const nearRect = (x0, x1, z0, z1) => Math.hypot(x - Math.min(Math.max(x, x0), x1), z - Math.min(Math.max(z, z0), z1)) < r * 1.2 + 1;
+      if (nearRect(VILLAGE.x0, VILLAGE.x1, VILLAGE.z0, VILLAGE.z1) || nearRect(78, VILLAGE.x0, VILLAGE.road.z0, VILLAGE.road.z1)) {
+        rr();
+        rr();
+        continue;
+      }
       if (Math.hypot(x - PEAK.x, z - PEAK.z) < r * 1.1 + PEAK.r + 8 || (Math.abs(x + 47.5) < r * 1.2 + 4 && z < 122) || (Math.abs(x - 76) < r * 1.2 + 4 && z < 142) || (Math.abs(x) < r * 1.2 + 16 && z > 110 && z < 175)) continue;
       o.position.set(x, GY - 1, z);
       o.rotation.set(0, rr() * 6.28, 0);
@@ -2319,6 +2330,18 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       m.count = used[v];
       scene.add(m);
     });
+    // dãy núi đá sau lưng Làng Mây (phía đông): núi thật thay cho tấm phông khi đứng gần
+    for (let k = 0; k < 10; k++) {
+      const z = -125 + k * 28 + rr() * 8, x = 224 + rr() * 16;
+      const m = new THREE.Mesh(geos[k % 3], karstM);
+      m.position.set(x, GY - 1, z);
+      m.rotation.y = rr() * 6.28;
+      m.scale.set(13 + rr() * 8, 38 + rr() * 34, 12 + rr() * 8);
+      scene.add(m);
+    }
+    // ---------- Làng Mây bên kia dãy núi đá phía đông ----------
+    buildVillage({ scene, std, groundMat, POFF, updaters, nightHooks, staticRoots, pickables, lodAdd });
+    obstacles.push(...VILLAGE_BLOCKS);
     // núi đá lớn sau lưng điện Tam Thế, hai núi nhỏ hai bên (ít gồ ghề để vách núi sát sau điện)
     for (const [x, z, sx, sy, sz, seed, amp] of [[0, -106, 48, 58, 24, 3.3, 0.07], [-40, -96, 18, 44, 16, 5.1, 0.12], [40, -96, 18, 46, 16, 8.9, 0.12]]) {
       const m = new THREE.Mesh(peakGeo(seed, amp), karstM);

@@ -299,7 +299,7 @@ wss.on('connection', (ws, req) => {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
       const wide = siteOf(roomId) === 'tamchuc';
-      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 125);
+      me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 210); // tới hết Làng Mây phía đông
       me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 160);
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 128 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới

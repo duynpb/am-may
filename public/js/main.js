@@ -10,6 +10,7 @@ import {
 } from './field.js';
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
+import { VILLAGE, VILLAGE_TASKS, VILLAGE_ROUND, HOUSES, HAYS, yardOf } from './village.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS, STUDY_SOUNDS } from './audio.js';
 import { Beads } from './beads.js';
 import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } from './net.js';
@@ -296,6 +297,7 @@ const ROUND_OBSTACLES = [
   { x: FALLS.x, z: FALLS.poolZ, r: FALLS.poolR + 0.8 },
   { x: 51.8, z: 22.0, r: 1.55 }, // bàn đá giữa vườn cây ăn trái
   ...ORCHARD_TREES.map((t) => ({ x: t.x, z: t.z, r: 0.9 })),
+  ...VILLAGE_ROUND, // nhà, chuồng trại, giếng, cây đa, ao, đống rơm ở Làng Mây
 ];
 // Đoạn thẳng a → b cắt qua chướng ngại tròn / elip thì chèn điểm vòng qua bên cạnh
 function detour(ax, az, bx, bz, depth = 0, obs = ROUND_OBSTACLES) {
@@ -1413,6 +1415,7 @@ async function joinRoom(id, { keepPlayer = false } = {}) {
   }
   for (let i = 0; i < botTarget; i++) makeBot({ seated: Math.random() < 0.85 });
   makeNovices();
+  makeVillagers();
   $('#info-mode').textContent = online
     ? 'Bạn đang trực tuyến. Số trên góc phải là số người thật đang ở đây; khi chánh điện còn vắng, vài khách mô phỏng ngồi cùng cho ấm cúng và sẽ nhường chỗ khi có người vào.'
     : 'Đang chạy ngoại tuyến: những người trong chánh điện là khách mô phỏng. Chạy máy chủ (npm start) để gặp người thật.';
@@ -1710,6 +1713,7 @@ const PLACES = [
   { id: 'study', name: 'Nhà tự học', x: STUDY.door.x, z: STUDY.door.z, ry: Math.PI / 2 },
   { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.court.x1 - 0.6, z: NGOA.z, ry: -Math.PI / 2 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
+  { id: 'village', name: 'Làng Mây', x: VILLAGE.gate.x - 5, z: VILLAGE.road.z, ry: Math.PI / 2 },
 ];
 
 // Hiện ngay ở chỗ mới: tự mang / cởi dép nếu đổi giữa trong và ngoài chánh điện
@@ -1784,11 +1788,11 @@ function buildMap() {
     return e;
   };
   const rect = (x0, x1, z0, z1, cls) => el('rect', { x: mapU(z1), y: mapV(x0), width: z1 - z0, height: x1 - x0, class: cls });
-  el('rect', { x: -64, y: -56, width: 260, height: 186, class: 'm-bg' });
+  el('rect', { x: -64, y: -56, width: 260, height: 271, class: 'm-bg' });
   // sông phía nam (cùng đường cong với sông trong cảnh)
   {
     const top = [], bot = [];
-    for (let x = -60; x <= 130; x += 4) {
+    for (let x = -60; x <= 212; x += 4) {
       const zc = 132 + Math.sin(x / 38) * 14 + Math.sin(x / 13) * 3, w = 9 + Math.sin(x / 21) * 2;
       top.push(`${mapU(zc - w)},${mapV(x)}`);
       bot.unshift(`${mapU(zc + w)},${mapV(x)}`);
@@ -1817,6 +1821,24 @@ function buildMap() {
   rect(-1.8, 1.8, 101, 145, 'm-stone'); // lối ra cầu và cầu đá
   rect(-13, 13, 145, 158, 'm-stone'); // khu mới bên kia sông
   rect(PEAK.lane.x0, PEAK.lane.x1, PEAK.lane.z0, PEAK.lane.z1, 'm-stone'); // lối sang núi đá có tháp
+  {
+    // Làng Mây: đường đất, nhà, ruộng ngô, vườn rau, ao, chuồng trại
+    const V = VILLAGE;
+    rect(V.road.x0, V.road.x1, V.road.z0, V.road.z1, 'm-stone');
+    rect(V.street.x0, V.street.x1, V.street.z0, V.street.z1, 'm-stone');
+    rect(V.corn.x0, V.corn.x1, V.corn.z0, V.corn.z1, 'm-field');
+    rect(V.veg.x0, V.veg.x1, V.veg.z0, V.veg.z1, 'm-veg');
+    el('ellipse', { cx: mapU(V.pond.z), cy: mapV(V.pond.x), rx: V.pond.rz, ry: V.pond.rx, class: 'm-water' });
+    el('circle', { cx: mapU(V.well.z), cy: mapV(V.well.x), r: 1.4, class: 'm-water' });
+    el('circle', { cx: mapU(V.banyan.z), cy: mapV(V.banyan.x), r: 3.5, class: 'm-tree' });
+    for (const r of [V.coop, V.pig]) rect(r.x0, r.x1, r.z0, r.z1, 'm-porch');
+    rect(V.shed.x - V.shed.hw, V.shed.x + V.shed.hw, V.shed.z - V.shed.hd, V.shed.z + V.shed.hd, 'm-porch');
+    for (const h of HOUSES) {
+      const y = yardOf(h);
+      rect(y.x - 3, y.x + 3, y.z - 4.3, y.z + 4.3, 'm-stone');
+      rect(h.x + (h.face > 0 ? -2.6 : -3.8), h.x + (h.face > 0 ? 3.8 : 2.6), h.z - 4.3, h.z + 4.3, 'm-hall');
+    }
+  }
   el('circle', { cx: mapU(PEAK.z), cy: mapV(PEAK.x), r: PEAK.r, class: 'm-grass' });
   rect(PEAK.x - PEAK.pagodaHalf, PEAK.x + PEAK.pagodaHalf, PEAK.z - PEAK.pagodaHalf, PEAK.z + PEAK.pagodaHalf, 'm-hall');
   rect(ORCHARD.x0, ORCHARD.x1, ORCHARD.z0, ORCHARD.z1, 'm-grass'); // vườn cây ăn trái kế bên điện Quan Âm
@@ -1865,6 +1887,7 @@ function buildMap() {
     ['veg', (VEG.x0 + VEG.x1) / 2, (VEG.z0 + VEG.z1) / 2, 'Vườn rau'],
     ['lahan', 15.6, 62, 'La Hán'],
     ['lahan', -15.6, 62, 'La Hán'],
+    ['village', VILLAGE.cx, -40, 'Làng Mây'],
   ];
   for (const [id, x, z, text] of labels) {
     const g = el('g', { class: 'm-place', role: 'button', tabindex: 0 });
@@ -1934,7 +1957,7 @@ const DOG_INFO = [
   { name: 'Lu', owner: 'sư cô Diệu Hạnh', coat: ['#8a5a36', '#d8b48a', '#6b4128'], ears: 'up', size: 1.1 },
 ];
 // sân chùa, trục đường, sân giếng, sân trước cổng, hai sân bên, sân sau, sân trước điện Tam Thế
-const DOG_AREAS = WALK_AREAS.filter((r) => r.maxX - r.minX > 6 && r.maxZ - r.minZ > 6 && !(r.minX > QAHALL.x0 - 1 && r.maxZ < QAHALL.z1 + 2) && !(Math.abs(r.minX) < 12 && r.maxZ < TAMTHE.z1 && r.minZ > TAMTHE.z0 - 1));
+const DOG_AREAS = WALK_AREAS.filter((r) => r.maxX < VILLAGE.x0 - 10 && r.maxX - r.minX > 6 && r.maxZ - r.minZ > 6 && !(r.minX > QAHALL.x0 - 1 && r.maxZ < QAHALL.z1 + 2) && !(Math.abs(r.minX) < 12 && r.maxZ < TAMTHE.z1 && r.minZ > TAMTHE.z0 - 1));
 const dogs = DOG_INFO.slice(0, settings.quality === 'high' ? 4 : 3).map((info) => {
   const d = new Dog(info);
   const [x, z] = world.pushOut(rnd(-12, 12), rnd(24, 37));
@@ -2142,6 +2165,16 @@ function harvestTick() {
       else earn('fruit');
       toast(`Bạn đã hái ${tr.fruit} từ ${tr.name} — chú tiểu đang ra mang rổ quả vào cúng Phật`, 4200);
       sendNoviceForFruit(i);
+    } else if (kind === 'village') {
+      earn('village');
+      toast(VILLAGE_TASKS[i].msg, 4200);
+      // người làng ở gần chắp tay cảm ơn
+      const v = villagers.find((a) => !a.monk && a.pos.distanceTo(player.pos) < 12);
+      if (v) {
+        // đang đi thì vừa đi vừa cảm ơn (không cắt ngang đường đi), đứng yên thì quay sang chắp tay
+        if (!v.moving && !v.routeTo) v.act('gassho', faceRy(v, player));
+        bubble(v, pick(['Mô Phật, cảm ơn bạn nhiều lắm!', 'Quý hoá quá, cảm ơn bạn!', 'Bạn tốt bụng quá, cảm ơn nhé!']), 3800);
+      }
     }
   }, 3400);
 }
@@ -2157,7 +2190,9 @@ const NOVICE_DEFS = [
 
 async function noviceGo(a, x, z, token) {
   if (!avatars.has(a.id) || a.noviceTask !== token) return false;
-  const ok = await Promise.race([walkRoute(a, x, z), wait(24000).then(() => false)]);
+  // đi xa (sang làng, từ làng về) thì chờ lâu hơn
+  const ms = Math.max(24000, (Math.hypot(x - a.pos.x, z - a.pos.z) / a.speed) * 2500);
+  const ok = await Promise.race([walkRoute(a, x, z), wait(ms).then(() => false)]);
   return ok && avatars.has(a.id) && a.noviceTask === token;
 }
 
@@ -2251,7 +2286,25 @@ const NOVICE_CHORES = [
     if (a.noviceTask !== token) return;
     await noviceGo(a, rnd(-6, 6), 27, token);
   },
+  // 9. Sang Làng Mây giúp bà con rồi về chùa
+  async (a, token) => {
+    const [k, txt] = pick([['corn', 'giúp bà con làm cỏ ruộng ngô'], ['veg', 'giúp bà con tưới rau'], ['coop', 'giúp bà con cho gà ăn']]);
+    bubble(a, 'sang làng giúp bà con', 3600);
+    if (!(await noviceGo(a, ...villageSpot(k), token))) return;
+    a.act('stoop');
+    bubble(a, txt, 3800);
+    await wait(rnd(3500, 5200));
+    if (a.noviceTask !== token) return;
+    await noviceGo(a, rnd(-6, 6), 30, token);
+  },
 ];
+// chỗ đứng làm một việc ở làng (ruộng ngô, vườn rau: chỗ ngẫu nhiên trong ruộng)
+function villageSpot(k) {
+  const t = VILLAGE_TASKS[k];
+  if (t?.stand) return t.stand;
+  const r = VILLAGE[k];
+  return [rnd(r.x0 + 1, r.x1 - 1), rnd(r.z0 + 1, r.z1 - 1)];
+}
 
 async function noviceCarryFruit(a, i) {
   const tr = ORCHARD_TREES[i];
@@ -2359,6 +2412,208 @@ async function noviceLoop(a, startIdx = 0) {
     a.holdCloth(false);
     if (!a.vegQueue?.length && !a.fruitQueue?.length) await wait(rnd(600, 1600));
   }
+}
+
+// ---------- Làng Mây: dân làng trồng trọt, chăn nuôi, thỉnh thoảng sang chùa lễ Phật, làm công quả;
+// sư thầy, ni sư cũng sang làng thăm hỏi, giúp đỡ bà con ----------
+const VILLAGER_DEFS = [
+  { id: 'vl1', name: 'Bà Tư', home: 0, look: { shirt: '#5b4a6e', pants: '#1d1b1e', hat: 'bun' }, speed: 1.3 },
+  { id: 'vl2', name: 'Ông Sáu', home: 1, look: { shirt: '#e8e1cf', pants: '#2b2826', hat: 'khan' }, speed: 1.4 },
+  { id: 'vl3', name: 'Chị Hai', home: 2, look: { shirt: '#b8433a', pants: '#1f1c1e', hat: 'non' } },
+  { id: 'vl4', name: 'Anh Ba', home: 5, look: { shirt: '#3f5f7a', pants: '#2e2b29', hat: 'non' } },
+  { id: 'vl5', name: 'Cô Út', home: 4, look: { shirt: '#d9c27a', pants: '#26221f', hat: 'non' } },
+  { id: 'vl6', name: 'Bé Tí', home: 7, kid: true, look: { shirt: '#e0e6ee', pants: '#3b5a8a', hat: 'hair', scale: 0.72 }, speed: 2.0 },
+];
+const MONK_DEFS = [
+  { id: 'su1', name: 'Thầy Minh Tâm', look: { shirt: '#8a5a2c', sash: '#5e3a1c', hat: 'bald' }, x: 3, z: 26 },
+  { id: 'su2', name: 'Ni sư Diệu Hạnh', look: { shirt: '#8f8778', sash: '#665c4c', hat: 'bald' }, x: -4, z: 27 },
+];
+const villagers = [];
+
+// một chặng làm việc ở làng: đi tới, cúi xuống làm, hiện việc đang làm
+async function villageWork(a, token, k, words, ms = rnd(3200, 5200)) {
+  const [x, z] = villageSpot(k);
+  if (!(await noviceGo(a, x, z, token))) return false;
+  const t = VILLAGE_TASKS[k];
+  if (t?.face) a.faceRy = Math.atan2(t.face[0] - a.pos.x, t.face[1] - a.pos.z);
+  a.act('stoop');
+  bubble(a, pick(words), 3600);
+  await wait(ms);
+  return a.noviceTask === token;
+}
+const VILLAGE_CHORES = [
+  (a, t) => villageWork(a, t, 'corn', ['nhổ cỏ ruộng ngô', 'vun gốc cây ngô', 'bẻ bắp ngô non']),
+  (a, t) => villageWork(a, t, 'veg', ['tưới rau', 'nhổ cỏ luống rau', 'hái rau về nấu canh']),
+  (a, t) => villageWork(a, t, 'well', ['múc nước giếng làng', 'gánh nước về đổ chum']),
+  (a, t) => villageWork(a, t, 'coop', ['cho gà ăn thóc', 'nhặt trứng gà']),
+  (a, t) => villageWork(a, t, 'pig', ['nấu cám cho heo', 'cho heo ăn']),
+  (a, t) => villageWork(a, t, 'shed', ['cắt cỏ cho trâu', 'dọn chuồng trâu']),
+  async (a, t) => {
+    // việc ở sân nhà
+    const y = yardOf(HOUSES[a.home]);
+    if (!(await noviceGo(a, y.x + rnd(-2, 2), y.z + rnd(-3, 3), t))) return;
+    a.act('stoop');
+    bubble(a, pick(['phơi thóc ngoài sân', 'quét sân nhà', 'nghỉ tay uống bát nước chè']), 3600);
+    await wait(rnd(3000, 5000));
+  },
+];
+const KID_CHORES = [
+  async (a, t) => {
+    const P = VILLAGE.pasture;
+    if (!(await noviceGo(a, rnd(P.x0 + 2, P.x1 - 2), rnd(P.z0 + 2, P.z1 - 2), t))) return;
+    bubble(a, pick(['chăn trâu ngoài bãi', 'thả diều ngoài bãi cỏ']), 3600);
+    await wait(rnd(4000, 7000));
+  },
+  async (a, t) => {
+    const B = VILLAGE.banyan;
+    if (!(await noviceGo(a, B.x + rnd(-1.2, 1.2), B.z + 2.6, t))) return;
+    bubble(a, 'chơi đánh chuyền dưới gốc đa', 3600);
+    await wait(rnd(4000, 6000));
+  },
+  async (a, t) => {
+    const P = VILLAGE.pond;
+    if (!(await noviceGo(a, P.x - P.rx - 1.4, P.z + rnd(-2, 2), t))) return;
+    a.faceRy = Math.PI / 2;
+    bubble(a, 'ngồi xem đàn vịt bơi', 3600);
+    await wait(rnd(4000, 6000));
+  },
+  (a, t) => villageWork(a, t, 'coop', ['lùa gà vào chuồng', 'cho gà ăn thóc']),
+];
+// Sang chùa: lễ Phật trước chánh điện, làm công quả quét sân, hoặc mang rau quả nhà trồng biếu chùa
+async function villagerTemple(a, token) {
+  bubble(a, pick(['sang chùa lễ Phật', 'sang chùa làm công quả']), 3800);
+  const r = Math.random();
+  if (r < 0.4) {
+    if (!(await noviceGo(a, rnd(-4, 4), rnd(23.2, 24.6), token))) return;
+    a.act('bow', Math.PI);
+    bubble(a, pick(['lễ Phật cầu bình an cho gia đình', 'Nam mô A Di Đà Phật', 'cầu mưa thuận gió hoà, mùa màng tươi tốt']), 4000);
+    await wait(4000);
+  } else if (r < 0.75) {
+    if (!(await noviceGo(a, rnd(-9, 9), rnd(25, 36), token))) return;
+    a.holdBroom(true);
+    bubble(a, 'làm công quả quét sân chùa', 3600);
+    for (let k = 0; k < 3; k++) {
+      if (!(await noviceGo(a, rnd(-11, 11), rnd(24.5, 37), token))) break;
+      if (!online) leaves.takeNear(a.pos.x, a.pos.z, 1.4);
+      await wait(rnd(900, 1800));
+      if (a.noviceTask !== token) break;
+    }
+    a.holdBroom(false);
+  } else {
+    a.holdBasket(pick(['#6aa33a', '#f5b82e', '#e0a43a']));
+    bubble(a, 'mang rau quả nhà trồng biếu chùa', 3800);
+    if (!(await noviceGo(a, QAHALL.cx + rnd(-1.6, 1.6), 8.6, token))) return;
+    a.faceRy = Math.PI;
+    a.act('stoop');
+    await wait(1000);
+    a.holdBasket(null);
+    if (a.noviceTask !== token) return;
+    a.act('bow', Math.PI);
+    bubble(a, 'dâng rau quả nhà trồng cúng Phật', 4000);
+    await wait(3600);
+  }
+}
+async function villagerLoop(a) {
+  await wait(rnd(500, 4000));
+  while (avatars.has(a.id)) {
+    const token = (a.noviceTask = {});
+    if (Math.random() < (a.kid ? 0.1 : 0.22)) await villagerTemple(a, token);
+    else await pick(a.kid ? KID_CHORES : VILLAGE_CHORES)(a, token);
+    a.holdBroom(false);
+    a.holdBasket(null);
+    await wait(rnd(1200, 3500));
+  }
+}
+// Sư thầy, ni sư: lễ Phật, kinh hành trong chùa; thỉnh thoảng sang làng thăm hỏi, giảng pháp, giúp bà con
+const MONK_CHORES = [
+  async (a, t) => {
+    if (!(await noviceGo(a, rnd(-3, 3), rnd(23.2, 24.4), t))) return;
+    a.act('bow', Math.PI);
+    bubble(a, pick(['lễ Phật', 'tụng kinh cầu an']), 3800);
+    await wait(4200);
+  },
+  async (a, t) => {
+    bubble(a, 'đi kinh hành quanh sân chùa', 3600);
+    for (let k = 0; k < 3; k++) if (!(await noviceGo(a, rnd(-12, 12), rnd(25, 37), t))) return;
+  },
+  async (a, t) => {
+    bubble(a, 'sang làng thăm hỏi bà con', 3800);
+    const B = VILLAGE.banyan;
+    if (!(await noviceGo(a, B.x + rnd(-1, 1), B.z + 2.4, t))) return;
+    a.act('gassho');
+    bubble(a, pick(['giảng pháp cho bà con dưới gốc đa', 'chia sẻ lời Phật dạy về hiếu hạnh']), 5000);
+    await wait(6000);
+    if (a.noviceTask !== t) return;
+    const y = yardOf(pick(HOUSES));
+    if (!(await noviceGo(a, y.x, y.z + 1, t))) return;
+    a.act('gassho');
+    bubble(a, pick(['thăm hỏi gia đình bà con', 'thăm người ốm trong làng', 'chúc bà con mạnh khoẻ, bình an']), 4200);
+    await wait(4500);
+    if (a.noviceTask !== t) return;
+    if (!(await villageWork(a, t, pick(['corn', 'veg']), ['giúp bà con làm cỏ', 'giúp bà con tưới rau']))) return;
+    await noviceGo(a, rnd(-5, 5), 29, t);
+  },
+];
+async function monkLoop(a) {
+  await wait(rnd(1000, 5000));
+  let n = a.id === 'su2' ? 1 : 0; // sư thầy và ni sư không cùng lúc sang làng
+  while (avatars.has(a.id)) {
+    const token = (a.noviceTask = {});
+    // khoảng một phần ba số lần là sang làng
+    await (n++ % 3 === 2 ? MONK_CHORES[2] : MONK_CHORES[Math.random() < 0.5 ? 0 : 1])(a, token);
+    await wait(rnd(1500, 4000));
+  }
+}
+function makeVillagers() {
+  villagers.length = 0;
+  for (const def of VILLAGER_DEFS) {
+    const a = addAvatar(new Avatar({ id: def.id, name: def.name, look: def.look, speed: def.speed ?? 1.6 }));
+    a.zone = 'out';
+    a.home = def.home;
+    a.kid = !!def.kid;
+    const y = yardOf(HOUSES[def.home]);
+    a.placeAt(y.x + rnd(-1.5, 1.5), y.z + rnd(-2, 2), rnd(-Math.PI, Math.PI));
+    villagers.push(a);
+    villagerLoop(a);
+  }
+  for (const def of MONK_DEFS) {
+    const a = addAvatar(new Avatar({ id: def.id, name: def.name, look: def.look, speed: 1.6 }));
+    a.zone = 'out';
+    a.monk = true;
+    a.setSandals(SANDAL_COLORS[0]);
+    a.wearSandals(true);
+    a.placeAt(def.x, def.z, Math.PI);
+    villagers.push(a);
+    monkLoop(a);
+  }
+}
+// Phật tử giúp dân làng: bấm vào giếng, chuồng gà, chuồng heo, chuồng trâu, ruộng ngô, vườn rau, đống rơm
+function clickVillage(hit, obj) {
+  sound.init();
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
+  const task = obj.userData.task, T = VILLAGE_TASKS[task];
+  if (!T) return;
+  let x, z, fx, fz;
+  if (T.stand) {
+    [x, z] = T.stand;
+    [fx, fz] = T.face;
+  } else if (task === 'hay') {
+    const h = HAYS[obj.userData.i];
+    [fx, fz] = [h.x, h.z];
+    [x, z] = [h.x, h.z + 1.6];
+  } else {
+    const r = VILLAGE[task];
+    x = clamp(hit.point.x, r.x0 + 0.4, r.x1 - 0.4);
+    z = clamp(hit.point.z, r.z0 + 0.4, r.z1 - 0.4);
+    [fx, fz] = [x - 1, z];
+  }
+  [x, z] = clampZone('out', x, z);
+  harvestRun = { kind: 'village', i: task, x, z, faceX: fx, faceZ: fz, started: false };
+  movePlayerTo(x, z);
+  hideHint();
 }
 
 function makeNovices() {
@@ -3092,6 +3347,10 @@ function handleTap(x, y) {
   }
   if (kind === 'orchard') {
     clickOrchard(firstHit, o);
+    return;
+  }
+  if (kind === 'village') {
+    clickVillage(firstHit, o);
     return;
   }
   if (kind === 'broom') {
