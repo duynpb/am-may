@@ -3482,7 +3482,7 @@ canvas.addEventListener('wheel', (e) => {
 
 // ---------- Nhìn toàn cảnh chùa từ trên cao ----------
 // Camera bay lên cao nhìn cả khuôn viên; chạm xuống đất vẫn điều khiển nhân vật đi tới đó.
-const OV = { distMin: 35, distMax: 260, pitchMin: 0.45, pitchMax: 1.45, bounds: { x: 75, z0: -110, z1: 130 } };
+const OV = { distMin: 35, distMax: 260, pitchMin: 0.45, pitchMax: 1.45, bounds: { x0: -75, x1: 180, z0: -110, z1: 130 } }; // x1: tới Làng Mây phía đông
 const ov = { on: false, focus: new THREE.Vector3(0, 0, 6), saved: null };
 const ovMarker = new THREE.Group();
 {
@@ -3501,7 +3501,7 @@ function panOverview(dx, dy) {
   const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw); // sang phải trên màn hình
   const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw); // hướng camera nhìn tới
   const b = OV.bounds;
-  ov.focus.x = clamp(ov.focus.x - rx * dx * s + fx * dy * s, -b.x, b.x);
+  ov.focus.x = clamp(ov.focus.x - rx * dx * s + fx * dy * s, b.x0, b.x1);
   ov.focus.z = clamp(ov.focus.z - rz * dx * s + fz * dy * s, b.z0, b.z1);
 }
 function setOverview(on) {
@@ -3663,7 +3663,7 @@ function updateCamera(dt) {
   if (outside && player.pos.z < -21.4 && Math.abs(player.pos.x) < 16) cam.maxZ = -21.9;
   const cp = Math.cos(cam.curPitch);
   camera.position.set(
-    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : zenHigh ? -72 : outside ? -46 : -14.5, outside ? 135 : 14.5),
+    clamp(cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist, high ? -19 : zenHigh ? -72 : outside ? -46 : -14.5, outside ? VILLAGE.x1 + 12 : 14.5), // phía đông tới hết Làng Mây
     clamp(cam.target.y + Math.sin(cam.curPitch) * cam.curDist, bellLoft ? BL.y + 0.8 : zenHigh ? ZL.y + 0.5 : peakHigh ? PEAK.top + 0.6 : 0.4, high ? TOWER.topY + 3.6 : bellLoft ? BL.y + 3.0 : inBell ? BL.base + 2.2 : zenHigh ? ZL.y + 24 : peakHigh ? PEAK.top + 26 : outside ? Math.max(22, cam.target.y + 9) : 9.4),
     clamp(cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist, outside ? -100 : -15.2, cam.maxZ),
   );
