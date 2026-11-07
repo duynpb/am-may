@@ -1,6 +1,6 @@
 import { lang, LANGS, setLang } from './i18n.js'; // nạp trước để tự dịch chữ trên trang
 import * as THREE from 'three';
-import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, LIB, PEAK, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
+import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, UP, PEAK, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
 import { Dog } from './dog.js';
 import {
@@ -11,6 +11,7 @@ import {
 import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
 import { createLearn } from './learn.js';
+import { isUp, toReal, toUp } from './study.js';
 import { VILLAGE, VILLAGE_TASKS, VILLAGE_ROUND, HOUSES, HAYS, yardOf } from './village.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS, STUDY_SOUNDS } from './audio.js';
 import { Beads } from './beads.js';
@@ -115,6 +116,7 @@ try { await document.fonts.load('700 40px "Noto Serif"', 'ĐÀI THIỀN ẤẦ�
 const world = buildWorld(renderer, { quality: settings.quality });
 const { scene, seats } = world;
 Avatar.ground = groundY;
+Avatar.place = toReal; // tầng 2 khu tự học: toạ độ ảo → chỗ thật khi vẽ
 Dog.ground = groundY;
 // ?gio=20.5 trên địa chỉ trang: xem thử chánh điện lúc 20 giờ 30 (mặc định theo giờ Việt Nam thật)
 if (params.has('gio')) world.setHour(parseFloat(params.get('gio')));
@@ -285,8 +287,8 @@ const ROUND_OBSTACLES = [
   { x: BELLTOWER.x, z: BELLTOWER.z, r: BELLTOWER.r + 0.5 },
   // bàn học trong nhà tự học (bồ đoàn ở ngay sau bàn nên đi tới bồ đoàn không bị vòng)
   ...STUDY.desks.map((k) => ({ x: k.x, z: k.z + STUDY.deskDz, rx: 0.72, rz: 0.4 })),
-  // lầu Phật pháp: tầng dưới đóng cửa, cầu thang ngoài — lên lầu đi bằng cầu thang
-  { x: (LIB.x0 + LIB.stair.x1) / 2, z: (LIB.z0 + LIB.stair.zFoot) / 2, rx: 7.6, rz: 6.9 },
+  // cầu thang ngoài trời lên tầng 2 khu tự học: ở dưới đất đi vòng qua
+  { x: (UP.stair.x0 + UP.stair.x1) / 2, z: (UP.landing.z0 + UP.stair.zFoot) / 2, rx: 1.35, rz: (UP.stair.zFoot - UP.landing.z0) / 2 + 0.35 },
   // bệ tượng Phật nằm và vách núi sau lưng, lư hương trước tượng
   { x: NGOA.x - 2.6, z: NGOA.z, rx: 7.5, rz: NGOA.len / 2 + 5 },
   { x: NGOA.burner.x, z: NGOA.burner.z, r: 0.9 },
@@ -809,12 +811,15 @@ async function peakDown(a) {
   return true;
 }
 
-// ---------- Lầu Phật pháp (tầng 2 khu tự học): cầu thang đá ngoài trời dọc mặt đông ----------
-const LB = LIB;
-const onLibXZ = (x, z) => (x >= LB.x0 && x <= LB.x1 && z >= LB.z0 && z <= LB.z1) || inBox(LB.landing, x, z);
-const LIB_DESKS = LB.desks.map((k) => ({ x: k.x, z: k.z + STUDY.deskDz, rx: 0.72, rz: 0.4 }));
-const clampLib = (x, z) => [clamp(x, LB.floor.x0, LB.floor.x1), clamp(z, LB.floor.z0, LB.floor.z1)];
+// ---------- Tầng 2 khu tự học (Phật pháp) ngay trên dãy phòng ngoại ngữ ----------
+// Trên tầng 2 dùng toạ độ ảo (z lùi UP.VZ) để cách đi lại sẵn có phân biệt được tầng trên / tầng dưới.
+// Lên: đi cầu thang ngoài trời bằng toạ độ thật, tới chiếu nghỉ thì đổi sang toạ độ ảo — cùng một chỗ nên không thấy giật.
+const onLibXZ = (x, z) => isUp(z);
+const UPF = UP.floor;
+const LIB_DESKS = UP.desks.map((k) => ({ x: k.x, z: k.z + STUDY.deskDz + UP.VZ, rx: 0.72, rz: 0.4 }));
+const clampLib = (x, z) => [clamp(x, UPF.x0, UPF.x1), clamp(z, UPF.z0 + UP.VZ, UPF.z1 + UP.VZ)];
 const libPath = (ax, az, bx, bz) => detour(ax, az, bx, bz, 0, LIB_DESKS).map(([px, pz]) => clampLib(px, pz));
+const UP_ARRIVE = toUp(UP.arrive.x, UP.arrive.z), UP_TOP = toUp(UP.top.x, UP.top.z);
 async function walkLib(a, x, z, seat = null) {
   [x, z] = seat ? [seat.x, seat.z] : clampLib(x, z);
   const token = (a.route = {});
@@ -829,22 +834,26 @@ async function walkLib(a, x, z, seat = null) {
 }
 async function libUp(a) {
   const token = (a.script = {});
-  await walkRoute(a, LB.foot.x, LB.foot.z);
+  await walkRoute(a, UP.foot.x, UP.foot.z);
   if (!alive(a, token)) return false;
-  for (const p of [LB.entry, LB.top, LB.arrive]) {
+  for (const p of [UP.entry, UP.top]) {
     await a.walk(p.x, p.z);
     if (!alive(a, token)) return false;
   }
+  a.placeAt(...UP_TOP, a.ry);
+  await a.walk(...UP_ARRIVE);
+  if (!alive(a, token)) return false;
   a.script = null;
   return true;
 }
 async function libDown(a) {
   const token = (a.script = {});
-  for (const [px, pz] of [...libPath(a.pos.x, a.pos.z, LB.arrive.x, LB.arrive.z), [LB.arrive.x, LB.arrive.z]]) {
+  for (const [px, pz] of [...libPath(a.pos.x, a.pos.z, ...UP_ARRIVE), UP_ARRIVE, UP_TOP]) {
     await a.walk(px, pz);
     if (!alive(a, token)) return false;
   }
-  for (const p of [LB.top, LB.entry, LB.foot]) {
+  a.placeAt(UP.top.x, UP.top.z, a.ry);
+  for (const p of [UP.entry, UP.foot]) {
     await a.walk(p.x, p.z);
     if (!alive(a, token)) return false;
   }
@@ -873,10 +882,10 @@ const LOFTS = {
     arrived: 'Bạn đã lên tới đỉnh núi — lạy Phật, thắp nhang ở khám thờ trước tháp và ngắm toàn cảnh chùa',
   },
   lib: {
-    clamp: clampLib, up: libUp, down: libDown, door: LB.foot, y: LB.y,
+    clamp: clampLib, up: libUp, down: libDown, door: UP.foot, y: UP.y,
     go: walkLib,
-    upMsg: 'Lên cầu thang lầu Phật pháp…', downMsg: 'Xuống cầu thang lầu Phật pháp…',
-    arrived: 'Bạn đang ở tầng 2 — lầu học Phật pháp: bấm kệ sách để chọn cách học, ngồi vào bàn để học',
+    upMsg: 'Lên cầu thang tầng 2 khu tự học…', downMsg: 'Xuống cầu thang khu tự học…',
+    arrived: 'Bạn đang ở tầng 2 — phòng học Phật pháp: bấm kệ sách để chọn cách học, ngồi vào bàn để học',
   },
   zen: {
     clamp: clampZen, up: zenUp, down: zenDown, door: ZL.foot, y: ZL.y,
@@ -1763,7 +1772,7 @@ const PLACES = [
   { id: 'peak', name: 'Tháp trên núi đá', x: PEAK.x - PEAK.pagodaHalf - 5, z: PEAK.z + 2, ry: Math.PI / 2 },
   { id: 'peakfoot', name: 'Chân núi đá (lối lên tháp)', x: PEAK.foot.x - 3, z: PEAK.foot.z, ry: Math.PI / 2 },
   { id: 'study', name: 'Nhà tự học', x: STUDY.door.x, z: STUDY.door.z, ry: Math.PI },
-  { id: 'lib', name: 'Lầu Phật pháp (tầng 2)', x: LIB.cx, z: LIB.z1 - 1.2, ry: Math.PI },
+  { id: 'lib', name: 'Phật học (tầng 2 khu tự học)', x: STUDY.cx, z: STUDY.z1 - 1.6 + UP.VZ, ry: Math.PI },
   { id: 'ngoa', name: 'Tượng Phật nằm', x: NGOA.court.x1 - 0.6, z: NGOA.z, ry: -Math.PI / 2 },
   { id: 'gate', name: 'Cổng Tam Quan', x: 0, z: GATE.plazaZ },
   { id: 'village', name: 'Làng Mây', x: VILLAGE.gate.x - 5, z: VILLAGE.road.z, ry: Math.PI / 2 },
@@ -1867,8 +1876,7 @@ function buildMap() {
   }
   rect(QAHALL.x0, QAHALL.x1, QAHALL.z0, QAHALL.z1, 'm-hall');
   rect(STUDY.x0, STUDY.x1, STUDY.z0, STUDY.z1, 'm-hall'); // dãy 4 phòng học ngoại ngữ sau điện Quan Âm
-  rect(LIB.x0, LIB.x1, LIB.z0, LIB.z1, 'm-hall'); // lầu Phật pháp
-  rect(LIB.stair.x0, LIB.stair.x1, LIB.z0, LIB.stair.zFoot, 'm-stairs');
+  rect(UP.stair.x0, UP.stair.x1, UP.landing.z0, UP.stair.zFoot, 'm-stairs'); // cầu thang lên tầng 2 Phật học
   rect(-49, -46, -46.8, 116, 'm-water'); // kênh nước phía tây
   rect(-46, -22.8, -46.8, -44.4, 'm-water');
   rect(74.5, 77.5, -46.8, 138, 'm-water'); // kênh nước phía đông
@@ -1932,8 +1940,8 @@ function buildMap() {
     ['zen', ZEN_LOFT.x, ZEN_LOFT.z, 'Đài thiền'],
     ['tamthe', 0, TAMTHE.z0 + 7, 'Điện Tam Thế'],
     ['ngoa', NGOA.x, NGOA.z, 'Phật nằm'],
-    ['study', STUDY.cx, STUDY.cz, 'Tự học'],
-    ['lib', LIB.cx, LIB.cz, 'Phật học'],
+    ['study', STUDY.cx, STUDY.cz + 2.4, 'Tự học'],
+    ['lib', STUDY.cx, STUDY.cz - 2.6, 'Phật học (tầng 2)'],
     ['peak', PEAK.x, PEAK.z - PEAK.r - 3, 'Tháp núi đá'],
     ['bridge', -6, 128, 'Cầu đá'],
     ['stairs', 6.5, -40, 'Bậc thang'],
@@ -1957,8 +1965,9 @@ function buildMap() {
   mapMe = el('circle', { r: 2, class: 'm-me' });
 }
 function updateMap() {
-  mapMe.setAttribute('cx', mapU(player.pos.z));
-  mapMe.setAttribute('cy', mapV(player.pos.x));
+  const [mx, mz] = toReal(player.pos.x, player.pos.z);
+  mapMe.setAttribute('cx', mapU(mz));
+  mapMe.setAttribute('cy', mapV(mx));
   const others = [...avatars.values()].filter((a) => a !== player && !a.leaving);
   while (mapOthers.childElementCount < others.length) {
     const c = document.createElementNS(SVGNS, 'circle');
@@ -1970,8 +1979,9 @@ function updateMap() {
     const a = others[i];
     c.style.display = a ? '' : 'none';
     if (!a) return;
-    c.setAttribute('cx', mapU(a.pos.z));
-    c.setAttribute('cy', mapV(a.pos.x));
+    const [ax, az] = toReal(a.pos.x, a.pos.z);
+    c.setAttribute('cx', mapU(az));
+    c.setAttribute('cy', mapV(ax));
   });
 }
 function openMap() {
@@ -3347,7 +3357,7 @@ function pickAvatar() {
   const c = new THREE.Vector3();
   for (const a of avatars.values()) {
     if (a === player) continue;
-    c.set(a.pos.x, 0.85 - 0.2 * a.p.sit, a.pos.z);
+    c.set(a.root.position.x, a.root.position.y + 1.2 - 0.2 * a.p.sit, a.root.position.z);
     const d = ray.ray.distanceToPoint(c);
     const along = c.clone().sub(ray.ray.origin).dot(ray.ray.direction);
     if (d < 0.5 && along > 0 && along < bestD) { best = a; bestD = along; }
@@ -3362,7 +3372,12 @@ function handleTap(x, y) {
     return;
   }
   setRay(x, y);
-  const hits = ray.intersectObjects(world.pickables, true);
+  const upOf = (o) => {
+    while (o && !o.userData.kind) o = o.parent;
+    return !!o?.userData.up || (o?.userData.room === 'phat');
+  };
+  const hits = ray.intersectObjects(world.pickables, true).filter((h) => !(world.studyUp?.faded && upOf(h.object)));
+  for (const h of hits) if (upOf(h.object)) h.point = new THREE.Vector3(h.point.x, h.point.y, h.point.z + UP.VZ);
   const avatarHit = pickAvatar();
   const firstHit = hits[0];
   const sandalHit = ray.intersectObjects(rack.hitboxes(), false)[0];
@@ -3708,8 +3723,9 @@ function updateCamera(dt) {
   // trên đài thiền: đẩy xa màn sương để nhìn rõ toàn cảnh khuôn viên chùa
   // mái nhà tự học mờ đi khi camera cao hơn chân mái mà người chơi đang ở trong nhà
   const inStudy = player.pos.x > STUDY.x0 - 0.3 && player.pos.x < STUDY.x1 + 0.3 && player.pos.z > STUDY.z0 && player.pos.z < STUDY.z1 + 0.3;
-  world.studyRoof?.setFade(inStudy && camera.position.y > world.studyRoof.eaveY - 0.3 ? 0.18 : 1);
-  world.libRoof?.setFade(loftOf(player) === 'lib' && camera.position.y > world.libRoof.eaveY - 0.3 ? 0.18 : 1);
+  const upstairs = loftOf(player) === 'lib';
+  world.studyRoof?.setFade((inStudy || upstairs) && camera.position.y > world.studyRoof.eaveY - 0.3 ? 0.18 : 1);
+  world.studyUp?.setFade(inStudy && camera.position.y > UP.y - 0.4 ? 0.12 : 1);
   // mái đài thiền mờ đi khi camera bay cao hơn chân mái mà người chơi đang ở dưới mái
   world.zenRoof?.setFade(zenHigh && camera.position.y > world.zenRoof.eaveY - 0.3 ? 0.18 : 1);
   if (!ov.on) {
@@ -4237,12 +4253,12 @@ function frame() {
   scriptWatchdog(dt);
   rack.update(dt);
   leaves.update(dt);
-  if (!ov.on) world.setFocus(player.pos.x, player.pos.z); // nhìn toàn cảnh thì giữ nguyên vùng bóng đổ
+  if (!ov.on) world.setFocus(...toReal(player.pos.x, player.pos.z)); // nhìn toàn cảnh thì giữ nguyên vùng bóng đổ
   if ((lodT -= dt) < 0) {
     lodT = 0.4;
     // nhìn toàn cảnh: tượng đều nằm dưới mái, ẩn hết cho nhẹ
     if (ov.on) world.updateLOD(Infinity, Infinity);
-    else world.updateLOD(player.pos.x, player.pos.z);
+    else world.updateLOD(...toReal(player.pos.x, player.pos.z));
     const d = Math.min(...world.falls.map((f) => player.root.position.distanceTo(f)));
     sound.setWaterfall(clamp(1 - d / 55, 0, 1));
   }

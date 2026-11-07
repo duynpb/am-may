@@ -102,7 +102,6 @@ const BOARDS = {
   'TIẾNG ĐỨC': [['GERMAN'], ['德语'], ['DEUTSCH']],
   'TIẾNG HÀN': [['KOREAN'], ['韩语'], ['KOREANISCH']],
   'PHẬT HỌC': [['BUDDHIST STUDIES'], ['佛学'], ['BUDDHISMUS']],
-  'TÀNG KINH CÁC': [['SUTRA LIBRARY'], ['藏经阁'], ['SUTRENBIBLIOTHEK']],
 };
 export function tBoard(lines) {
   if (col == null) return lines;

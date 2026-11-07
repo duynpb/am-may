@@ -10,8 +10,8 @@ import { makeBroom } from './leaves.js';
 import { makeLaHanGeometries } from './lahan.js';
 import { lahanSpot, LAHAN_IDS } from './statues.js';
 import { VILLAGE, VILLAGE_WALK, VILLAGE_BLOCKS, buildVillage } from './village.js';
-import { STUDY, LIB, buildStudy } from './study.js';
-export { STUDY, LIB } from './study.js';
+import { STUDY, UP, isUp, toReal, buildStudy } from './study.js';
+export { STUDY, UP } from './study.js';
 import { FIELD, PLOTS, plotRect, riceStage, VEG, VEG_PLOTS, VEG_RIPE_AGE, vegRect, vegStage, ORCHARD, ORCHARD_TREES, ORCHARD_COUNT, fruitStage } from './field.js';
 
 // Vùng được đi lại bên trong chánh điện
@@ -154,7 +154,7 @@ export const WALK_AREAS = [
   { minX: 39.6, maxX: 70, minZ: STUDY.z1 - 0.6, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm (tới mặt trước dãy phòng học)
   // quanh dãy phòng học: sân trước, bãi cỏ phía sau (có lầu Phật pháp), lối vòng hai đầu hồi; mỗi phòng chỉ vào từ mặt trước
   { minX: 23.6, maxX: 70, minZ: -33.2, maxZ: STUDY.z0 - 0.8 }, // bãi cỏ sau dãy phòng học
-  { minX: STUDY.x1 + 0.7, maxX: 70, minZ: -33.2, maxZ: 4.4 }, // lối vòng đầu hồi phía đông
+  { minX: UP.stair.x1 + 0.45, maxX: 70, minZ: -33.2, maxZ: 4.4 }, // lối vòng đầu hồi phía đông (ngoài cầu thang lên tầng 2)
   { minX: 23.6, maxX: STUDY.x0 - 0.6, minZ: -33.2, maxZ: 4.4 }, // lối vòng đầu hồi phía tây
   ...STUDY.rooms.map((r) => ({ minX: r.x0 + 0.4, maxX: r.x1 - 0.4, minZ: STUDY.z0 + 0.7, maxZ: STUDY.z1 + 0.3 })), // trong từng phòng học
   { minX: 16.0, maxX: 24.4, minZ: -33.2, maxZ: 18.0 }, // khoảng sân dọc giữa chánh điện và điện Quan Âm
@@ -193,14 +193,15 @@ export const TOWER = (() => {
 
 export function groundY(x, z) {
   const ax = Math.abs(x);
-  if (x > LIB.x0 - 0.2 && x < LIB.stair.x1 + 0.2 && z > LIB.z0 - 0.2 && z < LIB.stair.zFoot + 0.3) {
-    // lầu Phật pháp sau dãy phòng học: cầu thang dốc đều, chiếu nghỉ và sàn tầng 2
-    const S = LIB.stair;
-    if (x >= S.x0 - 0.15) {
-      if (z <= S.zTop) return LIB.y;
-      return LIB.base + LIB.h * Math.min(1, Math.max(0, (S.zFoot - z) / (S.zFoot - S.zTop)));
+  // tầng 2 khu tự học (toạ độ ảo, xem study.js): mặt sàn tầng 2
+  if (isUp(z)) return UP.y;
+  {
+    // cầu thang đá ngoài trời ở đầu hồi phía đông dãy phòng học: dốc đều lên chiếu nghỉ
+    const S = UP.stair;
+    if (x >= S.x0 - 0.15 && x <= S.x1 + 0.2 && z >= UP.landing.z0 - 0.2 && z <= S.zFoot + 0.3) {
+      if (z <= S.zTop) return UP.y;
+      return PORCH.courtY + UP.h * Math.min(1, Math.max(0, (S.zFoot - z) / (S.zFoot - S.zTop)));
     }
-    if (x <= LIB.x1 + 0.2 && z <= LIB.z1 + 0.2) return LIB.y;
   }
   if (ax <= BRIDGE.half + 0.3 && z > BRIDGE.z0 && z < BRIDGE.z1) return PORCH.courtY + bridgeRise(z); // mặt cầu vòm
   {
@@ -2081,15 +2082,15 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     obstacles.push({ x: B.x, z: B.z, r: 0.85 });
   }
 
-  // ---------- Khu tự học sau điện Quan Âm: 4 phòng ngoại ngữ, lầu Phật pháp (xem study.js) ----------
+  // ---------- Khu tự học sau điện Quan Âm: 4 phòng ngoại ngữ, tầng 2 Phật pháp (xem study.js) ----------
   const study = buildStudy({
     scene, std, box, cyl, mesh, boardMat,
     mats: { sideCol, sideWall, sideTile, stoneL, stoneM, gold: M.gold, bronze: M.bronze },
     pickables, obstacles,
   });
   const studyRoof = study.studyRoof;
-  // tầng dưới lầu Phật pháp đóng cửa, cầu thang ngoài: không đi xuyên qua
-  obstacles.push({ minX: LIB.x0 - 0.3, maxX: LIB.stair.x1 + 0.2, minZ: LIB.z0 - 0.3, maxZ: LIB.stair.zFoot - 0.2 });
+  // cầu thang lên tầng 2: đi ở dưới đất không xuyên qua (chỉ lên bằng lối cầu thang)
+  obstacles.push({ minX: UP.stair.x0 - 0.2, maxX: UP.stair.x1 + 0.3, minZ: UP.landing.z0 - 0.2, maxZ: UP.stair.zFoot - 0.3 });
 
   // ---------- Điện Quan Âm: hai tầng mái, tượng Quan Âm dát vàng, lư hương, nến ----------
   const QH = QAHALL;
@@ -4081,7 +4082,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   }
   // bồ đoàn trước các bàn học: 16 chỗ ở 4 phòng ngoại ngữ, 6 chỗ trên lầu Phật pháp (ngồi quay mặt về bảng đen phía bắc)
   for (const k of STUDY.desks) seats.push({ index: seats.length, x: k.x, z: k.z, y: PORCH.courtY + STUDY.floor, zone: 'out', out: true, place: 'study', room: k.room });
-  for (const k of LIB.desks) seats.push({ index: seats.length, x: k.x, z: k.z, y: LIB.y, zone: 'out', out: true, place: 'study', room: k.room });
+  for (const k of UP.desks) seats.push({ index: seats.length, x: k.x, z: k.z + UP.VZ, y: UP.y, zone: 'out', out: true, place: 'study', room: k.room }); // tầng 2: toạ độ ảo
   // 12 bồ đoàn xếp vòng quanh đài sen trên đài thiền, ngồi xuống thì quay mặt vào đài sen
   for (let k = 0; k < 12; k++) {
     const a = ((k + 0.5) / 12) * Math.PI * 2;
@@ -4098,7 +4099,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         o.updateMatrix();
         matMesh.setMatrixAt(s.index, o.matrix);
       }
-      o.position.set(s.x, s.y + (s.out ? 0.08 : 0.11), s.z + (s.out ? 0 : 0.05));
+      const [rx, rz] = toReal(s.x, s.z); // bồ đoàn tầng 2 đặt ở chỗ thật
+      o.position.set(rx, s.y + (s.out ? 0.08 : 0.11), rz + (s.out ? 0 : 0.05));
       o.updateMatrix();
       cushionMesh.setMatrixAt(s.index, o.matrix);
     }
@@ -4108,6 +4110,23 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   matMesh.userData.kind = cushionMesh.userData.kind = 'seat';
   scene.add(matMesh, cushionMesh);
   pickables.push(matMesh, cushionMesh);
+  {
+    // bồ đoàn tầng 2 khu tự học ẩn theo khi tầng 2 mờ đi (mình ở phòng tầng dưới, camera bay cao)
+    const upSeats = seats.filter((s) => isUp(s.z)), keep = upSeats.map((s) => {
+      const m = new THREE.Matrix4();
+      cushionMesh.getMatrixAt(s.index, m);
+      return m;
+    });
+    const hideM = new THREE.Matrix4().makeScale(0, 0, 0), setFade = study.studyUp.setFade;
+    let hidden = false;
+    study.studyUp.setFade = (v) => {
+      setFade(v);
+      if (v < 0.95 === hidden) return;
+      hidden = v < 0.95;
+      upSeats.forEach((s, i) => cushionMesh.setMatrixAt(s.index, hidden ? hideM : keep[i]));
+      cushionMesh.instanceMatrix.needsUpdate = true;
+    };
+  }
 
   // ---------- Ánh sáng ----------
   const hemi = new THREE.HemisphereLight(0xfff0d8, 0x5a3a26, 1.25);
@@ -4351,7 +4370,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     peak,
     incensePeak,
     studyRoof,
-    libRoof: study.libRoof,
+    studyUp: study.studyUp,
     studyBoards: study.boards,
     incenseNgoa,
     falls: [-1, 1].map((s) => new THREE.Vector3(s * FALLS.x, TERRACE.y + 6, FALLS.z)),
@@ -4377,6 +4396,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
       sun.target.position.copy(focus);
     },
     showMarker(x, z, y = 0.04) {
+      [x, z] = toReal(x, z); // điểm đến trên tầng 2 khu tự học: hiện ở chỗ thật
       marker.position.set(x, y, z);
       markerStart = now;
     },

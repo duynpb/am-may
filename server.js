@@ -300,7 +300,7 @@ wss.on('connection', (ws, req) => {
       // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
       const wide = siteOf(roomId) === 'tamchuc';
       me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 210); // tới hết Làng Mây phía đông
-      me.z = clamp(m.z, wide ? -320 : -90, wide ? 320 : 160);
+      me.z = clamp(m.z, wide ? -320 : -220, wide ? 320 : 160); // z dưới -100: tầng 2 khu tự học (toạ độ ảo)
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 128 ? m.seat : null;
       // w: đi nhanh bằng bản đồ — người khác thấy hiện ngay ở chỗ mới
       broadcast(roomId, { t: 'move', id: me.id, x: me.x, z: me.z, seat: me.seat, w: m.w ? 1 : undefined }, me.id);

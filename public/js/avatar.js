@@ -395,7 +395,8 @@ export class Avatar {
   sync() {
     const p = this.p, t = this.time + this.seed;
     const bob = Math.abs(Math.sin(this.phase)) * 0.06 * p.walk;
-    this.root.position.set(this.pos.x, Avatar.ground(this.pos.x, this.pos.z) + bob - 0.04 * p.sit, this.pos.z);
+    const [rx, rz] = Avatar.place(this.pos.x, this.pos.z); // chỗ vẽ thật (tầng 2 khu tự học dùng toạ độ ảo)
+    this.root.position.set(rx, Avatar.ground(this.pos.x, this.pos.z) + bob - 0.04 * p.sit, rz);
     this.root.rotation.y = this.ry;
     this.root.rotation.z = Math.sin(this.phase) * 0.04 * p.walk;
 
@@ -459,3 +460,4 @@ const pSit = (a) => a.p.sit;
 
 // Độ cao mặt đất tại (x, z) — main.js gán theo thềm và sân
 Avatar.ground = () => 0;
+Avatar.place = (x, z) => [x, z];
