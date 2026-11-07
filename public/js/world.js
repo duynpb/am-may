@@ -2824,7 +2824,13 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
         box(0.9, 0.3, 1.8, stoneL, nx - 0.5, T0 + 0.35 + 0.15, P.z); // bệ đá dưới chân tượng
         const SH = 2.7; // tượng cao 2,7 m
         loadCarved(CARVED.standing).then(({ geo, gold }) => {
-          const st = new THREE.Mesh(geo, gold);
+          // file mẫu bị nghiêng sẵn (~3,7° sang ngang, ~0,9° ra trước): xoay bù cho đáy bệ phẳng, tượng đứng thẳng
+          const g2 = geo.clone();
+          g2.rotateZ(-0.064);
+          g2.rotateX(0.015);
+          g2.computeBoundingBox();
+          g2.translate(0, -g2.boundingBox.min.y, 0);
+          const st = new THREE.Mesh(g2, gold);
           st.scale.setScalar(SH);
           st.rotation.y = -Math.PI / 2; // quay mặt về phía tây (về phía chùa)
           st.position.set(nx - 0.55, T0 + 0.35 + 0.3, P.z);
