@@ -1,5 +1,6 @@
 // Các texture vẽ bằng canvas — không cần tải ảnh ngoài.
 import * as THREE from 'three';
+import { tBoard } from './i18n.js';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
@@ -79,6 +80,7 @@ export function lacquerWall() {
 
 // Hoành phi, câu đối sơn son thếp vàng
 export function boardTexture(lines, { w = 1024, h = 256, size = 120 } = {}) {
+  lines = tBoard(lines); // đổi theo ngôn ngữ đã chọn
   return canvasTexture(w, h, (g) => {
     const bg = g.createLinearGradient(0, 0, w, h);
     bg.addColorStop(0, '#701b12');
@@ -96,18 +98,25 @@ export function boardTexture(lines, { w = 1024, h = 256, size = 120 } = {}) {
     g.shadowColor = 'rgba(0,0,0,.55)';
     g.shadowBlur = 8;
     g.shadowOffsetY = 3;
-    const lineH = (h - 84) / lines.length; // chiều cao mỗi dòng bên trong khung viền trong
+    // câu đối dọc mà chỉ có một dòng (bản dịch chữ La-tinh): xoay chữ chạy dọc theo câu đối
+    let W = w, H = h;
+    if (h > w * 2 && lines.length === 1) {
+      g.translate(w, 0);
+      g.rotate(Math.PI / 2);
+      W = h; H = w;
+    }
+    const lineH = (H - 84) / lines.length; // chiều cao mỗi dòng bên trong khung viền trong
     lines.forEach((ln, i) => {
       // chữ dài thì tự co cho vừa bề ngang; chữ có dấu chồng (Ề, Ấ, Ổ…) thì co cho vừa bề cao,
       // để dấu không đụng vào viền khung
-      g.font = `700 ${size}px "Noto Serif", "Times New Roman", Georgia, serif`;
+      g.font = `700 ${size}px "Noto Serif", "Times New Roman", Georgia, "Noto Serif SC", "Songti SC", SimSun, serif`;
       let m = g.measureText(ln);
-      const fit = Math.min(size, (size * (w - 110)) / m.width, (size * lineH) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent));
-      g.font = `700 ${fit}px "Noto Serif", "Times New Roman", Georgia, serif`;
+      const fit = Math.min(size, (size * (W - 110)) / m.width, (size * lineH) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent));
+      g.font = `700 ${fit}px "Noto Serif", "Times New Roman", Georgia, "Noto Serif SC", "Songti SC", SimSun, serif`;
       m = g.measureText(ln);
       // canh giữa theo đúng phần chữ thật (tính cả dấu) trong dòng
       const cy = 42 + lineH * (i + 0.5);
-      g.fillText(ln, w / 2, cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
+      g.fillText(ln, W / 2, cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
     });
   });
 }
@@ -655,7 +664,7 @@ export function phanTex(words = ['NAM', 'MÔ', 'A', 'DI', 'ĐÀ', 'PHẬT']) {
     g.textBaseline = 'middle';
     const top = 300, step = (h - 160 - top) / words.length;
     words.forEach((wd, i) => {
-      g.font = `700 ${wd.length > 3 ? 62 : 74}px "Noto Serif", "Times New Roman", Georgia, serif`;
+      g.font = `700 ${wd.length > 3 ? 62 : 74}px "Noto Serif", "Times New Roman", Georgia, "Noto Serif SC", "Songti SC", SimSun, serif`;
       g.fillText(wd, cx, top + step * (i + 0.5));
     });
   }));

@@ -75,6 +75,33 @@ export function t(s, depth = 0) {
   return s;
 }
 
+// ---------- Chữ trên bảng hiệu trong cảnh 3D (hoành phi, câu đối, bảng tên) ----------
+// khóa = các dòng tiếng Việt nối bằng '|'; giá trị = [en, zh, de], mỗi bản là mảng các dòng
+// Tên riêng (AM MÂY, TAM CHÚC) giữ nguyên.
+const BOARDS = {
+  'ĐẠI HÙNG BẢO ĐIỆN': [['MAIN BUDDHA HALL'], ['大雄宝殿'], ['HAUPTHALLE']],
+  'PHẬT TẠI TÂM': [['BUDDHA IS IN THE HEART'], ['佛在心中'], ['BUDDHA IST IM HERZEN']],
+  // câu đối dọc: chữ Hán mỗi chữ một dòng; chữ La-tinh một dòng, tự xoay chạy dọc
+  'Từ|Bi|Hỷ|Xả': [['Love · Compassion · Joy · Peace'], ['慈', '悲', '喜', '舍'], ['Güte · Mitgefühl · Freude · Ruhe']],
+  'Vô|Ngã|Vị|Tha': [['Selfless · Living for Others'], ['无', '我', '利', '他'], ['Selbstlos · Leben für Andere']],
+  'CÔNG ĐỨC': [['OFFERING'], ['功德'], ['SPENDE']],
+  'VƯỜN KINH': [['SUTRA GARDEN'], ['经园'], ['SUTRA-GARTEN']],
+  'QUAN ÂM ĐIỆN': [['GUANYIN HALL'], ['观音殿'], ['GUANYIN-HALLE']],
+  'PHÁP CHỦ ĐIỆN': [['DHARMA LORD HALL'], ['法主殿'], ['DHARMA-HERR-HALLE']],
+  'TAM THẾ ĐIỆN': [['THREE AGES HALL'], ['三世殿'], ['HALLE DER DREI ZEITALTER']],
+  'HÀNH LANG LA HÁN': [['ARHAT CORRIDOR'], ['罗汉长廊'], ['ARHAT-GALERIE']],
+  'GÁC CHUÔNG': [['BELL TOWER'], ['钟楼'], ['GLOCKENTURM']],
+  'ĐÀI THIỀN': [['MEDITATION TERRACE'], ['禅台'], ['MEDITATIONSTERRASSE']],
+  'TĨNH|TÂM': [['INNER', 'PEACE'], ['静', '心'], ['INNERE', 'RUHE']],
+  'NHÀ TỰ HỌC': [['STUDY HALL'], ['自习堂'], ['LERNHALLE']],
+  'VƯỜN RAU': [['VEGETABLES'], ['菜园'], ['GEMÜSE']],
+  'VƯỜN QUẢ': [['ORCHARD'], ['果园'], ['OBSTGARTEN']],
+};
+export function tBoard(lines) {
+  if (col == null) return lines;
+  return BOARDS[lines.join('|')]?.[col] ?? lines;
+}
+
 // ---------- Tự dịch chữ hiện lên trang ----------
 const done = new WeakMap(); // nút chữ → chữ đã dịch gần nhất (để không dịch lặp)
 function fixText(node) {
