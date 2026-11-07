@@ -385,6 +385,7 @@ const PLACES = [
 ];
 function quickTravel(p) {
   closeModal($('#modal-map'));
+  setOverview(false);
   if (ride) return toast('Bạn đang ngồi thuyền — thuyền về bến sẽ lên bờ', 2600);
   pendingBoard = false;
   pendingRead = null;
@@ -718,7 +719,8 @@ function handleTap(x, y) {
 }
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  // nhìn toàn cảnh: chuột phải (hoặc giữ Shift) kéo để xoay, kéo thường để dời góc nhìn
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, rotate: e.button === 2 || e.shiftKey });
   if (pointers.size === 1) dragDist = 0;
   if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
@@ -736,13 +738,21 @@ canvas.addEventListener('pointermove', (e) => {
   if (pointers.size === 1) {
     dragDist += Math.abs(dx) + Math.abs(dy);
     if (dragDist > 6) {
-      cam.yaw -= dx * 0.0055;
-      cam.pitch = clamp(cam.pitch + dy * 0.004, 0.04, 1.2);
+      if (ov.on && !p.rotate) {
+        panOverview(dx, dy);
+      } else if (ov.on) {
+        cam.yaw -= dx * 0.005;
+        cam.pitch = clamp(cam.pitch + dy * 0.004, OV.pitchMin, OV.pitchMax);
+      } else {
+        cam.yaw -= dx * 0.0055;
+        cam.pitch = clamp(cam.pitch + dy * 0.004, 0.04, 1.2);
+      }
       hideHint();
     }
   } else if (pointers.size === 2 && pinch) {
     const [a, b] = [...pointers.values()];
-    cam.dist = clamp((pinch.dist * pinch.d) / Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1), 3, 40);
+    const nd = (pinch.dist * pinch.d) / Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1);
+    cam.dist = ov.on ? clamp(nd, OV.distMin, OV.distMax) : clamp(nd, 3, 40);
   }
 });
 const endPointer = (e) => {
@@ -755,8 +765,69 @@ canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  cam.dist = clamp(cam.dist * (1 + Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 120) * 0.0012), 3, 40);
+  const k = 1 + Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 120) * 0.0012;
+  cam.dist = ov.on ? clamp(cam.dist * k, OV.distMin, OV.distMax) : clamp(cam.dist * k, 3, 40);
 }, { passive: false });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ---------- Nhìn toàn cảnh khu Tam Chúc từ trên cao (như khu Am Mây) ----------
+// Camera bay lên cao nhìn cả hồ, sân lớn, vườn kinh và ba điện trên sườn núi; chạm xuống đất vẫn điều khiển nhân vật đi tới đó.
+const OV = { distMin: 35, distMax: 320, pitchMin: 0.45, pitchMax: 1.45, bounds: { x0: -125, x1: 85, z0: -180, z1: 80 } };
+const ov = { on: false, focus: new THREE.Vector3(), saved: null };
+const ovMarker = new THREE.Group();
+{
+  const gold = new THREE.MeshBasicMaterial({ color: '#f2c04a' });
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 16).rotateX(Math.PI), gold);
+  cone.position.y = 0.9;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.18, 8, 32).rotateX(Math.PI / 2), gold);
+  ring.position.y = -2.6;
+  ovMarker.add(cone, ring);
+  ovMarker.visible = false;
+  scene.add(ovMarker);
+}
+const FOG = { near: scene.fog.near, far: scene.fog.far };
+function panOverview(dx, dy) {
+  // kéo theo ngón tay: cảnh trôi cùng chiều kéo
+  const s = cam.curDist * 0.0016;
+  const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw); // sang phải trên màn hình
+  const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw); // hướng camera nhìn tới
+  const b = OV.bounds;
+  ov.focus.x = clamp(ov.focus.x - rx * dx * s + fx * dy * s, b.x0, b.x1);
+  ov.focus.z = clamp(ov.focus.z - rz * dx * s + fz * dy * s, b.z0, b.z1);
+}
+function setOverview(on) {
+  if (ov.on === on) return;
+  ov.on = on;
+  $('#btn-overview').classList.toggle('on', on);
+  $('#btn-overview').setAttribute('aria-pressed', on);
+  ovMarker.visible = on;
+  // từ trên cao không thấy rõ bóng người đi lại: giữ nguyên bóng đổ, khỏi tính lại mỗi khung hình
+  renderer.shadowMap.autoUpdate = !on;
+  renderer.shadowMap.needsUpdate = true;
+  // sương mù nhẹ đi khi nhìn từ trên cao, để thấy rõ cả khu
+  scene.fog.near = on ? 300 : FOG.near;
+  scene.fog.far = on ? 1000 : FOG.far;
+  if (on) {
+    ov.saved = { yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist };
+    // nhìn từ phía hồ vào sườn núi, tâm giữa sân lớn và chỗ mình đứng
+    ov.focus.set(clamp(player.pos.x * 0.4, -60, 40), LAND, clamp(player.pos.z * 0.4 - 30, -120, 40));
+    cam.yaw = 0;
+    cam.pitch = 0.95;
+    cam.dist = 190;
+    showHint(isCoarse ? 'Toàn cảnh chùa · kéo để dời · chụm hai ngón để phóng to · chạm đất để đi tới' : 'Toàn cảnh chùa · kéo để dời · chuột phải kéo để xoay · lăn chuột để phóng to · nhấp đất để đi tới · V để trở lại', 7000);
+  } else {
+    Object.assign(cam, ov.saved);
+    showHint(baseHint, 4000);
+  }
+}
+$('#btn-overview').addEventListener('click', () => setOverview(!ov.on));
+// mũi tên vàng chỉ chỗ mình đứng; trong điện hay dưới cổng Tam Quan thì nổi lên trên mái cho khỏi bị che
+function ovMarkerLift() {
+  const { x, z } = player.pos;
+  for (const T of TERRACES) if (Math.abs(x) < T.hall.hx + 1 && z < T.hall.front + 1 && z > T.hall.back - 1) return 12;
+  if (Math.abs(x) < 12 && z > GATE.z - 4 && z < GATE.z + 4) return 12;
+  return 4.6;
+}
 
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
@@ -773,6 +844,8 @@ window.addEventListener('keydown', (e) => {
     sound.init();
     hideHint();
   }
+  if (k === 'v') setOverview(!ov.on);
+  if (k === 'escape' && ov.on) setOverview(false);
   if (k === 'g') doGassho(nearestPerson(6));
   if (k === 'b') doBow();
 });
@@ -801,6 +874,21 @@ function keyMove(t) {
 }
 
 function updateCamera(dt) {
+  if (ov.on) {
+    cam.target.lerp(ov.focus, 1 - Math.exp(-4 * dt));
+    cam.curDist += (cam.dist - cam.curDist) * (1 - Math.exp(-3 * dt));
+    cam.curPitch += (cam.pitch - cam.curPitch) * (1 - Math.exp(-3 * dt));
+    const cp = Math.cos(cam.curPitch);
+    camera.position.set(
+      cam.target.x + Math.sin(cam.yaw) * cp * cam.curDist,
+      Math.max(groundY(cam.target.x, cam.target.z) + 3, cam.target.y + Math.sin(cam.curPitch) * cam.curDist),
+      cam.target.z + Math.cos(cam.yaw) * cp * cam.curDist,
+    );
+    camera.lookAt(cam.target);
+    ovMarker.position.set(player.root.position.x, player.root.position.y + ovMarkerLift() + Math.sin(performance.now() / 300) * 0.4, player.root.position.z);
+    ovMarker.scale.setScalar(clamp(cam.curDist / 70, 0.6, 3));
+    return;
+  }
   const want = new THREE.Vector3(player.root.position.x, player.root.position.y + 1.1, player.root.position.z);
   cam.target.lerp(want, 1 - Math.exp(-6 * dt));
   cam.curDist += (cam.dist - cam.curDist) * (1 - Math.exp(-4 * dt));
@@ -995,9 +1083,11 @@ renderer.setAnimationLoop(() => {
   if (mapOpen) updateMap();
   if ((lodT -= dt) < 0) {
     lodT = 0.5;
-    world.updateLOD(player.pos.x, player.pos.z);
+    // nhìn toàn cảnh: tượng đều nằm dưới mái, ẩn hết cho nhẹ
+    if (ov.on) world.updateLOD(Infinity, Infinity);
+    else world.updateLOD(player.pos.x, player.pos.z);
   }
-  world.setFocus(player.pos.x, player.pos.z);
+  if (!ov.on) world.setFocus(player.pos.x, player.pos.z); // nhìn toàn cảnh thì giữ nguyên vùng bóng đổ
   updateCamera(dt);
   renderer.render(scene, camera);
   updateLabels(performance.now());
