@@ -270,25 +270,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
   const pickables = [];
 
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o });
-  // Vật liệu mặt nền: vân (cỏ, đá lát, gạch, đất) trải theo toạ độ trong cảnh nên viên đá, viên gạch ở mọi sân
-  // đều cùng kích thước thật; thêm mảng sáng tối rất lớn để bãi cỏ không lặp đều đều.
-  // tile: một ô vân rộng bao nhiêu mét; macro: độ đậm nhạt của mảng lớn; tint: màu nhuộm thêm.
-  const groundMat = (kind, { tile = 4, macro = 0.1, tint = '#ffffff', ...o } = {}) => {
-    const map = { grass: T.grassTex, slab: () => T.stoneTex('slab'), tile: () => T.stoneTex('tile'), brick: T.brickTex, dirt: T.dirtTex }[kind]();
-    const m = new THREE.MeshStandardMaterial({ color: tint, map, roughness: 0.95, ...o });
-    m.onBeforeCompile = (sh) => {
-      sh.uniforms.uTile = { value: tile };
-      sh.uniforms.uMacro = { value: macro };
-      sh.vertexShader = 'varying vec2 vWXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
-      sh.fragmentShader = 'varying vec2 vWXZ;\nuniform float uTile;\nuniform float uMacro;\n' + sh.fragmentShader.replace('#include <map_fragment>', `
-        vec4 sampledDiffuseColor = texture2D(map, vWXZ / uTile);
-        float mv = 0.5 * sin(vWXZ.x * 0.043 + sin(vWXZ.y * 0.031) * 2.0) + 0.3 * sin(vWXZ.y * 0.071 + vWXZ.x * 0.017) + 0.2 * sin((vWXZ.x + vWXZ.y) * 0.19);
-        sampledDiffuseColor.rgb *= 1.0 + uMacro * mv;
-        diffuseColor *= sampledDiffuseColor;`);
-    };
-    m.customProgramCacheKey = () => 'ground-world-uv';
-    return m;
-  };
+  // Vật liệu mặt nền dùng chung với khu Tam Chúc (xem groundMaterial trong textures.js)
+  const groundMat = T.groundMaterial;
   const POFF = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 };
   const M = {
     wood: std('#4a2d1c', { roughness: 0.7 }),

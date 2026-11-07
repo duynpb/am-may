@@ -94,6 +94,8 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   const updaters = [];
   const nightHooks = [];
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...o });
+  // mặt nền như khu Am Mây: cỏ có vân, đá tấm có ron, đá lát ô nhỏ — vân trải theo toạ độ cảnh nên đúng kích thước thật
+  const groundMat = T.groundMaterial;
   // Vật đứng yên tạo trong lúc batching = true (hoặc nhóm được đánh dấu) được gộp theo vật liệu
   // ở cuối hàm để giảm số lệnh vẽ — quan trọng cho điện thoại.
   let batching = false;
@@ -148,7 +150,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   batching = true;
   // ---------- Mặt đất, bờ kè, mặt hồ ----------
   {
-    const grass = std('#8b9670', { roughness: 1 });
+    const grass = groundMat('grass', { tile: 5, macro: 0.3, tint: '#dbe2c8' });
     // khối đất bên bờ: mặt trên là cỏ, mặt trông ra hồ là kè đá (hạ thấp 4 cm so với LAND để các sân lát đá bên trên không bị nhấp nháy Z-fighting)
     const land = mesh(new THREE.BoxGeometry(900, 3, 700), [stoneD, stoneD, grass, stoneD, stoneD, stoneD], 0, LAND - 1.54, SHORE - 350, { cast: false });
     land.userData.kind = 'ground';
@@ -177,7 +179,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     water.rotation.x = -Math.PI / 2;
     updaters.push((t) => normal.offset.set(t * 0.004, t * 0.007));
     // bờ hồ lát đá
-    const prom = mesh(new THREE.PlaneGeometry(140, 13), std('#b9b0a0', { roughness: 1 }), 0, LAND + 0.015, 45.8, { cast: false });
+    const prom = mesh(new THREE.PlaneGeometry(140, 13), groundMat('slab', { tile: 5.5, macro: 0.05 }), 0, LAND + 0.015, 45.8, { cast: false });
     prom.rotation.x = -Math.PI / 2;
     prom.userData.kind = 'ground';
     pickables.push(prom);
@@ -382,21 +384,9 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
     }
   }
 
-  // ---------- Sân lớn sau cổng: lát đá ô vuông, đỉnh đồng giữa sân, đèn và cây ----------
+  // ---------- Sân lớn sau cổng: lát đá tấm, đỉnh đồng giữa sân, đèn và cây ----------
   {
-    const c = document.createElement('canvas');
-    c.width = c.height = 128;
-    const g2 = c.getContext('2d');
-    g2.fillStyle = '#bdb4a3';
-    g2.fillRect(0, 0, 128, 128);
-    g2.strokeStyle = 'rgba(80,70,55,0.35)';
-    g2.lineWidth = 3;
-    g2.strokeRect(1, 1, 126, 126);
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set((PLAZA.maxX - PLAZA.minX) / 2.4, (PLAZA.maxZ - PLAZA.minZ) / 2.4);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const plaza = mesh(new THREE.PlaneGeometry(PLAZA.maxX - PLAZA.minX, PLAZA.maxZ - PLAZA.minZ), std('#ffffff', { map: tex, roughness: 1 }), 0, LAND + 0.015, (PLAZA.minZ + PLAZA.maxZ) / 2, { cast: false });
+    const plaza = mesh(new THREE.PlaneGeometry(PLAZA.maxX - PLAZA.minX, PLAZA.maxZ - PLAZA.minZ), groundMat('slab', { tile: 5.5, macro: 0.05 }), 0, LAND + 0.015, (PLAZA.minZ + PLAZA.maxZ) / 2, { cast: false });
     plaza.rotation.x = -Math.PI / 2;
     plaza.userData.kind = 'ground';
     pickables.push(plaza);
@@ -434,26 +424,12 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   const pillars = [];
   {
     const G = SUTRA_GARDEN;
-    // nền lát đá cho vườn và lối sang từ sân
-    const c = document.createElement('canvas');
-    c.width = c.height = 128;
-    const g2 = c.getContext('2d');
-    g2.fillStyle = '#a9a291';
-    g2.fillRect(0, 0, 128, 128);
-    g2.strokeStyle = 'rgba(70,60,45,0.35)';
-    g2.lineWidth = 3;
-    g2.strokeRect(1, 1, 126, 62);
-    g2.strokeRect(-63, 65, 126, 62);
-    g2.strokeRect(65, 65, 126, 62);
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set((G.maxX - G.minX) / 2, (G.maxZ - G.minZ) / 2);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const floor = mesh(new THREE.PlaneGeometry(G.maxX - G.minX + 2, G.maxZ - G.minZ + 2), std('#ffffff', { map: tex, roughness: 1 }), (G.minX + G.maxX) / 2, LAND + 0.015, (G.minZ + G.maxZ) / 2, { cast: false });
+    // nền lát đá ô nhỏ cho vườn và lối sang từ sân
+    const floor = mesh(new THREE.PlaneGeometry(G.maxX - G.minX + 2, G.maxZ - G.minZ + 2), groundMat('tile', { tile: 3, macro: 0.04, tint: '#f2ece0' }), (G.minX + G.maxX) / 2, LAND + 0.015, (G.minZ + G.maxZ) / 2, { cast: false });
     floor.rotation.x = -Math.PI / 2;
     floor.userData.kind = 'ground';
     pickables.push(floor);
-    const lane = mesh(new THREE.PlaneGeometry(7, 6), std('#b3aa98', { roughness: 1 }), -51.5, LAND + 0.015, -16, { cast: false });
+    const lane = mesh(new THREE.PlaneGeometry(7, 6), groundMat('tile', { tile: 4, macro: 0.05 }), -51.5, LAND + 0.015, -16, { cast: false });
     lane.rotation.x = -Math.PI / 2;
     lane.userData.kind = 'ground';
     pickables.push(lane);
@@ -631,7 +607,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
   const lods = [];
   {
     const retainM = std('#8f897d', { roughness: 1 });
-    const paveM = std('#b3aa98', { roughness: 1 });
+    const paveM = groundMat('slab', { tile: 5.5, macro: 0.05 });
     const stepM = std('#b8b1a3', { roughness: 0.95 });
     const floorTex = T.woodFloor();
     for (const Tr of TERRACES) {
