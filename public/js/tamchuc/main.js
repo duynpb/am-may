@@ -1,5 +1,6 @@
 // Trang khu Tam Chúc: đi dạo bờ hồ, qua cổng Tam Quan vào sân lớn, gặp mọi người cùng phòng.
 // Dùng chung nhân vật, kết nối mạng, âm thanh, pháp danh và điểm phước với khu Am Mây.
+import '../i18n.js'; // tự dịch chữ trên trang theo ngôn ngữ đã chọn
 import * as THREE from 'three';
 import { buildTamChuc, groundY, WALK_AREAS, ROUND_OBSTACLES, SPAWN, LAND, BOARD, BOATS, PIER, PILLAR_POS, TERRACES, STAIRS, PLAZA, SUTRA_GARDEN, SHORE, GATE, CAULDRON } from './world.js';
 import { PILLARS } from './sutras.js';

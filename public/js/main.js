@@ -1,3 +1,4 @@
+import { lang, LANGS, setLang } from './i18n.js'; // nạp trước để tự dịch chữ trên trang
 import * as THREE from 'three';
 import { buildWorld, HALL, BUDDHA, ENTRANCE, COURTYARD, PORCH, TOWER, GATE, WALK_AREAS, CORRIDOR, WELL, BELLTOWER, BELL_LOFT, ZEN_LOFT, NGOA, STUDY, PEAK, QAHALL, TERRACE, STAIRS, TAMTHE, FALLS, groundY } from './world.js';
 import { Avatar, ROBES } from './avatar.js';
@@ -3813,6 +3814,13 @@ $('#btn-shot').addEventListener('click', () => {
     if (chanting()) sound.setChant(true);
   });
 
+  // ngôn ngữ giao diện: đổi thì tải lại trang
+  {
+    const langSel = $('#set-lang');
+    for (const [k, name] of Object.entries(LANGS)) langSel.append(new Option(name, k));
+    langSel.value = lang;
+    langSel.addEventListener('change', () => setLang(langSel.value));
+  }
   // thời gian học và nghỉ ở nhà tự học (phút)
   for (const [el, key, max] of [[$('#set-study-min'), 'studyMin', 180], [$('#set-break-min'), 'breakMin', 60]]) {
     el.value = settings[key];

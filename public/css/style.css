@@ -338,6 +338,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   border: 1px solid rgba(0, 0, 0, 0.12); background: #fff; outline: none;
 }
 .select-row select:focus { border-color: var(--gold); }
+.lang-row { margin: 0 0 14px; }
 .select-row input[type='number'] {
   font: inherit; font-size: 13px; color: var(--ink); width: 76px; padding: 7px 10px; border-radius: 10px;
   border: 1px solid rgba(0, 0, 0, 0.12); background: #fff; outline: none; text-align: center;
