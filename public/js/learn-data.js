@@ -396,11 +396,11 @@ export const MODES = {
   vocab: { icon: '🃏', name: 'Học từ vựng', desc: 'Thẻ ghi nhớ: học theo cụm từ hoặc theo câu, nghe phát âm' },
   grammar: { icon: '📐', name: 'Học ngữ pháp', desc: 'Công thức, giải thích, ví dụ rồi làm bài: chọn đáp án và xếp câu' },
   listen: { icon: '🎧', name: 'Luyện nghe', desc: 'Nghe rồi chép chính tả, điền vào chỗ trống, 3 độ khó' },
-  speak: { icon: '🗣️', name: 'Luyện nói', desc: 'Nói đuổi theo câu mẫu (shadowing) hoặc tự nói, máy chấm điểm' },
+  speak: { icon: '🗣️', name: 'Luyện nói', desc: 'Đọc câu mẫu, máy kiểm tra phát âm: từ đúng hiện xanh, từ sai bôi đỏ' },
 };
 export const PHAT_MODES = {
   vocab: { icon: '🪷', name: 'Thuật ngữ Phật học', desc: 'Thẻ ghi nhớ các thuật ngữ, theo cụm hoặc theo câu' },
   grammar: { icon: '☸️', name: 'Giáo lý căn bản', desc: 'Tam Bảo, Ngũ giới, Tứ Diệu Đế, Bát Chánh Đạo, Lục độ — kèm bài ôn' },
   listen: { icon: '🎧', name: 'Nghe kinh, chép chính tả', desc: 'Nghe câu kinh, câu kệ rồi điền chỗ trống, 3 độ khó' },
-  speak: { icon: '📿', name: 'Đọc tụng theo', desc: 'Đọc theo câu kinh, kệ hoặc tự trình bày giáo lý, máy chấm điểm' },
+  speak: { icon: '📿', name: 'Đọc tụng theo', desc: 'Đọc câu kinh, câu kệ, máy kiểm tra phát âm: chữ sai bôi đỏ' },
 };

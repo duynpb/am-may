@@ -75,20 +75,23 @@ function speak(text, lang, rate = 1) {
 
 // ---------- nhận dạng giọng nói ----------
 const SR = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
-// nghe một lượt: trả { text, conf } — conf là độ rõ máy nghe được (0..1)
+// nghe một lượt: trả { text, conf, alts } — conf là độ rõ máy nghe được (0..1),
+// alts: tối đa 5 cách máy hiểu câu vừa nói (chọn cách khớp nhất, để đọc đúng mà máy nghe nhầm thì ít bị bôi đỏ oan)
 function listenOnce(lang, { continuous = false, onPartial } = {}) {
   return new Promise((resolve, reject) => {
     const rec = new SR();
     rec.lang = lang;
     rec.interimResults = true;
     rec.continuous = continuous;
-    rec.maxAlternatives = 1;
+    rec.maxAlternatives = 5;
     let finalText = '', confs = [];
+    const finals = [];
     rec.onresult = (e) => {
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
         if (r.isFinal) {
+          finals.push([...r].map((x) => x.transcript.trim()));
           finalText += (finalText ? ' ' : '') + r[0].transcript.trim();
           if (r[0].confidence > 0) confs.push(r[0].confidence);
         } else interim += r[0].transcript;
@@ -96,7 +99,11 @@ function listenOnce(lang, { continuous = false, onPartial } = {}) {
       onPartial?.((finalText + ' ' + interim).trim());
     };
     rec.onerror = (e) => reject(e.error || 'error');
-    rec.onend = () => resolve({ text: finalText, conf: confs.length ? confs.reduce((a, b) => a + b) / confs.length : 0 });
+    rec.onend = () => {
+      const alts = [];
+      for (let k = 0; k < 5; k++) alts.push(finals.map((f) => f[Math.min(k, f.length - 1)]).join(' '));
+      resolve({ text: finalText, conf: confs.length ? confs.reduce((a, b) => a + b) / confs.length : 0, alts: [...new Set(alts)].filter(Boolean) });
+    };
     rec.start();
     listenOnce.stop = () => rec.stop();
   });
@@ -105,7 +112,7 @@ function listenOnce(lang, { continuous = false, onPartial } = {}) {
 // ---------- so khớp câu (bỏ dấu câu, chữ hoa/thường) ----------
 const cjk = (lang) => /^(zh|ko|ja)/.test(lang);
 function toks(s, lang) {
-  s = s.toLowerCase().normalize('NFC').replace(/[\p{P}\p{S}]/gu, ' ');
+  s = s.toLowerCase().normalize('NFC').replace(/['’]/g, '').replace(/[\p{P}\p{S}]/gu, ' ');
   return cjk(lang) ? [...s.replace(/\s+/g, '')] : s.split(/\s+/).filter(Boolean);
 }
 // đánh dấu từng phần của câu mẫu đã nói đúng (theo dãy con chung dài nhất)
@@ -124,6 +131,31 @@ function compare(target, said, lang) {
   }
   const lcs = L[0][0];
   return { sim: a.length + b.length ? (2 * lcs) / (a.length + b.length) : 0, hit, tokens: a };
+}
+// Kiểm tra phát âm: chia câu mẫu thành các ô để tô màu (tiếng Trung từng chữ, tiếng khác từng từ),
+// ô nào máy nghe ra đúng thì xanh, không nghe ra thì đỏ
+function units(text, lang) {
+  const parts = /^zh/.test(lang) ? [...text] : text.split(/\s+/).filter(Boolean);
+  return parts.map((w) => ({ show: w, toks: toks(w, lang), ok: null }));
+}
+const scoreOf = (U) => {
+  const n = U.reduce((a, u) => a + u.toks.length, 0);
+  return n ? Math.round((100 * U.reduce((a, u) => a + (u.ok ? u.toks.length : 0), 0)) / n) : 0;
+};
+function checkSaid(text, alts, lang) {
+  const U = units(text, lang), n = U.reduce((a, u) => a + u.toks.length, 0);
+  // chấm theo MỘT cách hiểu khớp nhất (không gộp nhiều cách, để từ đọc sai vẫn bị đỏ)
+  let hit = new Array(n).fill(false);
+  for (const said of alts) {
+    const h2 = compare(text, said, lang).hit;
+    if (h2.filter(Boolean).length > hit.filter(Boolean).length) hit = h2;
+  }
+  let k = 0;
+  for (const u of U) {
+    u.ok = u.toks.length ? u.toks.every((_, j) => hit[k + j]) : null;
+    k += u.toks.length;
+  }
+  return { units: U, score: scoreOf(U) };
 }
 const norm = (s) => s.toLowerCase().normalize('NFC').replace(/[\p{P}\p{S}\s]/gu, '');
 const grade = (sc) => (sc >= 90 ? 'Tuyệt vời!' : sc >= 75 ? 'Rất tốt!' : sc >= 55 ? 'Khá rồi, luyện thêm chút nữa' : 'Cần luyện thêm — nghe mẫu rồi nói lại nhé');
@@ -391,101 +423,85 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
     setTimeout(() => (inputs[0]?.[0] ?? full)?.focus(), 60);
   }
 
-  // ===== Luyện nói: nói đuổi (shadowing) hoặc tự nói, chấm điểm =====
+  // ===== Luyện nói: đọc câu mẫu, kiểm tra phát âm — từ đúng xanh, từ chưa đúng bôi đỏ, luyện lại từng từ =====
   function viewSpeak() {
-    const st = (state[room.key].speak ??= { kind: 'shadow', i: 0, p: 0 });
-    const seg = h('div', { class: 'chalk-seg' }, [['shadow', 'Nói đuổi theo mẫu'], ['free', 'Tự nói']].map(([k, label]) =>
-      h('button', { class: st.kind === k ? 'on' : '', onclick: () => { st.kind = k; render(); } }, label)));
-    body.append(h('div', { class: 'chalk-row' }, seg));
-    if (!SR) {
-      body.append(h('p', { class: 'chalk-note', text: 'Trình duyệt này chưa hỗ trợ nhận dạng giọng nói. Hãy mở trang bằng Chrome hoặc Edge (máy tính, Android) để luyện nói có chấm điểm. Vẫn có thể nghe mẫu và đọc theo.' }));
+    const st = (state[room.key].speak ??= { i: 0, res: null });
+    // câu mẫu: các câu luyện nghe + câu ví dụ trong từ vựng
+    const pool = [...course.listen.map(([, tx, pr, m]) => [shown(tx), pr, m]), ...course.vocab.flatMap((tp) => tp.items.map((it) => [it[6], it[7], it[8]]))];
+    st.i %= pool.length;
+    const [tx, pr, m] = pool[st.i];
+    const U = st.res?.units ?? units(tx, lang);
+    board(modesOf(room.key).speak.name, [tx, st.res ? `${st.res.score}%` : pr]);
+    if (!SR) body.append(h('p', { class: 'chalk-note', text: 'Trình duyệt này chưa hỗ trợ nhận dạng giọng nói. Hãy mở trang bằng Chrome hoặc Edge (máy tính, Android) để kiểm tra phát âm. Vẫn có thể nghe mẫu và đọc theo.' }));
+    body.append(h('p', { class: 'chalk-sub', text: 'Bấm 🎙️ rồi đọc to câu dưới đây. Từ đọc đúng hiện màu xanh, từ đọc chưa đúng bôi đỏ. Bấm vào một từ để nghe cách đọc từ đó.' }));
+    const sent = h('div', { class: 'pron-sent' + (room.key === 'zh' ? ' tight' : ''), 'data-no-i18n': true });
+    for (const u of U) {
+      sent.append(h('button', {
+        class: 'pron-w' + (u.ok === true ? ' good' : u.ok === false ? ' bad' : ''),
+        text: u.show,
+        onclick: () => u.toks.length && speak(u.show.replace(/[\p{P}\p{S}]/gu, ''), lang, 0.75),
+      }));
     }
-    const res = h('div', { class: 'speak-res' });
     const live = h('div', { class: 'speak-live', 'data-no-i18n': true });
-    const micBtn = (label, run) => {
-      const b = h('button', { class: 'chalk-btn ok', disabled: !SR, onclick: async () => {
-        if (b.dataset.on) {
-          listenOnce.stop?.();
-          return;
-        }
-        b.dataset.on = 1;
-        const was = b.textContent;
-        b.textContent = t('⏹ Dừng');
-        res.replaceChildren();
-        try {
-          await run((p) => (live.textContent = p));
-        } catch (err) {
-          res.append(h('p', { class: 'chalk-note', text: err === 'not-allowed' || err === 'service-not-allowed' ? 'Chưa được dùng micro. Hãy cho phép micro cho trang này (biểu tượng ổ khoá cạnh địa chỉ trang) rồi thử lại.' : err === 'no-speech' ? 'Máy chưa nghe thấy tiếng nói. Hãy nói to, rõ hơn và thử lại.' : `Không nghe được (${err}). Thử lại nhé.` }));
-        }
-        delete b.dataset.on;
-        b.textContent = was;
-      } }, label);
-      return b;
-    };
-    if (st.kind === 'shadow') {
-      // câu mẫu: các câu luyện nghe + câu ví dụ trong từ vựng
-      const pool = [...course.listen.map(([, tx, pr, m]) => [shown(tx), pr, m]), ...course.vocab.flatMap((tp) => tp.items.map((it) => [it[6], it[7], it[8]]))];
-      st.i %= pool.length;
-      const [tx, pr, m] = pool[st.i];
-      board(modesOf(room.key).speak.name, [tx, pr]);
-      body.append(h('p', { class: 'chalk-sub', text: 'Nghe câu mẫu, rồi bấm "Nói theo": máy đọc mẫu xong sẽ bật micro để bạn nói lại ngay, sau đó chấm điểm.' }),
-        h('div', { class: 'chalk-card' }, raw('div', tx, 'card-front'), pr ? raw('div', pr, 'card-pron') : null, raw('div', m, 'card-mean')),
-        h('div', { class: 'chalk-actions' }, sayBtn(tx, 0.9, '🔊 Nghe mẫu'), sayBtn(tx, 0.6, '🐢 Chậm'),
-          micBtn('🎙️ Nói theo', async (onPartial) => {
-            await speak(tx, lang, 0.9);
-            live.textContent = t('Mời bạn nói…');
-            const r = await listenOnce(lang, { onPartial });
-            showScore(tx, r);
-          }),
-          micBtn('🎙️ Tự đọc', async (onPartial) => {
-            live.textContent = t('Mời bạn nói…');
-            const r = await listenOnce(lang, { onPartial });
-            showScore(tx, r);
-          }),
-          h('button', { class: 'chalk-btn ghost', onclick: () => { st.i = (st.i + 1 + Math.floor(Math.random() * 3)) % pool.length; render(); } }, 'Câu khác →')),
-        live, res);
-    } else {
-      const P = course.speak[st.p % course.speak.length];
-      board(modesOf(room.key).speak.name, [P.q]);
-      const sample = h('div', { class: 'sample', hidden: true }, raw('div', P.sample, 'ex-t'), sayBtn(P.sample, 0.9));
-      body.append(raw('h3', P.q, 'chalk-h'),
-        h('p', { class: 'chalk-sub', text: 'Bấm "Bắt đầu nói", nói vài câu theo đề, xong bấm "Dừng". Máy chấm theo: dùng đủ từ gợi ý, nói đủ dài và nói rõ.' }),
-        h('div', { class: 'keys' }, h('span', { text: 'Từ gợi ý:' }), P.keys.map((k) => raw('span', k, 'key'))),
-        h('div', { class: 'chalk-actions' },
-          micBtn('🎙️ Bắt đầu nói', async (onPartial) => {
-            live.textContent = t('Mời bạn nói…');
-            const r = await listenOnce(lang, { continuous: true, onPartial });
-            const said = norm(r.text);
-            const used = P.keys.filter((k) => said.includes(norm(k)));
-            const len = toks(r.text, lang).length, need = cjk(lang) ? 12 : 8;
-            const sc = Math.round(60 * (used.length / P.keys.length) + 25 * Math.min(1, len / need) + 15 * (r.conf || (len ? 0.7 : 0)));
-            res.replaceChildren(...[
-              h('div', { class: 'dict-score', text: `${sc}/100 · ${t(grade(sc))}` }),
-              h('div', { class: 'said' }, h('span', { text: 'Máy nghe được: ' }), raw('span', r.text || '…')),
-              h('div', { class: 'keys' }, h('span', { text: 'Từ gợi ý:' }), P.keys.map((k) => raw('span', k, 'key ' + (used.includes(k) ? 'good' : 'bad')))),
-              len < need ? h('p', { class: 'chalk-sub', text: 'Thử nói dài hơn một chút, thêm một hai câu nữa.' }) : null].filter(Boolean));
-            board(P.q, [r.text.slice(0, 60), `${sc}/100`]);
-          }),
-          h('button', { class: 'chalk-btn ghost', onclick: () => (sample.hidden = !sample.hidden) }, 'Xem câu mẫu'),
-          h('button', { class: 'chalk-btn ghost', onclick: () => { st.p++; render(); } }, 'Đề khác →')),
-        sample, live, res);
-    }
-    body.append(h('p', { class: 'chalk-fine', text: 'Chấm điểm bằng nhận dạng giọng nói có sẵn trong trình duyệt: tiếng nói được gửi tới dịch vụ nhận dạng của trình duyệt (Google hoặc Microsoft) để chuyển thành chữ. Am Mây không ghi âm và không lưu lại.' }));
-    function showScore(target, r) {
-      const c = compare(target, r.text, lang);
-      const sc = Math.round(100 * (r.conf ? 0.85 * c.sim + 0.15 * r.conf : c.sim));
-      res.replaceChildren(...[
-        h('div', { class: 'dict-score', text: `${sc}/100 · ${t(grade(sc))}` }),
-        h('div', { class: 'said' }, c.tokens.map((tk, i) => raw('span', tk + (cjk(lang) ? '' : ' '), c.hit[i] ? 'tk good' : 'tk bad'))),
-        h('div', { class: 'said' }, h('span', { text: 'Máy nghe được: ' }), raw('span', r.text || '…')),
-        h('p', { class: 'chalk-sub', text: 'Chữ xanh là phần nói đúng, chữ đỏ là phần máy chưa nghe ra — nghe mẫu rồi nói lại phần đó.' })].filter(Boolean));
-      board(modesOf(room.key).speak.name, [target, `${sc}/100`]);
-      const best = ((store.speak ??= {})[room.key] ??= 0);
-      if (sc > best) {
-        store.speak[room.key] = sc;
-        save(store);
+    const notes = h('div', {});
+    body.append(h('div', { class: 'chalk-card pron-card' }, sent, pr ? raw('div', pr, 'card-pron') : null, raw('div', m, 'card-mean')));
+    const micErr = (err) => (err === 'not-allowed' || err === 'service-not-allowed'
+      ? 'Chưa được dùng micro. Hãy cho phép micro cho trang này (biểu tượng ổ khoá cạnh địa chỉ trang) rồi thử lại.'
+      : err === 'no-speech' ? 'Máy chưa nghe thấy tiếng nói. Hãy đọc to, rõ hơn và thử lại.' : `Không nghe được (${err}). Thử lại nhé.`);
+    // nút micro: bấm để đọc, bấm lần nữa để dừng sớm
+    const label = '🎙️ Bấm để đọc';
+    const micBtn = h('button', { class: 'chalk-btn ok', disabled: !SR, onclick: async () => {
+      if (micBtn.dataset.on) return listenOnce.stop?.();
+      micBtn.dataset.on = 1;
+      micBtn.textContent = t('⏹ Dừng');
+      synth?.cancel();
+      live.textContent = t('Mời bạn đọc…');
+      try {
+        const r = await listenOnce(lang, { onPartial: (p) => (live.textContent = p) });
+        st.res = checkSaid(tx, r.alts.length ? r.alts : [r.text], lang);
+        st.heard = r.text;
+        render();
+      } catch (err) {
+        delete micBtn.dataset.on;
+        micBtn.textContent = t(label);
+        live.textContent = '';
+        notes.replaceChildren(h('p', { class: 'chalk-note', text: micErr(err) }));
       }
+    } }, label);
+    body.append(h('div', { class: 'chalk-actions' },
+      sayBtn(tx, 0.9, '🔊 Nghe mẫu'), sayBtn(tx, 0.6, '🐢 Chậm'), micBtn,
+      h('button', { class: 'chalk-btn ghost', onclick: () => { st.i = (st.i + 1 + Math.floor(Math.random() * 3)) % pool.length; st.res = null; render(); } }, 'Câu khác →')),
+      live, notes);
+    if (st.res) {
+      const bad = U.filter((u) => u.ok === false);
+      body.append(h('div', { class: 'dict-score', text: `${st.res.score}% · ${t(grade(st.res.score))}` }),
+        h('div', { class: 'said' }, h('span', { text: 'Máy nghe được: ' }), raw('span', st.heard || '…')));
+      if (bad.length) {
+        // luyện lại riêng từng từ bị đỏ: máy đọc mẫu rồi bật micro nghe mình đọc từ đó
+        body.append(h('div', { class: 'keys' }, h('span', { text: 'Luyện lại từ đỏ:' }), bad.map((u) => {
+          const word = u.show.replace(/[\p{P}\p{S}]/gu, '');
+          const b = h('button', { class: 'key bad pron-redo', 'data-no-i18n': true, text: `🎙️ ${word}`, disabled: !SR, onclick: async () => {
+            if (b.dataset.on) return;
+            b.dataset.on = 1;
+            try {
+              await speak(word, lang, 0.75);
+              live.textContent = t('Mời bạn đọc…');
+              const r = await listenOnce(lang, { onPartial: (p) => (live.textContent = p) });
+              if ((r.alts.length ? r.alts : [r.text]).some((x) => compare(word, x, lang).hit.every(Boolean))) {
+                u.ok = true;
+                st.res.score = scoreOf(U);
+                render();
+              } else live.textContent = `${r.text || '…'} — ${t('chưa đúng, thử lại nhé')}`;
+            } catch (err) {
+              live.textContent = t(micErr(err));
+            }
+            delete b.dataset.on;
+          } });
+          return b;
+        })));
+      } else body.append(h('p', { class: 'chalk-sub', text: 'Bạn đọc đúng hết các từ. Lành thay!' }));
     }
+    body.append(h('p', { class: 'chalk-fine', text: 'Kiểm tra phát âm bằng nhận dạng giọng nói có sẵn trong trình duyệt (miễn phí): tiếng nói được gửi tới dịch vụ nhận dạng của trình duyệt (Google hoặc Microsoft) để chuyển thành chữ. Am Mây không ghi âm và không lưu lại.' }));
   }
 
   return { openShelf, openBoard, toast };

@@ -532,3 +532,13 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .sample { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); }
 .sample[hidden] { display: none; }
 @media (max-width: 600px) { .chalk { border-width: 8px; padding: 12px 12px 16px; max-height: 92vh; } }
+
+/* luyện nói: câu mẫu tô màu từng từ như các app luyện phát âm */
+.pron-sent { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; }
+.pron-sent.tight { gap: 2px; }
+.pron-w { font-size: clamp(22px, 4vw, 30px); font-weight: 600; color: #f2efe2; padding: 2px 6px; border-radius: 8px; border-bottom: 3px solid transparent; }
+.pron-w:hover { background: rgba(255, 255, 255, 0.08); }
+.pron-w.good { color: #8ff08f; }
+.pron-w.bad { color: #ff7b6e; border-bottom-color: #ff7b6e; background: rgba(255, 110, 100, 0.12); }
+.pron-card { cursor: default; }
+.pron-redo { cursor: pointer; }
