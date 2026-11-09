@@ -12,6 +12,8 @@ import { SandalRack, SANDAL_COLORS } from './sandals.js';
 import { LeafField } from './leaves.js';
 import { createLearn } from './learn.js';
 import { isUp, toReal, toUp } from './study.js';
+import { createCalendar } from './calendar.js';
+import { DUYEN, createDuyenDialog } from './duyen.js';
 import { VILLAGE, VILLAGE_TASKS, VILLAGE_ROUND, HOUSES, HAYS, yardOf } from './village.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS, STUDY_SOUNDS } from './audio.js';
 import { Beads } from './beads.js';
@@ -122,13 +124,13 @@ Dog.ground = groundY;
 if (params.has('gio')) world.setHour(parseFloat(params.get('gio')));
 
 // ---------- Ngày lễ: mùng một và ngày Rằm âm lịch ----------
-// Hoa đăng trên hồ sen, cờ ngũ sắc dọc trục đường, khách đông hơn, điểm phước nhân đôi.
+// Ngày lễ: khách đông hơn, điểm phước nhân đôi (hoa đăng trên hồ sen và cờ ngũ sắc thì ngày nào cũng có).
 // ?am=15 (hoặc ?am=1) trên địa chỉ trang: xem thử ngày Rằm / mùng một vào một ngày bất kỳ
 // (khi trực tuyến, máy chủ vẫn tính điểm theo ngày âm lịch thật).
 const amOverride = [1, 15].includes(parseInt(params.get('am'), 10)) ? parseInt(params.get('am'), 10) : null;
 let festival = festivalOf(Date.now(), amOverride);
 function applyFestival() {
-  world.setFestival(!!festival);
+  world.setFestival(true); // hoa đăng trên hồ sen, cờ ngũ sắc dọc trục đường: luôn hiển thị
   const b = $('#fest-badge');
   b.hidden = !festival;
   if (!festival) return;
@@ -303,10 +305,50 @@ const ROUND_OBSTACLES = [
   { x: 51.8, z: 22.0, r: 1.55 }, // bàn đá giữa vườn cây ăn trái
   ...ORCHARD_TREES.map((t) => ({ x: t.x, z: t.z, r: 0.9 })),
   ...VILLAGE_ROUND, // nhà, chuồng trại, giếng, cây đa, ao, đống rơm ở Làng Mây
+  { x: DUYEN.x, z: DUYEN.z, r: DUYEN.r + 0.3 }, // cây duyên trước điện Quan Âm
 ];
+// Mặt nước không ai được đi xuyên: giếng Ngọc, hai hồ sen lớn, hồ sen nhỏ cạnh cây đa, ao vịt ở Làng Mây.
+// Mỗi khung hình, người hay chó lỡ bước vào thì đẩy ra mép và đẩy nhẹ theo bờ về phía đang đi tới (trượt vòng qua, không bị kẹt).
+const WATER = [
+  { x: WELL.x, z: WELL.z, rx: WELL.r + 0.6, rz: WELL.r + 0.6 },
+  { x: -9.2, z: 61, rx: 4.3, rz: 16.7 },
+  { x: 9.2, z: 61, rx: 4.3, rz: 16.7 },
+  { x: 10.9, z: 35.6, rx: 3.05, rz: 2.15 },
+  { x: VILLAGE.pond.x, z: VILLAGE.pond.z, rx: VILLAGE.pond.rx + 0.5, rz: VILLAGE.pond.rz + 0.5 },
+];
+function keepOutOfWater(a) {
+  const p = a.pos;
+  for (const o of WATER) {
+    const nx = (p.x - o.x) / o.rx, nz = (p.z - o.z) / o.rz, d = Math.hypot(nx, nz);
+    if (d >= 1) continue;
+    const ux = d > 1e-4 ? nx / d : 1, uz = d > 1e-4 ? nz / d : 0;
+    p.x = o.x + ux * o.rx;
+    p.z = o.z + uz * o.rz;
+    // trượt theo bờ về phía điểm đến; chọn hướng một lần rồi giữ nguyên cho tới khi rời mép (khỏi lắc qua lắc lại)
+    const g = a.goal;
+    if (g) {
+      let tx = -uz * o.rx, tz = ux * o.rz;
+      const n = Math.hypot(tx, tz) || 1;
+      if (!a.slide || a.slide.o !== o) {
+        const dot = tx * (g.x - p.x) + tz * (g.z - p.z);
+        a.slide = { o, sign: dot < -1e-3 ? -1 : 1 };
+      }
+      p.x += ((a.slide.sign * tx) / n) * 0.07;
+      p.z += ((a.slide.sign * tz) / n) * 0.07;
+    }
+    a.sync?.();
+    return true;
+  }
+  // đã đi xa khỏi mép hồ đang trượt thì mới quên hướng trượt
+  if (a.slide) {
+    const o = a.slide.o;
+    if (Math.hypot((p.x - o.x) / o.rx, (p.z - o.z) / o.rz) > 1.25) a.slide = null;
+  }
+  return false;
+}
 // Đoạn thẳng a → b cắt qua chướng ngại tròn / elip thì chèn điểm vòng qua bên cạnh
 function detour(ax, az, bx, bz, depth = 0, obs = ROUND_OBSTACLES) {
-  if (depth > 2) return [];
+  if (depth > 3) return [];
   for (const o of obs) {
     const rx = o.rx ?? o.r, rz = o.rz ?? o.r;
     const au = (ax - o.x) / rx, av = (az - o.z) / rz;
@@ -2068,6 +2110,7 @@ const nearZen = (x, z) => ((x - ZEN_LOFT.x) / 10.4) ** 2 + ((z - ZEN_LOFT.z + 1.
 function dogsThink(t, dt) {
   for (const d of dogs) {
     d.update(dt);
+    keepOutOfWater(d); // chó cũng không lội qua hồ sen, giếng
     if (d.moving || d.routeTo || t < d.restUntil) continue;
     const near = zoneOfA(player) === 'out' && !loftOf(player) && !nearZen(player.pos.x, player.pos.z) && player.pos.distanceTo(d.pos) < 11;
     const r = Math.random();
@@ -3428,6 +3471,10 @@ function handleTap(x, y) {
     learn.openShelf(o.userData.room);
     return;
   }
+  if (kind === 'duyen') {
+    duyenDlg.open();
+    return;
+  }
   if (kind === 'board') {
     learn.openBoard(o.userData.room);
     return;
@@ -3829,6 +3876,53 @@ const learn = createLearn({
   toast: (m, ms) => toast(m, ms),
   setBoard: (room, head, lines) => world.studyBoards?.get(room)?.draw(head, lines.filter(Boolean)),
 });
+// Lịch vạn niên (nút lịch ở góc phải trên)
+const calendar = createCalendar({ openModal: (id) => openModal(id), closeModal: (m) => closeModal(m) });
+$('#btn-cal')?.addEventListener('click', () => calendar.open());
+
+// Cầu duyên ở cây duyên trước điện Quan Âm: tới đứng trước cây, lạy Quan Âm Bồ Tát, thắt dải lụa đỏ, nhận lời nhắn
+const duyenDlg = createDuyenDialog({ openModal: (id) => openModal(id), closeModal: (m) => closeModal(m), onPray: startDuyen });
+let duyenRun = null; // { w, mine, x, z, started }
+function startDuyen(w, mine) {
+  sound.init();
+  if (player.script) {
+    toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
+    return;
+  }
+  duyenRun = { w, mine, x: DUYEN.stand.x, z: DUYEN.stand.z, started: false };
+  movePlayerTo(DUYEN.stand.x, DUYEN.stand.z);
+  hideHint();
+}
+function duyenTick() {
+  const R = duyenRun;
+  if (!R || R.started || player.script) return;
+  const g = player.routeTo ?? player.goal;
+  if (g && Math.hypot(g.x - R.x, g.z - R.z) > 0.35) {
+    duyenRun = null; // đi chỗ khác: thôi
+    return;
+  }
+  if (player.moving || player.routeTo || loftOf(player)) return;
+  if (Math.hypot(player.pos.x - R.x, player.pos.z - R.z) > 0.9) {
+    duyenRun = null;
+    return;
+  }
+  R.started = true;
+  const qa = world.qaHall.head;
+  player.act('bow', Math.atan2(qa.x - player.pos.x, qa.z - player.pos.z));
+  sound.bow();
+  net?.send({ t: 'act', a: 'bow' });
+  setTimeout(() => {
+    player.act('gassho', Math.atan2(DUYEN.x - player.pos.x, DUYEN.z - player.pos.z));
+    bubble(player, 'thắt dải lụa đỏ cầu duyên lành', 3200);
+  }, 3000);
+  setTimeout(() => {
+    world.duyen.addRibbon();
+    sound.bead();
+    earn('duyen');
+    duyenDlg.showCard(R.w, pick(R.w.msgs), R.mine);
+    duyenRun = null;
+  }, 5400);
+}
 function closeModal(m) {
   m.classList.remove('show');
   // chỉ ẩn nếu chưa được mở lại trong lúc đang đóng
@@ -4238,6 +4332,7 @@ function frame() {
   keyMove(elapsed);
   for (const a of avatars.values()) {
     const arrived = a.update(dt);
+    if (zoneOfA(a) === 'out' && !a.seat && a.pos.z > -100) keepOutOfWater(a); // không đi xuyên hồ sen, giếng
     if (arrived && a === player) sendMove();
   }
   botsThink(elapsed);
@@ -4247,6 +4342,7 @@ function frame() {
   broomRitual();
   studyTick();
   harvestTick();
+  duyenTick();
   greatBellRitual();
   wipeRitual();
   sweepLeaves(dt);

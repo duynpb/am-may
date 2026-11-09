@@ -542,3 +542,63 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .pron-w.bad { color: #ff7b6e; border-bottom-color: #ff7b6e; background: rgba(255, 110, 100, 0.12); }
 .pron-card { cursor: default; }
 .pron-redo { cursor: pointer; }
+
+/* ---------- Lịch vạn niên ---------- */
+.cal-sheet { width: min(560px, 100%); }
+.cal-tabs { margin: 6px 0 12px; display: inline-flex; }
+.cal-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cal-nav .ghost { height: 34px; font-size: 18px; }
+.cal-nav .ghost:last-child { font-size: 13px; margin-left: auto; }
+.cal-mtitle { display: flex; flex-direction: column; align-items: center; min-width: 150px; }
+.cal-mtitle b { font-size: 17px; }
+.cal-mtitle small { font-size: 12.5px; color: var(--ink-muted); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-wd { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-muted); padding: 2px 0; }
+.cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 48px; border-radius: 10px; background: rgba(0, 0, 0, 0.035); color: var(--ink); position: relative; }
+.cal-cell.empty { background: none; }
+.cal-cell .sd { font-size: 16px; font-weight: 600; }
+.cal-cell .ld { font-size: 11px; color: var(--ink-muted); }
+.cal-cell.sun .sd { color: #b3261e; }
+.cal-cell.good::after { content: ''; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: #d4a017; }
+.cal-cell.ram .ld { color: #b3261e; font-weight: 700; }
+.cal-cell.hol { background: rgba(196, 34, 42, 0.12); }
+.cal-cell.today { outline: 2px solid var(--gold); }
+.cal-cell.sel { background: var(--gold); color: #fff; }
+.cal-cell.sel .ld, .cal-cell.sel.sun .sd { color: #fff; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 4px; font-size: 12px; color: var(--ink-muted); }
+.lg::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.lg.good::before { background: #d4a017; }
+.lg.ram::before { background: #b3261e; }
+.lg.hol::before { background: rgba(196, 34, 42, 0.3); border-radius: 3px; }
+.cal-detail { margin-top: 12px; padding: 14px; border-radius: 16px; background: rgba(156, 116, 48, 0.08); display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
+.cal-big { display: flex; gap: 14px; align-items: center; }
+.cal-bigd { font-size: 40px; font-weight: 700; color: var(--gold); min-width: 54px; text-align: center; }
+.cal-star.good b { color: #a07410; }
+.cal-star.bad b { color: #6e6458; }
+.cal-hlist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.cal-h { padding: 3px 10px; border-radius: 999px; background: rgba(212, 160, 23, 0.16); font-size: 13px; }
+.cal-hol { font-weight: 600; color: #a3201f; }
+.cal-hol.phat { color: #8a5a10; }
+.cal-note { font-size: 12.5px !important; margin: 2px 0 0 !important; }
+.cal-list { display: flex; flex-direction: column; gap: 6px; }
+.cal-row { display: flex; align-items: center; gap: 12px; text-align: left; padding: 9px 12px; border-radius: 12px; background: rgba(0, 0, 0, 0.035); color: var(--ink); }
+.cal-row:hover { background: rgba(156, 116, 48, 0.12); }
+.cal-row.past { opacity: 0.5; }
+.cal-row.phat { background: rgba(212, 160, 23, 0.1); }
+.cal-rdate { font-weight: 700; min-width: 44px; color: var(--gold); }
+.cal-rname { display: flex; flex-direction: column; flex: 1; }
+.cal-rname small { font-size: 12px; color: var(--ink-muted); }
+.cal-rleft { font-size: 12.5px; color: #a3201f; white-space: nowrap; }
+
+/* ---------- Cầu duyên ---------- */
+.duyen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
+.duyen-opt { display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 14px; background: rgba(196, 34, 42, 0.06); border: 1px solid rgba(196, 34, 42, 0.15); color: var(--ink); font-size: 14px; text-align: left; }
+.duyen-opt.on { background: rgba(196, 34, 42, 0.16); border-color: #c4222a; font-weight: 600; }
+.duyen-ico { font-size: 22px; }
+.duyen-note { width: 100%; box-sizing: border-box; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 12px; padding: 10px; font: inherit; font-size: 14px; resize: vertical; background: #fff; color: var(--ink); }
+.duyen-go { width: 100%; margin-top: 12px; }
+.duyen-card { margin: 8px 0; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, #fbe9e4, #f6dcc9); border-left: 4px solid #c4222a; }
+.duyen-card small { color: #a3201f; font-weight: 600; font-size: 12.5px; }
+.duyen-card p { font-family: 'Noto Serif', Georgia, serif; font-size: 18px !important; line-height: 1.6; margin: 6px 0 0 !important; }
+.duyen-mine { font-style: italic; color: var(--ink-muted); }
+@media (max-width: 480px) { .duyen-grid { grid-template-columns: 1fr; } .cal-cell { min-height: 42px; } }

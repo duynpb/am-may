@@ -114,3 +114,42 @@ export function festivalOf(t = Date.now(), day = null) {
 
 // Hệ số nhân điểm phước trong ngày lễ
 export const FESTIVAL_PHUOC = 2;
+
+// Số ngày Julius → ngày dương lịch [ngày, tháng, năm]
+export function jdToDate(jd) {
+  let b, c;
+  if (jd > 2299160) {
+    const a = jd + 32044;
+    b = INT((4 * a + 3) / 146097);
+    c = a - INT((b * 146097) / 4);
+  } else {
+    b = 0;
+    c = jd + 32082;
+  }
+  const d = INT((4 * c + 3) / 1461), e = c - INT((1461 * d) / 4), m = INT((5 * e + 2) / 153);
+  return [e - INT((153 * m + 2) / 5) + 1, m + 3 - 12 * INT(m / 10), b * 100 + d - 4800 + INT(m / 10)];
+}
+export { jdFromDate };
+
+// Đổi ngày âm lịch sang dương lịch: [ngày, tháng, năm] (null nếu tháng nhuận không có trong năm đó)
+export function lunarToSolar(lDay, lMonth, lYear, leap = false) {
+  let a11, b11;
+  if (lMonth < 11) {
+    a11 = lunarMonth11(lYear - 1);
+    b11 = lunarMonth11(lYear);
+  } else {
+    a11 = lunarMonth11(lYear);
+    b11 = lunarMonth11(lYear + 1);
+  }
+  const k = INT(0.5 + (a11 - 2415021.076998695) / 29.530588853);
+  let off = lMonth - 11;
+  if (off < 0) off += 12;
+  if (b11 - a11 > 365) {
+    const leapOff = leapMonthOffset(a11);
+    let leapMonth = leapOff - 2;
+    if (leapMonth < 0) leapMonth += 12;
+    if (leap && lMonth !== leapMonth) return null;
+    if (leap || off >= leapOff) off += 1;
+  } else if (leap) return null;
+  return jdToDate(newMoonDay(k + off) + lDay - 1);
+}

@@ -23,12 +23,13 @@ export const RULES = {
   fruit: { label: 'Hái trái cây vườn chùa', phuoc: 2, cap: 10, gap: 3e3 },
   sutra: { label: 'Đọc kinh ở vườn kinh', phuoc: 1, cap: 16, gap: 15e3 },
   village: { label: 'Giúp dân làng', phuoc: 2, cap: 10, gap: 5e3 },
+  duyen: { label: 'Cầu duyên lành trước Quan Âm Bồ Tát', phuoc: 1, cap: 3, gap: 10e3 },
 };
 export const LEAVES_PER_POINT = 15;
 const LEAF_DAY_CAP = 600; // tối đa 600 lá được ghi mỗi ngày
 
 // Những việc trình duyệt được tự báo lên máy chủ (các việc khác máy chủ tự ghi nhận)
-export const CLIENT_KINDS = ['beads', 'chant', 'greet', 'steal', 'sutra', 'village'];
+export const CLIENT_KINDS = ['beads', 'chant', 'greet', 'steal', 'sutra', 'village', 'duyen'];
 const CHANT_MIN_CAP = 180; // tối đa 180 phút nghe tụng kinh được ghi mỗi ngày
 const CHANT_MIN_GAP = 50e3; // mỗi lần báo cách nhau ít nhất 50 giây
 

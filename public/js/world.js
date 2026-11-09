@@ -11,6 +11,7 @@ import { makeLaHanGeometries } from './lahan.js';
 import { lahanSpot, LAHAN_IDS } from './statues.js';
 import { VILLAGE, VILLAGE_WALK, VILLAGE_BLOCKS, buildVillage } from './village.js';
 import { STUDY, UP, isUp, toReal, buildStudy } from './study.js';
+import { buildDuyenTree } from './duyen.js';
 export { STUDY, UP } from './study.js';
 import { FIELD, PLOTS, plotRect, riceStage, VEG, VEG_PLOTS, VEG_RIPE_AGE, vegRect, vegStage, ORCHARD, ORCHARD_TREES, ORCHARD_COUNT, fruitStage } from './field.js';
 
@@ -2089,6 +2090,9 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     pickables, obstacles,
   });
   const studyRoof = study.studyRoof;
+  // cây duyên trước điện Quan Âm (cầu duyên: thắt dải lụa đỏ)
+  const duyen = buildDuyenTree({ scene, std, pickables, obstacles });
+  updaters.push((t) => duyen.update(t));
   // cầu thang lên tầng 2: đi ở dưới đất không xuyên qua (chỉ lên bằng lối cầu thang)
   obstacles.push({ minX: UP.stair.x0 - 0.2, maxX: UP.stair.x1 + 0.3, minZ: UP.landing.z0 - 0.2, maxZ: UP.stair.zFoot - 0.3 });
 
@@ -3909,8 +3913,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     }));
   }
 
-  // ---------- Ngày lễ (mùng một, Rằm): hoa đăng trên hồ sen, cờ Phật giáo ngũ sắc dọc trục đường ----------
-  // Dựng sẵn và ẩn đi; main.js bật bằng setFestival(true). Không gộp lô để bật / tắt được.
+  // ---------- Hoa đăng trên hồ sen (trôi giữa các lá sen, hoa sen), cờ Phật giáo ngũ sắc dọc trục đường ----------
+  // Dựng sẵn; main.js bật bằng setFestival(true) — nay ngày nào cũng hiển thị. Không gộp lô để vẫn bật / tắt được.
   const fest = new THREE.Group();
   fest.visible = false;
   scene.add(fest);
@@ -4364,6 +4368,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     incense,
     incenseTop,
     incenseQH,
+    duyen,
     qaHall: { head: QH_HEAD },
     tamThe: { head: TT_HEAD },
     ngoa: { head: NGOA.head },
