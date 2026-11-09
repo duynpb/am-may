@@ -435,6 +435,12 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   .sheet { border-radius: 22px 22px 0 0; max-height: 82vh; padding-bottom: calc(22px + var(--sab)); }
   .beads-hint { left: auto; right: 20px; bottom: calc(32px + var(--sab)); max-width: 140px; text-align: right; }
 }
+/* điện thoại hẹp: 6 nút trên thanh dưới — chữ nhỏ lại và được xuống dòng để không chen vào nhau */
+@media (max-width: 420px) {
+  .actions { gap: 2px; padding: 5px; }
+  .actions button { font-size: 10.5px; line-height: 1.15; white-space: normal; text-align: center; padding: 7px 1px 6px; gap: 3px; }
+  .actions button svg { width: 21px; height: 21px; }
+}
 @media (max-width: 600px) and (max-height: 500px), (max-height: 440px) {
   .actions button span { display: none; }
   .actions button { padding: 8px 10px; }

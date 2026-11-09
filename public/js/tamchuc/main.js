@@ -191,6 +191,7 @@ $('#btn-vn')?.addEventListener('click', () => {
   closeModal($('#modal-map'));
   vnMap.open();
 });
+$('#btn-vn-nav')?.addEventListener('click', () => vnMap.open()); // nút "Chùa Việt Nam" ở thanh dưới
 document.querySelectorAll('.modal').forEach((m) => {
   m.addEventListener('click', (e) => {
     if (e.target === m || e.target.closest('[data-close]')) closeModal(m);

@@ -3886,6 +3886,7 @@ $('#btn-vn')?.addEventListener('click', () => {
   closeModal($('#modal-map'));
   vnMap.open();
 });
+$('#btn-vn-nav')?.addEventListener('click', () => vnMap.open()); // nút "Chùa Việt Nam" ở thanh dưới
 
 // Cầu duyên ở cây duyên trước điện Quan Âm: tới đứng trước cây, lạy Quan Âm Bồ Tát, thắt dải lụa đỏ, nhận lời nhắn
 const duyenDlg = createDuyenDialog({ openModal: (id) => openModal(id), closeModal: (m) => closeModal(m), onPray: startDuyen });
