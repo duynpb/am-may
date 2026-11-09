@@ -152,16 +152,16 @@ export const WALK_AREAS = [
   { minX: 66, maxX: 108, minZ: 99.4, maxZ: 102.4 }, // lối đá sang chân núi đá có tháp (qua cầu nhỏ trên kênh phía đông)
   { minX: 16.0, maxX: 70, minZ: 17.2, maxZ: 23.2 }, // khoảng sân nối trước điện Quan Âm và vườn cây ăn trái
   { minX: QAHALL.x0 + 0.8, maxX: QAHALL.x1 - 0.8, minZ: 8.5, maxZ: 18.0 }, // trong điện Quan Âm
-  { minX: 39.6, maxX: 70, minZ: STUDY.z1 - 0.6, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm (tới mặt trước dãy phòng học)
+  { minX: 39.6, maxX: 70, minZ: STUDY.z1 + 0.3, maxZ: 18.0 }, // vườn cây ăn trái và bãi cỏ phía đông điện Quan Âm (tới mặt trước dãy phòng học)
   // quanh dãy phòng học: sân trước, bãi cỏ phía sau (có lầu Phật pháp), lối vòng hai đầu hồi; mỗi phòng chỉ vào từ mặt trước
   { minX: 23.6, maxX: 70, minZ: -33.2, maxZ: STUDY.z0 - 0.8 }, // bãi cỏ sau dãy phòng học
   { minX: UP.stair.x1 + 0.45, maxX: 70, minZ: -33.2, maxZ: 4.4 }, // lối vòng đầu hồi phía đông (ngoài cầu thang lên tầng 2)
   { minX: 23.6, maxX: STUDY.x0 - 0.6, minZ: -33.2, maxZ: 4.4 }, // lối vòng đầu hồi phía tây
-  ...STUDY.rooms.map((r) => ({ minX: r.x0 + 0.4, maxX: r.x1 - 0.4, minZ: STUDY.z0 + 0.7, maxZ: STUDY.z1 + 0.3 })), // trong từng phòng học
+  ...STUDY.rooms.map((r) => ({ minX: r.x0 + 0.4, maxX: r.x1 - 0.4, minZ: STUDY.z0 + 0.7, maxZ: STUDY.z1 + 1.0 })), // trong từng phòng học (nối ra sân trước ở phía ngoài đầu vách ngăn)
   { minX: 16.0, maxX: 24.4, minZ: -33.2, maxZ: 18.0 }, // khoảng sân dọc giữa chánh điện và điện Quan Âm
-  { minX: 23.6, maxX: 40.4, minZ: STUDY.z1 - 0.6, maxZ: 4.4 }, // bãi cỏ phía sau điện Quan Âm (trước dãy phòng học)
+  { minX: 23.6, maxX: 40.4, minZ: STUDY.z1 + 0.3, maxZ: 4.4 }, // bãi cỏ phía sau điện Quan Âm (trước dãy phòng học)
   { minX: -44, maxX: -16.0, minZ: -33.2, maxZ: 23.2 }, // toàn bộ khuôn viên phía tây chánh điện
-  { minX: -44, maxX: 44, minZ: -33.2, maxZ: -25.4 }, // sân sau chánh điện
+  { minX: -44, maxX: STUDY.x0 - 0.6, minZ: -33.2, maxZ: -25.4 }, // sân sau chánh điện (tới đầu hồi tây khu tự học)
   { minX: -44, maxX: -4.2, minZ: -44.0, maxZ: -32.5 }, // bãi cỏ sau chùa phía tây bậc thang (ra chân thác dưới)
   { minX: 4.2, maxX: 44, minZ: -44.0, maxZ: -32.5 }, // bãi cỏ sau chùa phía đông bậc thang (ra chân thác dưới)
   { minX: -3.2, maxX: 3.2, minZ: STAIRS.z0 - 0.3, maxZ: STAIRS.z1 + 0.4 }, // bậc thang đá lên đồi
@@ -386,7 +386,7 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
             ? [-rnd(50.5, 60), rnd(-12, 41)]
             : Math.random() < 0.55
               ? // chừa chỗ cho dãy phòng học và lầu Phật pháp: tre mọc phía đông dãy phòng hoặc sau hai phòng đầu
-                Math.random() < 0.5 ? [rnd(64.5, 72), rnd(-29, 2.5)] : [rnd(28.5, 40.5), rnd(-31.5, -18.6)]
+                Math.random() < 0.5 ? [rnd(64.5, 72), rnd(-29, 2.5)] : [rnd(28.5, 40.5), rnd(STUDY.z0 - 6.5, STUDY.z0 - 2.6)]
               : [rnd(64.5, 72), rnd(4, 39)],
       );
     }

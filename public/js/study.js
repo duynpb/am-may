@@ -17,7 +17,8 @@ export const STUDY_ROOMS = [
 export const PHAT_ROOM = { key: 'phat', name: 'Phật pháp', plaque: 'PHẬT HỌC', lang: 'vi-VN' };
 
 export const STUDY = (() => {
-  const x0 = 26.5, x1 = 62.5, z0 = -16, z1 = -4, floor = 0.25, roofH = 3.4;
+  // lùi về phía sau (bắc) để sân trước mặt tiền rộng, thoáng (mặt trước ở z = -16, sân trước kéo tới điện Quan Âm)
+  const x0 = 26.5, x1 = 62.5, z0 = -28, z1 = -16, floor = 0.25, roofH = 3.4;
   const rw = (x1 - x0) / STUDY_ROOMS.length;
   const rooms = STUDY_ROOMS.map((r, i) => {
     const rx0 = x0 + i * rw, cx = rx0 + rw / 2;
@@ -25,7 +26,7 @@ export const STUDY = (() => {
   });
   // 4 bàn mỗi phòng (2 dãy × 2), ngồi quay mặt về bảng đen phía bắc; bàn ở trước bồ đoàn 0,62 m
   const desks = [];
-  for (const r of rooms) for (const z of [-11.4, -7.8]) for (const dx of [-1.9, 2.1]) desks.push({ x: r.cx + dx, z, room: r.key });
+  for (const r of rooms) for (const z of [z1 - 7.4, z1 - 3.8]) for (const dx of [-1.9, 2.1]) desks.push({ x: r.cx + dx, z, room: r.key });
   return {
     x0, x1, z0, z1, floor, roofH, rw, rooms, desks, deskDz: -0.62,
     cx: (x0 + x1) / 2, cz: (z0 + z1) / 2,
@@ -40,17 +41,18 @@ export const STUDY = (() => {
 export const UP = (() => {
   const VZ = -200, h = STUDY.floor + 3.6, y = GY + h;
   const desks = [];
-  for (const z of [-11.4, -7.8]) for (const x of [36.5, 40.5, 48.5, 52.5]) desks.push({ x, z, room: 'phat' });
+  const Z0 = STUDY.z0, Z1 = STUDY.z1;
+  for (const z of [Z1 - 7.4, Z1 - 3.8]) for (const x of [36.5, 40.5, 48.5, 52.5]) desks.push({ x, z, room: 'phat' });
   return {
     VZ, h, y, roofH: 3.1,
     // cầu thang (toạ độ thật): dọc đầu hồi phía đông, chân ở phía nam, lên về phía bắc
-    stair: { x0: 63.0, x1: 64.6, zFoot: -2.4, zTop: -14.4 },
-    landing: { x0: 63.0, x1: 64.6, z0: STUDY.z0, z1: -14.4 },
+    stair: { x0: 63.0, x1: 64.6, zFoot: Z1 + 1.6, zTop: Z0 + 1.6 },
+    landing: { x0: 63.0, x1: 64.6, z0: Z0, z1: Z0 + 1.6 },
     floor: { x0: STUDY.x0 + 0.5, x1: STUDY.x1 - 0.5, z0: STUDY.z0 + 0.8, z1: STUDY.z1 - 0.6 }, // chỗ đi lại trên tầng 2 (toạ độ thật)
-    foot: { x: 63.8, z: -1.2 }, // ngoài sân, trước chân cầu thang
-    entry: { x: 63.8, z: -2.6 }, // bậc đầu tiên
-    top: { x: 63.8, z: -15.2 }, // chiếu nghỉ đầu cầu thang
-    arrive: { x: 61.6, z: -15.2 }, // bước vào sàn tầng 2
+    foot: { x: 63.8, z: Z1 + 2.8 }, // ngoài sân, trước chân cầu thang
+    entry: { x: 63.8, z: Z1 + 1.4 }, // bậc đầu tiên
+    top: { x: 63.8, z: Z0 + 0.8 }, // chiếu nghỉ đầu cầu thang
+    arrive: { x: 61.6, z: Z0 + 0.8 }, // bước vào sàn tầng 2
     shelfX: 40.0, boardX: 44.5,
     desks,
   };
