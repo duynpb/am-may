@@ -11,6 +11,7 @@ import { Beads } from '../beads.js';
 import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } from '../net.js';
 import { applyEvent, newProfile, publicProfile, vnDate, RULES, CLIENT_KINDS } from '../karma.js';
 import { festivalOf, FESTIVAL_PHUOC } from '../lunar.js';
+import { createVnMap } from '../vnmap.js';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -184,6 +185,12 @@ function closeModal(m) {
   m.classList.remove('show');
   setTimeout(() => !m.classList.contains('show') && (m.hidden = true), 250);
 }
+// Bản đồ Việt Nam (nút trong hộp Bản đồ khu Tam Chúc)
+const vnMap = createVnMap({ openModal, closeModal, here: 'tamchuc' });
+$('#btn-vn')?.addEventListener('click', () => {
+  closeModal($('#modal-map'));
+  vnMap.open();
+});
 document.querySelectorAll('.modal').forEach((m) => {
   m.addEventListener('click', (e) => {
     if (e.target === m || e.target.closest('[data-close]')) closeModal(m);

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#24251f">
+  <title>Khu đất chờ dựng chùa — Am Mây</title>
+  <meta name="description" content="Khu đất trống chờ ngày dựng chùa trong Am Mây.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body class="datrong">
+  <canvas id="scene"></canvas>
+  <div class="hud hud-tl">
+    <a class="pill brand" id="dt-back" href="./">
+      <span aria-hidden="true">←</span>
+      <span id="dt-back-text">Về Am Mây</span>
+    </a>
+  </div>
+  <div class="dt-card">
+    <small id="dt-prov"></small>
+    <h1 id="dt-name">Khu đất chờ dựng chùa</h1>
+    <p>Chùa này chưa được dựng trong Am Mây. Đây là khu đất trống, đã cắm mốc, chờ ngày dựng chùa.</p>
+    <p class="muted">Kéo để xoay nhìn quanh · lăn chuột hoặc chụm hai ngón để phóng to</p>
+    <button type="button" class="btn-primary" id="dt-map">🗺️ Bản đồ Việt Nam</button>
+  </div>
+  <script type="module" src="js/datrong.js"></script>
+</body>
+</html>

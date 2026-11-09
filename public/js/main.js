@@ -13,6 +13,7 @@ import { LeafField } from './leaves.js';
 import { createLearn } from './learn.js';
 import { isUp, toReal, toUp } from './study.js';
 import { createCalendar } from './calendar.js';
+import { createVnMap } from './vnmap.js';
 import { DUYEN, createDuyenDialog } from './duyen.js';
 import { VILLAGE, VILLAGE_TASKS, VILLAGE_ROUND, HOUSES, HAYS, yardOf } from './village.js';
 import { Sound, CHANT_SYLLABLES, vietnameseVoices, ZEN_TRACKS, STUDY_SOUNDS } from './audio.js';
@@ -3879,6 +3880,12 @@ const learn = createLearn({
 // Lịch vạn niên (nút lịch ở góc phải trên)
 const calendar = createCalendar({ openModal: (id) => openModal(id), closeModal: (m) => closeModal(m) });
 $('#btn-cal')?.addEventListener('click', () => calendar.open());
+// Bản đồ Việt Nam (nút trong hộp Bản đồ chùa)
+const vnMap = createVnMap({ openModal: (id) => openModal(id), closeModal: (m) => closeModal(m), here: 'ammay' });
+$('#btn-vn')?.addEventListener('click', () => {
+  closeModal($('#modal-map'));
+  vnMap.open();
+});
 
 // Cầu duyên ở cây duyên trước điện Quan Âm: tới đứng trước cây, lạy Quan Âm Bồ Tát, thắt dải lụa đỏ, nhận lời nhắn
 const duyenDlg = createDuyenDialog({ openModal: (id) => openModal(id), closeModal: (m) => closeModal(m), onPray: startDuyen });

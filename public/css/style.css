@@ -602,3 +602,44 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .duyen-card p { font-family: 'Noto Serif', Georgia, serif; font-size: 18px !important; line-height: 1.6; margin: 6px 0 0 !important; }
 .duyen-mine { font-style: italic; color: var(--ink-muted); }
 @media (max-width: 480px) { .duyen-grid { grid-template-columns: 1fr; } .cal-cell { min-height: 42px; } }
+
+/* ---------- Bản đồ Việt Nam ---------- */
+.vn-open { width: 100%; height: 40px; margin: 0 0 10px; font-size: 14px; }
+.vn-sheet { width: min(640px, 100%); }
+.vn-zoom { display: flex; gap: 6px; justify-content: flex-end; margin: -4px 0 6px; }
+.vn-zoom .ghost { width: 36px; height: 32px; font-size: 18px; padding: 0; }
+.vn-scroll { height: min(58vh, 560px); overflow: auto; border-radius: 14px; background: #a9cfe0; overscroll-behavior: contain; }
+.vn-svg { display: block; width: 100%; height: auto; }
+.vn-sea { fill: #b9dbe8; }
+.vn-grid line { stroke: rgba(255, 255, 255, 0.35); stroke-width: 0.6; }
+.vn-land { fill: #f1e6c8; stroke: #9c7a3c; stroke-width: 1.2; stroke-linejoin: round; }
+.vn-isle { fill: #e9d6a8; stroke: #9c7a3c; stroke-width: 0.8; }
+.vn-isle-label { font-size: 8px; fill: #50606a; }
+.vn-arch { fill: rgba(255, 255, 255, 0.18); stroke: #b3261e; stroke-width: 1; stroke-dasharray: 4 3; }
+.vn-arch-label { font-size: 12px; font-weight: 700; fill: #8a1f1a; }
+.vn-arch-sub { font-size: 10px; font-weight: 600; fill: #8a1f1a; }
+.vn-sea-label { font-size: 11px; font-style: italic; fill: #4f7d92; letter-spacing: 0.06em; }
+.vn-sea-label.big { font-size: 22px; letter-spacing: 0.3em; fill: rgba(60, 110, 135, 0.55); }
+.vn-sea-label.land { fill: #8a8a7a; font-style: normal; font-size: 12px; }
+.vn-pin { cursor: pointer; }
+.vn-dot { fill: #8a5a2c; stroke: #fff; stroke-width: 1; }
+.vn-pin:hover .vn-dot, .vn-pin.sel .vn-dot { fill: #d4a017; r: 5; }
+.vn-petal { fill: #d43a3a; stroke: #fff; stroke-width: 0.6; }
+.vn-core { fill: #f6c445; }
+.vn-pin-label { font-size: 11px; font-weight: 700; fill: #8a1f1a; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.vn-pin.sel .vn-petal { fill: #b3261e; }
+.vn-card { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: rgba(156, 116, 48, 0.08); }
+.vn-card:empty { display: none; }
+.vn-card-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.vn-card-head b { font-size: 16px; }
+.vn-card p { margin: 4px 0 10px !important; font-size: 13.5px !important; }
+.vn-card .btn-primary { width: 100%; }
+
+/* ---------- Trang khu đất trống ---------- */
+body.datrong #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.dt-card { position: absolute; left: calc(14px + var(--sal)); bottom: calc(16px + var(--sab)); width: min(360px, calc(100% - 28px)); background: var(--paper); color: var(--ink); border-radius: 18px; padding: 14px 16px 16px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25); }
+.dt-card small { color: var(--gold); font-weight: 600; }
+.dt-card h1 { margin: 2px 0 6px; font-size: 20px; }
+.dt-card p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.dt-card .btn-primary { width: 100%; }
+body.datrong .brand { text-decoration: none; color: var(--text); gap: 8px; padding: 0 16px; }
