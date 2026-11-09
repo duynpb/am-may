@@ -1,5 +1,5 @@
 // Bản đồ Việt Nam: đất liền, các đảo, quần đảo Hoàng Sa và Trường Sa, các chùa nổi tiếng đặt đúng toạ độ.
-// Am Mây (Ninh Bình) và Tam Chúc (Hà Nam) đã dựng: bấm để tới. Chùa chưa dựng: bấm để xem khu đất trống.
+// Am Mây và Tam Chúc (Ninh Bình, địa giới mới từ 1/7/2025) đã dựng: bấm để tới. Chùa chưa dựng: bấm để xem khu đất trống.
 import { MAINLAND, BIG_ISLANDS, ISLANDS, HOANG_SA, TRUONG_SA, SEA_LABELS, PAGODAS } from './vnmap-data.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -96,13 +96,17 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
       t.textContent = A.name;
       const t2 = el('text', { x: X(A.label[0]), y: Y(A.label[1]) + 15, class: 'vn-arch-sub', 'text-anchor': 'middle' }, svg);
       t2.textContent = '(Việt Nam)';
+      if (A.sub) {
+        const t3 = el('text', { x: X(A.label[0]), y: Y(A.label[1]) + 28, class: 'vn-arch-sub', 'text-anchor': 'middle', 'data-no-i18n': true }, svg);
+        t3.textContent = A.sub;
+      }
     }
     // chùa: chưa dựng vẽ trước (chấm nâu), đã dựng vẽ sau cùng cho nổi lên trên (hoa sen đỏ, có tên)
     const order = [...PAGODAS.filter((p) => !p.built), ...PAGODAS.filter((p) => p.built)];
     for (const p of order) {
       const g = el('g', { class: 'vn-pin' + (p.built ? ' built' : '') + (p.id === here ? ' here' : ''), transform: `translate(${X(p.lon).toFixed(1)},${Y(p.lat).toFixed(1)})`, role: 'button', tabindex: 0 }, svg);
       const ttl = el('title', {}, g);
-      ttl.textContent = `${p.name} — ${p.prov}`;
+      ttl.textContent = `${p.name} — ${p.prov}${p.old ? ` (${p.old} cũ)` : ''}`;
       if (p.built) {
         for (let k = 0; k < 6; k++) el('ellipse', { cx: 0, cy: -5, rx: 2.6, ry: 5.2, transform: `rotate(${k * 60})`, class: 'vn-petal' }, g);
         el('circle', { cx: 0, cy: 0, r: 3, class: 'vn-core' }, g);
@@ -125,11 +129,12 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
       : p.built
         ? h('button', { class: 'btn-primary', text: `Đến ${p.name}`, onclick: () => (location.href = PAGES[p.built]) })
         : h('button', { class: 'btn-primary', text: 'Xem khu đất', onclick: () => (location.href = `./datrong.html?chua=${encodeURIComponent(p.id)}&tu=${home}`) });
-    card.replaceChildren(
+    card.replaceChildren(...[
       h('div', { class: 'vn-card-head' }, h('b', { text: p.name }), h('span', { class: 'muted', text: p.prov })),
+      p.old ? h('small', { class: 'muted vn-old', text: `Trước 7/2025 thuộc ${p.old}` }) : null,
       h('p', { class: 'muted', text: p.built ? 'Chùa đã dựng trong Am Mây.' : 'Chùa này chưa được dựng trong Am Mây — hiện là khu đất trống chờ ngày dựng chùa.' }),
       go,
-    );
+    ].filter(Boolean));
   }
 
   return {

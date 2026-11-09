@@ -668,5 +668,7 @@ export default {
   'Về Tam Chúc': ['Back to Tam Chúc', '返回三祝', 'Zurück nach Tam Chúc'],
   'Chùa này chưa được dựng trong Am Mây. Đây là khu đất trống, đã cắm mốc, chờ ngày dựng chùa.': ['This pagoda has not been built in Am Mây yet. This is an empty plot, already staked out, waiting for the day the pagoda is built.', '这座寺院尚未在暗云中建造。这是一块已立界桩的空地，等待建寺之日。', 'Diese Pagode ist in Am Mây noch nicht gebaut. Hier ist ein leeres, bereits abgestecktes Grundstück, das auf den Bau der Pagode wartet.'],
   'Kéo để xoay nhìn quanh · lăn chuột hoặc chụm hai ngón để phóng to': ['Drag to look around · scroll or pinch to zoom', '拖动环顾四周 · 滚轮或双指缩放', 'Ziehen zum Umsehen · Scrollen oder Zwei-Finger-Geste zum Zoomen'],
-  'Khu đất chờ dựng chùa — Am Mây': ['Land awaiting a pagoda — Am Mây', '待建寺院的空地——暗云', 'Grundstück für eine Pagode — Am Mây'],
+  'Trước 7/2025 thuộc {0}': ['Before July 2025: {0} province', '2025年7月前属{0}', 'Vor Juli 2025: Provinz {0}'],
+  'trước 7/2025: {0}': ['before July 2025: {0}', '2025年7月前：{0}', 'vor Juli 2025: {0}'],
+  'Khu đất chờ dựng chùa — Am Mây':['Land awaiting a pagoda — Am Mây', '待建寺院的空地——暗云', 'Grundstück für eine Pagode — Am Mây'],
 };

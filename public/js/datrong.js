@@ -12,7 +12,7 @@ const P = pagodaById(q.get('chua')) ?? { name: 'Khu đất chờ dựng chùa', 
 const from = ['ammay', 'tamchuc'].includes(q.get('tu')) ? q.get('tu') : 'ammay';
 const $ = (s) => document.querySelector(s);
 $('#dt-name').textContent = P.name;
-$('#dt-prov').textContent = P.prov;
+$('#dt-prov').textContent = P.old ? `${P.prov} (${t(`trước 7/2025: ${P.old}`)})` : P.prov;
 document.title = `${P.name} — ${t('Khu đất chờ dựng chùa')}`;
 const back = $('#dt-back');
 back.href = from === 'tamchuc' ? './tamchuc.html' : './';

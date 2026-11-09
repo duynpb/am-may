@@ -632,6 +632,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .vn-card:empty { display: none; }
 .vn-card-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
 .vn-card-head b { font-size: 16px; }
+.vn-old { display: block; font-size: 12.5px; margin-top: 2px; }
 .vn-card p { margin: 4px 0 10px !important; font-size: 13.5px !important; }
 .vn-card .btn-primary { width: 100%; }
 
