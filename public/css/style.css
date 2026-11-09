@@ -611,36 +611,55 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 
 /* ---------- Bản đồ Việt Nam ---------- */
 .vn-open { width: 100%; height: 40px; margin: 0 0 10px; font-size: 14px; }
-.vn-sheet { width: min(640px, 100%); }
-.vn-zoom { display: flex; gap: 6px; justify-content: flex-end; margin: -4px 0 6px; }
-.vn-zoom .ghost { width: 36px; height: 32px; font-size: 18px; padding: 0; }
-.vn-scroll { height: min(58vh, 560px); overflow: auto; border-radius: 14px; background: #a9cfe0; overscroll-behavior: contain; }
-.vn-svg { display: block; width: 100%; height: auto; }
+/* hộp gần kín màn hình; khung bản đồ chiếm phần lớn, kéo thả tự do (không thanh cuộn) */
+.vn-modal { padding: 12px; }
+.vn-sheet { width: min(1180px, 100%); height: min(92vh, 980px); max-height: none; display: flex; flex-direction: column; overflow: hidden; padding: 16px 16px 14px; }
+.vn-help { margin: 2px 0 10px !important; font-size: 13px !important; }
+.vn-view { position: relative; flex: 1; min-height: 0; border-radius: 14px; overflow: hidden; background: #b9dbe8; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.vn-view.drag { cursor: grabbing; }
+.vn-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; stroke: none; } /* không nhận nét vẽ chung của biểu tượng */
+.vn-zoom { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+.vn-zoom button { width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, 0.92); color: var(--ink); font-size: 22px; font-weight: 600; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15); }
+.vn-zoom button:hover { background: #fff; }
+.vn-zoom .vn-fit { width: auto; height: 32px; padding: 0 10px; font-size: 12px; }
 .vn-sea { fill: #b9dbe8; }
-.vn-grid line { stroke: rgba(255, 255, 255, 0.35); stroke-width: 0.6; }
-.vn-land { fill: #f1e6c8; stroke: #9c7a3c; stroke-width: 1.2; stroke-linejoin: round; }
-.vn-isle { fill: #e9d6a8; stroke: #9c7a3c; stroke-width: 0.8; }
-.vn-isle-label { font-size: 8px; fill: #50606a; }
-.vn-arch { fill: rgba(255, 255, 255, 0.18); stroke: #b3261e; stroke-width: 1; stroke-dasharray: 4 3; }
-.vn-arch-label { font-size: 12px; font-weight: 700; fill: #8a1f1a; }
-.vn-arch-sub { font-size: 10px; font-weight: 600; fill: #8a1f1a; }
-.vn-sea-label { font-size: 11px; font-style: italic; fill: #4f7d92; letter-spacing: 0.06em; }
-.vn-sea-label.big { font-size: 22px; letter-spacing: 0.3em; fill: rgba(60, 110, 135, 0.55); }
-.vn-sea-label.land { fill: #8a8a7a; font-style: normal; font-size: 12px; }
+.vn-grid line { stroke: rgba(255, 255, 255, 0.4); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.vn-land { fill: #f1e6c8; stroke: #9c7a3c; stroke-width: 1.4; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.vn-isle { fill: #e9d6a8; stroke: #9c7a3c; stroke-width: 1; }
+.vn-isle-label { font-size: 10px; fill: #4a5a64; paint-order: stroke; stroke: rgba(185, 219, 232, 0.9); stroke-width: 3px; }
+.vn-zoom-only { display: none; }
+.vn-names .vn-zoom-only { display: block; }
+.vn-arch { fill: rgba(255, 255, 255, 0.18); stroke: #b3261e; stroke-width: 1.2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.vn-arch-label { font-size: 13px; font-weight: 700; fill: #8a1f1a; paint-order: stroke; stroke: rgba(255, 255, 255, 0.7); stroke-width: 3px; }
+.vn-arch-sub { font-size: 11px; font-weight: 600; fill: #8a1f1a; paint-order: stroke; stroke: rgba(255, 255, 255, 0.7); stroke-width: 3px; }
+.vn-sea-label { font-size: 12px; font-style: italic; fill: #4f7d92; letter-spacing: 0.06em; }
+.vn-sea-label.big { font-size: 24px; letter-spacing: 0.3em; fill: rgba(60, 110, 135, 0.55); }
+.vn-sea-label.land { fill: #8a8a7a; font-style: normal; font-size: 13px; }
 .vn-pin { cursor: pointer; }
-.vn-dot { fill: #8a5a2c; stroke: #fff; stroke-width: 1; }
-.vn-pin:hover .vn-dot, .vn-pin.sel .vn-dot { fill: #d4a017; r: 5; }
+.vn-hit { fill: transparent; stroke: none; }
+.vn-dot { fill: #8a5a2c; stroke: #fff; stroke-width: 1.2; }
+.vn-pin:hover .vn-dot, .vn-pin.sel .vn-dot { fill: #d4a017; r: 5.5; }
+.vn-name { display: none; font-size: 11px; font-weight: 600; fill: #5a3a1c; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.vn-names .vn-name, .vn-pin:hover .vn-name, .vn-pin.sel .vn-name { display: block; }
 .vn-petal { fill: #d43a3a; stroke: #fff; stroke-width: 0.6; }
 .vn-core { fill: #f6c445; }
-.vn-pin-label { font-size: 11px; font-weight: 700; fill: #8a1f1a; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.vn-pin-label { font-size: 12px; font-weight: 700; fill: #8a1f1a; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .vn-pin.sel .vn-petal { fill: #b3261e; }
-.vn-card { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: rgba(156, 116, 48, 0.08); }
+/* thẻ chùa nổi ở góc dưới bên trái bản đồ */
+.vn-card { position: absolute; left: 10px; bottom: 10px; width: min(330px, calc(100% - 20px)); z-index: 2; padding: 12px 14px; border-radius: 14px; background: rgba(250, 247, 240, 0.96); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18); cursor: default; }
 .vn-card:empty { display: none; }
-.vn-card-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.vn-card-x { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; font-size: 20px; }
+.vn-card-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; padding-right: 26px; }
 .vn-card-head b { font-size: 16px; }
 .vn-old { display: block; font-size: 12.5px; margin-top: 2px; }
 .vn-card p { margin: 4px 0 10px !important; font-size: 13.5px !important; }
 .vn-card .btn-primary { width: 100%; }
+@media (max-width: 600px) {
+  .vn-modal { padding: 0; place-items: end center; }
+  .vn-sheet { height: 94vh; border-radius: 22px 22px 0 0; padding: 14px 12px calc(12px + var(--sab)); }
+  .vn-help { font-size: 12px !important; }
+  .vn-svg:not(.vn-mid) .vn-isle-label { display: none; }
+}
 
 /* ---------- Trang khu đất trống ---------- */
 body.datrong #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
