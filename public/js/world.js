@@ -3888,7 +3888,8 @@ export function buildWorld(renderer, { quality = 'high' } = {}) {
     // Điện Quan Âm: cửa võng trước bàn thờ, tràng phan "Nam Mô Quan Thế Âm Bồ Tát", hạc, bình sen
     {
       const QG = PORCH.courtY + 0.21;
-      cuaVong(QAHALL.cx, QAHALL.z0 + 2.65, QG + 1.85, QG + 4.25, 3.6, 0.17);
+      // dải trên mảnh, sát trần, khoảng mở giữa rộng: camera nhìn chếch từ trên xuống vẫn thấy rõ mặt tượng
+      cuaVong(QAHALL.cx, QAHALL.z0 + 2.65, QG + 2.75, QG + 4.3, 4.1, 0.08);
       for (const s of [-1, 1]) {
         phan(QAHALL.cx + s * 4.6, QG + 4.25, QAHALL.z0 + 2.3, 3.0, 0.62, ['NAM', 'MÔ', 'QUAN', 'THẾ', 'ÂM', 'BỒ', 'TÁT']);
         binhSen(QAHALL.cx + s * 4.6, QG, QAHALL.z0 + 2.9, 0.8);
