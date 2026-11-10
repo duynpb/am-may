@@ -31,7 +31,7 @@ const path = (pts) => 'M' + pts.map(([lon, lat]) => `${X(lon).toFixed(1)},${Y(la
 
 // here: chỗ đang đứng (mã chùa: 'ammay', 'tamchuc' hoặc mã khu đất trống); from: khu đã dựng để quay về
 // Xem bản đồ: kéo thả tự do (chuột hoặc một ngón tay), lăn chuột / chụm hai ngón để phóng to đúng chỗ đang chỉ,
-// nút + / − và "Toàn cảnh". Chữ, chấm, hoa sen giữ nguyên cỡ trên màn hình khi phóng to.
+// nút + / − và "Toàn cảnh". Chữ, chấm giữ nguyên cỡ trên màn hình khi phóng to.
 export function createVnMap({ openModal, closeModal, here, from = here }) {
   const home = ['ammay', 'tamchuc'].includes(from) ? from : 'ammay';
   const modal = h('div', { class: 'modal vn-modal', id: 'modal-vn', hidden: true, role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'vn-title' });
@@ -53,7 +53,7 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
   view.append(tools, card);
   sheet.append(
     h('div', { class: 'sheet-head' }, h('h2', { id: 'vn-title', text: 'Bản đồ Việt Nam' }), h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' })),
-    h('p', { class: 'muted vn-help', text: 'Kéo để di chuyển · lăn chuột hoặc chụm hai ngón để phóng to. Hoa sen đỏ là chùa đã dựng trong Am Mây — bấm để tới; chấm nâu là chùa chưa dựng — bấm để xem khu đất.' }),
+    h('p', { class: 'muted vn-help', text: 'Kéo để di chuyển · lăn chuột hoặc chụm hai ngón để phóng to. Chấm đỏ là chùa đã dựng trong Am Mây — bấm để tới; chấm nâu là chùa chưa dựng — bấm để xem khu đất.' }),
     view,
   );
 
@@ -218,7 +218,7 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
         t3.textContent = A.sub;
       }
     }
-    // chùa: chưa dựng vẽ trước (chấm nâu), đã dựng vẽ sau cùng cho nổi lên trên (hoa sen đỏ, có tên)
+    // chùa: chưa dựng vẽ trước (chấm nâu), đã dựng vẽ sau cùng cho nổi lên trên (chấm đỏ to hơn, có tên)
     const order = [...PAGODAS.filter((p) => !p.built), ...PAGODAS.filter((p) => p.built)];
     for (const p of order) {
       const g = fixed(X(p.lon), Y(p.lat), svg, { class: 'vn-pin' + (p.built ? ' built' : '') + (p.id === here ? ' here' : ''), role: 'button', tabindex: 0 });
@@ -226,8 +226,7 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
       ttl.textContent = `${p.name} — ${p.prov}${p.old ? ` (${p.old} cũ)` : ''}`;
       el('circle', { cx: 0, cy: 0, r: 11, class: 'vn-hit' }, g); // vùng bấm rộng cho dễ chạm
       if (p.built) {
-        for (let k = 0; k < 6; k++) el('ellipse', { cx: 0, cy: -5, rx: 2.6, ry: 5.2, transform: `rotate(${k * 60})`, class: 'vn-petal' }, g);
-        el('circle', { cx: 0, cy: 0, r: 3, class: 'vn-core' }, g);
+        el('circle', { cx: 0, cy: 0, r: 6, class: 'vn-dot-built' }, g);
         const t = el('text', { x: 10, y: 4, class: 'vn-pin-label', 'data-no-i18n': true }, g);
         t.textContent = p.name;
       } else {

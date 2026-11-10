@@ -641,10 +641,9 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .vn-pin:hover .vn-dot, .vn-pin.sel .vn-dot { fill: #d4a017; r: 5.5; }
 .vn-name { display: none; font-size: 11px; font-weight: 600; fill: #5a3a1c; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .vn-names .vn-name, .vn-pin:hover .vn-name, .vn-pin.sel .vn-name { display: block; }
-.vn-petal { fill: #d43a3a; stroke: #fff; stroke-width: 0.6; }
-.vn-core { fill: #f6c445; }
+.vn-dot-built { fill: #d43a3a; stroke: #fff; stroke-width: 2; }
+.vn-pin.built:hover .vn-dot-built, .vn-pin.built.sel .vn-dot-built { fill: #b3261e; r: 7.5; }
 .vn-pin-label { font-size: 12px; font-weight: 700; fill: #8a1f1a; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
-.vn-pin.sel .vn-petal { fill: #b3261e; }
 /* thẻ chùa nổi ở góc dưới bên trái bản đồ */
 .vn-card { position: absolute; left: 10px; bottom: 10px; width: min(330px, calc(100% - 20px)); z-index: 2; padding: 12px 14px; border-radius: 14px; background: rgba(250, 247, 240, 0.96); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18); cursor: default; }
 .vn-card:empty { display: none; }
