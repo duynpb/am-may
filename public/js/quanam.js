@@ -89,12 +89,12 @@ export function makeQuanAm({ quality = 'high', shadow = false, stone = null, col
   const g = new THREE.Group();
   const q = quality === 'high' ? 1 : 1.4;
   const marble = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.38, metalness: 0 });
-  const stone = new THREE.MeshStandardMaterial({ color: '#e9e4da', roughness: 0.55 });
+  const stoneMat = new THREE.MeshStandardMaterial({ color: '#e9e4da', roughness: 0.55 });
 
   // Tòa sen trắng hồng
   const petal = petalGeometry({ baseC: '#d9b8ae', tipC: '#fff4ee' });
   const petalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.42 });
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.12, 40), stone);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.12, 40), stoneMat);
   base.position.y = 0.06;
   g.add(base);
   for (const [n, r, y, tilt, s, off] of [[12, 0.5, 0.02, 0.42, 0.62, 0], [10, 0.38, 0.13, 0.22, 0.54, 0.3]]) {
@@ -110,7 +110,7 @@ export function makeQuanAm({ quality = 'high', shadow = false, stone = null, col
       g.add(pv);
     }
   }
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.06, 40), stone);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.06, 40), stoneMat);
   top.position.y = 0.33;
   g.add(top);
 
