@@ -6,7 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from '../textures.js';
 import { curvedRoof, dragonsOnRidge, karstGeometry, karstMaterial, ARCH } from '../arch.js';
 import { PILLARS } from './sutras.js';
-import { makeBuddha } from '../buddha.js';
+import { makeBuddha, makeThichCa } from '../buddha.js';
 import { makeQuanAm, swapToCarvedQuanAm } from '../quanam.js';
 import { ritualKit } from '../rituals.js';
 
@@ -710,7 +710,7 @@ export function buildTamChuc(renderer, { quality = 'high' } = {}) {
       swapToCarvedQuanAm(qa).catch((e) => console.warn('Không nạp được tượng mẫu Quan Âm, giữ tượng cũ', e));
     });
     // điện Pháp Chủ: một tượng Phật lớn ấn xúc địa; điện Tam Thế: ba tượng Phật
-    const thichca = makeBuddha({ quality: 'low', style: 'thichca' });
+    const thichca = makeThichCa(); // cùng mẫu tượng chánh điện Am Mây
     hall(TERRACES[1], (y, z) => {
       thichca.position.set(0, y, z);
       thichca.scale.setScalar(1.45);

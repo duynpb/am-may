@@ -2,7 +2,7 @@
 // và vườn Lộc Uyển; bậc thang lên nền giữa có bảo tháp xá lợi màu trắng và đôi voi trắng; lên nữa là Phật đài bát giác
 // với tượng Phật Thích Ca ngồi thiền màu trắng rất lớn, mặt hướng ra biển. (Phỏng theo không khí, không sao chép công trình thật.)
 import { createKit, curvedRoof, dragonsOnRidge, THREE, rect, stairY, hallWalk, inHall } from './base.js';
-import { makeBuddha } from '../buddha.js';
+import { makeThichCa } from '../buddha.js';
 
 const GATE_Z = 48;
 const HALL = { x: -18, z0: 30, z1: 14, hx: 9, y: 0, plaque: 'CHÁNH ĐIỆN', wallH: 6 };
@@ -135,7 +135,7 @@ function build(renderer, { quality = 'high' } = {}) {
 
   // ---------- Chánh điện (sân dưới, phía tây) ----------
   K.hall(HALL, (y, z) => {
-    const b = makeBuddha({ quality: 'low', style: 'thichca' });
+    const b = makeThichCa(); // cùng mẫu tượng chánh điện Am Mây
     b.position.set(HALL.x, y, z);
     b.scale.setScalar(1.35);
     b.traverse((m) => (m.castShadow = false));
@@ -149,7 +149,7 @@ function build(renderer, { quality = 'high' } = {}) {
     cyl(0.5, 0.8, 4, M.trunk, cx, 2, cz - 1.6, {}, 10);
     for (const [dx, dy, dz, s] of [[0, 6, -1.6, 3.6], [-2.2, 5, -0.6, 2.4], [2.2, 5.2, -0.8, 2.4], [0, 5.4, 0.8, 2.2]]) mesh(new THREE.IcosahedronGeometry(1, 1), M.leaf, cx + dx, dy, cz + dz).scale.set(s, s * 0.7, s);
     box(3.2, 0.8, 2.2, M.stone, cx, 0.4, cz);
-    const b = K.gild(makeBuddha({ quality: 'low', style: 'thichca' }), { color: '#f4f1ea', stone: true });
+    const b = K.gild(makeThichCa({ stone: '#f4f1ea' }), { color: '#f4f1ea', stone: true });
     b.position.set(cx, 0.8, cz);
     b.scale.setScalar(0.85);
     scene.add(b);
@@ -235,7 +235,7 @@ function build(renderer, { quality = 'high' } = {}) {
       cyl(0.22, 0.26, 1.2, white, x, 2.0, z, { parent: g }, 8);
       mesh(k % 2 ? new THREE.SphereGeometry(0.3, 10, 8) : new THREE.OctahedronGeometry(0.34), M.gold, x, 2.9, z, { parent: g });
     }
-    const b = K.gild(makeBuddha({ quality: quality === 'high' ? 'high' : 'low', style: 'thien' }), { color: '#f6f3ec', stone: true });
+    const b = K.gild(makeThichCa({ stone: '#f6f3ec' }), { color: '#f6f3ec', stone: true });
     b.position.set(DAI.x, L2.y + y, DAI.z);
     b.scale.setScalar(4.2);
     scene.add(b);

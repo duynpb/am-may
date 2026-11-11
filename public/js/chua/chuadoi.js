@@ -3,7 +3,7 @@
 // đầu đao vàng cong vút (chovea), quanh điện là các tháp cốt nhọn, ao sen bên trái, nhà sala bên phải.
 // (Phỏng theo không khí chùa, không sao chép công trình thật.)
 import { createKit, THREE, rect, stairY, hallWalk, inHall } from './base.js';
-import { makeBuddha } from '../buddha.js';
+import { makeThichCa } from '../buddha.js';
 
 const GATE_Z = 44;
 const BASE = { x0: -12, x1: 12, z0: -37, z1: -6, y: 1.6 }; // nền cao chánh điện
@@ -224,7 +224,7 @@ function build(renderer, { quality = 'high' } = {}) {
     K.hall(HALL, (y, z) => {
       // tượng Phật Thích Ca kiểu Khmer: ngồi cao trên bệ nhiều cấp, dát vàng
       box(5.2, 1.4, 2.4, gold, 0, y + 0.7, z - 0.2);
-      const b = makeBuddha({ quality: 'low' });
+      const b = makeThichCa(); // cùng mẫu tượng chánh điện Am Mây
       b.position.set(0, y + 1.4, z - 0.2);
       b.scale.setScalar(1.6);
       b.traverse((m) => (m.castShadow = false));
@@ -232,7 +232,7 @@ function build(renderer, { quality = 'high' } = {}) {
       lods.push({ obj: b, z });
       // hai tượng nhỏ hai bên
       for (const x of [-4.2, 4.2]) {
-        const sb = b.clone();
+        const sb = makeThichCa();
         sb.position.set(x, y, z + 0.4);
         sb.scale.setScalar(0.8);
         scene.add(sb);

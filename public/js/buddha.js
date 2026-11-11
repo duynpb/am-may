@@ -587,9 +587,10 @@ async function loadCarvedOnce(url) {
   const gold = new THREE.MeshStandardMaterial({ color: '#f2c45a', vertexColors: true, metalness: 0.92, roughness: 0.3, envMapIntensity: 1.8 });
   return { geo, gold };
 }
-export async function swapToCarvedBuddha(group, { url = CARVED.main, height = 2.75, shadow = true } = {}) {
+// material: chất liệu riêng (vd đá trắng); mặc định thếp vàng như tượng chánh điện Am Mây
+export async function swapToCarvedBuddha(group, { url = CARVED.main, height = 2.75, shadow = true, material = null } = {}) {
   const { geo, gold } = await loadCarved(url);
-  const statue = new THREE.Mesh(geo, gold);
+  const statue = new THREE.Mesh(geo, material || gold);
   statue.scale.setScalar(height);
   statue.castShadow = shadow;
   statue.receiveShadow = true;
@@ -602,6 +603,17 @@ export async function swapToCarvedBuddha(group, { url = CARVED.main, height = 2.
   big.position.set(0, height * 0.6, -Math.min(height * 0.4, 1.1));
   group.add(statue);
   return true;
+}
+
+// Tượng Phật Thích Ca dùng chung mọi khu: cùng mẫu chạm khắc với tượng chánh điện Am Mây (CARVED.main).
+// Trả về ngay tượng dựng bằng mã, tải xong thì thay thân tượng bằng mẫu chạm khắc (giữ hào quang).
+// stone: màu đá (vd '#f4f1ea' cho tượng đá trắng); bỏ trống là thếp vàng như ở Am Mây.
+export function makeThichCa({ quality = 'low', shadow = false, stone = null } = {}) {
+  const g = makeBuddha({ quality, style: 'thichca' });
+  g.traverse((m) => m.isMesh && (m.castShadow = shadow));
+  const material = stone ? new THREE.MeshStandardMaterial({ color: stone, roughness: 0.7, metalness: 0, envMapIntensity: 0.6 }) : null;
+  swapToCarvedBuddha(g, { shadow, material }).catch((e) => console.warn('Không nạp được tượng mẫu Thích Ca, giữ tượng cũ', e));
+  return g;
 }
 
 // ---------- Tượng Phật nằm chạm nổi (mẫu khắc maufree.vn số 7020, đọc từ file relief ArtCAM) ----------
