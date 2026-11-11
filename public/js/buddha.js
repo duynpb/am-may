@@ -598,9 +598,9 @@ export async function swapToCarvedBuddha(group, { url = CARVED.main, height = 2.
   const keep = group.children.slice(-2);
   for (const o of group.children.slice(0, -2)) group.remove(o);
   const [halo, big] = keep;
-  // hào quang lùi sau lưng tượng nhưng không quá 1,1 (tượng lớn đặt sát tường thì hào quang không lọt vào tường)
-  halo.position.set(0, height * 0.86, -Math.min(height * 0.36, 0.99));
-  big.position.set(0, height * 0.6, -Math.min(height * 0.4, 1.1));
+  // hào quang lùi sát sau lưng tượng (~0,72m) để khi phóng to tượng trên bệ thờ không bị lọt ra sau tường hậu hoặc xuyên trần
+  halo.position.set(0, height * 0.82, -Math.min(height * 0.26, 0.72));
+  big.position.set(0, height * 0.55, -Math.min(height * 0.28, 0.76));
   group.add(statue);
   return true;
 }

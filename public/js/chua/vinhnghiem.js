@@ -231,8 +231,8 @@ function build(renderer, { quality = 'high' } = {}) {
     for (const s of [-1, 1]) K.lion(s * 7.6, 0, STAIR.zBottom + 0.6);
     K.hall(HALL, (y, z) => {
       const tc = makeThichCa(); // cùng mẫu tượng chánh điện Am Mây
-      tc.position.set(0, y, z);
-      tc.scale.setScalar(1.7);
+      tc.position.set(0, y, z + 0.1);
+      tc.scale.setScalar(1.55);
       tc.traverse((m) => (m.castShadow = false));
       scene.add(tc);
       lods.push({ obj: tc, z });
@@ -240,7 +240,7 @@ function build(renderer, { quality = 'high' } = {}) {
       for (const x of [-7, 7]) {
         const b = makeThichCa();
         b.position.set(x, y, z + 0.3);
-        b.scale.setScalar(1.3);
+        b.scale.setScalar(1.25);
         b.traverse((m) => (m.castShadow = false));
         scene.add(b);
         lods.push({ obj: b, x, z });

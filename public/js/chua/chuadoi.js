@@ -8,7 +8,7 @@ import { makeThichCa } from '../buddha.js';
 const GATE_Z = 44;
 const BASE = { x0: -12, x1: 12, z0: -37, z1: -6, y: 1.6 }; // nền cao chánh điện
 const STAIR = { x0: -3.6, x1: 3.6, zBottom: -0.8, zTop: -6, y0: 0, y1: BASE.y };
-const HALL = { x: 0, z0: -9.5, z1: -33, hx: 8.4, y: BASE.y, wallH: 5.2 };
+const HALL = { x: 0, z0: -9.5, z1: -33, hx: 8.4, y: BASE.y, wallH: 6.4 };
 const POND = { x0: -37, x1: -19, z0: 8, z1: 28 };
 const SALA = { x0: 21, x1: 35, z0: 8, z1: 22 };
 const STUPAS = [
@@ -222,11 +222,12 @@ function build(renderer, { quality = 'high' } = {}) {
     }
     box(BASE.x1 - BASE.x0, 0.7, 0.3, cream, 0, BASE.y + 0.35, BASE.z0 + 0.15);
     K.hall(HALL, (y, z) => {
-      // tượng Phật Thích Ca kiểu Khmer: ngồi cao trên bệ nhiều cấp, dát vàng
-      box(5.2, 1.4, 2.4, gold, 0, y + 0.7, z - 0.2);
+      // tượng Phật Thích Ca kiểu Khmer: ngồi trên bệ hai cấp dát vàng vừa tầm dưới trần điện
+      box(4.6, 0.34, 2.2, gold, 0, y + 0.17, z);
+      box(3.6, 0.26, 1.8, gold, 0, y + 0.47, z);
       const b = makeThichCa(); // cùng mẫu tượng chánh điện Am Mây
-      b.position.set(0, y + 1.4, z - 0.2);
-      b.scale.setScalar(1.6);
+      b.position.set(0, y + 0.6, z + 0.05);
+      b.scale.setScalar(1.22);
       b.traverse((m) => (m.castShadow = false));
       scene.add(b);
       lods.push({ obj: b, z });
@@ -234,7 +235,7 @@ function build(renderer, { quality = 'high' } = {}) {
       for (const x of [-4.2, 4.2]) {
         const sb = makeThichCa();
         sb.position.set(x, y, z + 0.4);
-        sb.scale.setScalar(0.8);
+        sb.scale.setScalar(0.85);
         scene.add(sb);
         lods.push({ obj: sb, x, z });
       }
