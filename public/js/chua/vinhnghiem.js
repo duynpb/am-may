@@ -2,7 +2,7 @@
 // gác chuông treo đại hồng chung bên phải, chánh điện Đại Hùng Bảo Điện trên nền cao có bậc thang lớn, nhà Tổ phía sau.
 // (Phỏng theo không khí chùa, không sao chép công trình thật.)
 import { createKit, curvedRoof, dragonsOnRidge, THREE, rect, stairY, hallWalk, inHall } from './base.js';
-import { makeBuddha, makeThichCa } from '../buddha.js';
+import { makeThichCa } from '../buddha.js';
 import { makeQuanAm } from '../quanam.js';
 
 const GATE_Z = 44;
@@ -236,11 +236,11 @@ function build(renderer, { quality = 'high' } = {}) {
       tc.traverse((m) => (m.castShadow = false));
       scene.add(tc);
       lods.push({ obj: tc, z });
-      const side = makeBuddha({ quality: 'low' });
+      // hai tượng hai bên cũng dùng mẫu tượng Thích Ca chạm khắc của chánh điện Am Mây, nhỏ hơn tượng giữa
       for (const x of [-7, 7]) {
-        const b = x < 0 ? side : side.clone();
+        const b = makeThichCa();
         b.position.set(x, y, z + 0.3);
-        b.scale.setScalar(1.05);
+        b.scale.setScalar(1.3);
         b.traverse((m) => (m.castShadow = false));
         scene.add(b);
         lods.push({ obj: b, x, z });
