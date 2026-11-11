@@ -381,6 +381,147 @@ export function createKit(renderer, { quality = 'high', skyTop = '#7fb3d9', skyB
     return out;
   }
 
+  // ---------- Đồ dựng dùng chung thêm (cổng tam quan, gác chuông, mặt nước, rừng thông, bồn hoa) ----------
+  // cổng tam quan ba cửa: cửa giữa hai tầng mái có biển tên, hai cửa bên; mặt trước nhìn về +z.
+  // walls: chiều dài tường hai bên (0 = không tường). Cửa giữa rộng ±2.3, cửa bên ở x ±6.6..9 (xem gateWalk)
+  function gate3(x, z, name, { col = M.red, wall = M.wall, walls = 0, y = 0 } = {}) {
+    const g = group(x, y, z);
+    box(28, 0.3, 6, M.stone, 0, 0.15, 0, { parent: g });
+    const Y = 0.3;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(0.42, 0.48, 6.6, col, sx * 3.0, Y + 3.3, sz * 1.9, { parent: g }, 16);
+    box(7.2, 0.5, 4.6, col, 0, Y + 6.85, 0, { parent: g });
+    curvedRoof(g, 0, Y + 6.95, 0, 6.6, 4.2, 1.5, 2.2, { lift: 1.0 });
+    box(9.0, 2.3, 3.8, M.wall, 0, Y + 9.45, 0, { parent: g });
+    plaque(g, name, 0, Y + 9.45, 1.97, 4.8, 1.0);
+    plaque(g, name, 0, Y + 9.45, -1.97, 4.8, 1.0, Math.PI);
+    const top = curvedRoof(g, 0, Y + 10.55, 0, 5.8, 3.4, 2.4, 3.0, { lift: 1.2 });
+    dragonsOnRidge(g, 0, top.yTop + 0.42, 0, top.rx);
+    for (const sx of [-1, 1]) {
+      const cx = sx * 7.8;
+      for (const dx of [-1.5, 1.5]) for (const sz of [-1, 1]) cyl(0.3, 0.34, 4.6, col, cx + dx, Y + 2.3, sz * 1.6, { parent: g }, 14);
+      box(3.6, 0.4, 3.8, col, cx, Y + 4.75, 0, { parent: g });
+      curvedRoof(g, cx, Y + 4.9, 0, 3.0, 2.8, 1.4, 2.0, { lift: 0.8 });
+      box(2.6, 3.6, 0.8, M.wall, sx * 4.6, Y + 1.8, 0, { parent: g });
+      box(1.6, 3.2, 0.8, M.wall, sx * 9.9, Y + 1.6, 0, { parent: g });
+      if (walls > 0) {
+        box(walls, 2.6, 0.6, wall, sx * (10.7 + walls / 2), 1.3, 0, { parent: g });
+        box(walls + 0.3, 0.2, 1.0, std('#6a3426'), sx * (10.7 + walls / 2), 2.7, 0, { parent: g });
+      }
+    }
+    roofs.push({ minX: x - 11, maxX: x + 11, minZ: z - 3, maxZ: z + 3, lift: 13 });
+    return g;
+  }
+  // gác chuông: bốn cột, hai tầng mái, chuông đồng treo lắc khi thỉnh. Trả về một mục cho world.bells
+  function bellPavilion(x, z, y = 0, { label = 'CHUÔNG' } = {}) {
+    const g = group(x, y, z);
+    box(7.4, 0.4, 7.4, M.stone, 0, 0.2, 0, { parent: g });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(0.26, 0.3, 5.6, M.red, sx * 2.7, 3.2, sz * 2.7, { parent: g }, 12);
+    box(6.2, 0.4, 6.2, M.red, 0, 6.1, 0, { parent: g });
+    curvedRoof(g, 0, 6.2, 0, 3.9, 3.9, 1.0, 2.2, { lift: 0.8 });
+    box(3.6, 1.4, 3.6, M.wall, 0, 7.8, 0, { parent: g });
+    const top = curvedRoof(g, 0, 8.4, 0, 3.0, 3.0, 1.6, 2.6, { lift: 0.9 });
+    dragonsOnRidge(g, 0, top.yTop + 0.42, 0, 1.4);
+    box(5.6, 0.25, 0.3, M.wood, 0, 5.6, 0, { parent: g });
+    if (label) plaque(g, label, 0, 6.1, 3.15, 1.6, 0.36, 0, { size: 80 });
+    const bg = new THREE.Group();
+    bg.position.set(x, y + 5.5, z);
+    scene.add(bg);
+    const prof = [[0.05, 0], [0.55, -0.1], [0.75, -0.8], [0.85, -1.9], [1.05, -2.3], [1.0, -2.4], [0, -2.4]].map(([a, b]) => new THREE.Vector2(a, b));
+    const bronze = std('#5f4a2a', { metalness: 0.8, roughness: 0.38 });
+    const bell = new THREE.Mesh(new THREE.LatheGeometry(prof, 28), bronze);
+    bell.castShadow = true;
+    bg.add(bell);
+    for (const yy of [-0.9, -1.6]) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.04, 6, 28).rotateX(Math.PI / 2), bronze);
+      ring.position.y = yy;
+      bg.add(ring);
+    }
+    const ram = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 2.4, 10).rotateZ(Math.PI / 2), M.wood);
+    ram.position.set(-2.2, -1.6, 0);
+    bg.add(ram);
+    let swing = 0;
+    updaters.push((t, dt) => {
+      swing = Math.max(0, swing - dt * 0.25);
+      bg.rotation.z = Math.sin(t * 2.4) * 0.05 * swing;
+      ram.position.x = -2.2 + (swing > 0.8 ? Math.sin(Math.min(1, (1 - swing) * 6) * Math.PI) * 1.2 : 0);
+    });
+    roofs.push({ minX: x - 4, maxX: x + 4, minZ: z - 4, maxZ: z + 4, lift: 12 });
+    return { group: bg, x, z, spot: { x: x - 0.2, z: z + 4.4 }, swing: () => (swing = 1) };
+  }
+  // mặt nước (hồ, sông, biển) có gợn sóng trôi
+  let waveTex = null;
+  function water(x0, x1, z0, z1, y, { color = '#4b858a', repeat = 0.06 } = {}) {
+    if (!waveTex) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 256;
+      const g = c.getContext('2d'), img = g.createImageData(256, 256);
+      const hgt = (x, yy) => Math.sin(x * 0.098 + Math.sin(yy * 0.05) * 2) * 0.5 + Math.sin(yy * 0.123 + x * 0.031) * 0.5 + Math.sin((x + yy) * 0.21) * 0.25;
+      for (let yy = 0; yy < 256; yy++) for (let x = 0; x < 256; x++) {
+        const dx = hgt(x + 1, yy) - hgt(x - 1, yy), dy = hgt(x, yy + 1) - hgt(x, yy - 1), i = (yy * 256 + x) * 4;
+        img.data.set([128 - dx * 60, 128 - dy * 60, 255, 255], i);
+      }
+      g.putImageData(img, 0, 0);
+      waveTex = new THREE.CanvasTexture(c);
+      waveTex.wrapS = waveTex.wrapT = THREE.RepeatWrapping;
+      updaters.push((t) => waveTex.offset.set(t * 0.004, t * 0.007));
+    }
+    const tex = waveTex.clone();
+    tex.repeat.set((x1 - x0) * repeat, (z1 - z0) * repeat);
+    updaters.push(() => tex.offset.copy(waveTex.offset));
+    const w = mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), std(color, { roughness: 0.12, metalness: 0.15, normalMap: tex, normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.4 }), (x0 + x1) / 2, y, (z0 + z1) / 2, { cast: false });
+    w.rotation.x = -Math.PI / 2;
+    return w;
+  }
+  // rừng thông: thân thẳng, tán hình nón ba tầng
+  function pines(spots, y0 = 0, { scale = 1 } = {}) {
+    if (!spots.length) return;
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.28, 1, 7).translate(0, 0.5, 0), std('#6b4f3a', { roughness: 0.95 }), spots.length);
+    const cone = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 8).translate(0, 0.5, 0), std('#ffffff', { roughness: 0.9, flatShading: true }), spots.length * 3);
+    const o = new THREE.Object3D(), c = new THREE.Color();
+    spots.forEach(([x, z, y = y0], i) => {
+      const h = (9 + rr() * 6) * scale;
+      o.position.set(x, y, z);
+      o.rotation.set(0, rr() * 6, 0);
+      o.scale.set(1, h * 0.7, 1);
+      o.updateMatrix();
+      trunk.setMatrixAt(i, o.matrix);
+      for (let k = 0; k < 3; k++) {
+        const r = (2.2 - k * 0.6) * scale;
+        o.position.set(x, y + h * (0.35 + k * 0.2), z);
+        o.scale.set(r, h * 0.42, r);
+        o.updateMatrix();
+        cone.setMatrixAt(i * 3 + k, o.matrix);
+        cone.setColorAt(i * 3 + k, c.setHSL(0.3 + rr() * 0.05, 0.35, 0.18 + rr() * 0.06));
+      }
+    });
+    trunk.castShadow = cone.castShadow = true;
+    scene.add(trunk, cone);
+  }
+  // bồn hoa nhiều màu (cẩm tú cầu, hoa Đà Lạt…): spots = [[x, z, y?]]
+  function flowers(spots, y0 = 0, colors = ['#7a8fe0', '#e08ab8', '#f2d24a', '#f07a5a', '#ffffff', '#b07ae0']) {
+    if (!spots.length) return;
+    const bush = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.5, 0), std('#3f6e34', { flatShading: true }), spots.length);
+    const blooms = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.18, 0), std('#ffffff', { roughness: 0.7 }), spots.length * 6);
+    const o = new THREE.Object3D(), c = new THREE.Color();
+    spots.forEach(([x, z, y = y0], i) => {
+      o.position.set(x, y + 0.3, z);
+      o.rotation.set(0, 0, 0);
+      o.scale.set(1.1, 0.7, 1.1);
+      o.updateMatrix();
+      bush.setMatrixAt(i, o.matrix);
+      const col = colors[Math.floor(rr() * colors.length)];
+      for (let k = 0; k < 6; k++) {
+        const a = rr() * 6.28, r = rr() * 0.45;
+        o.position.set(x + Math.cos(a) * r, y + 0.55 + rr() * 0.15, z + Math.sin(a) * r);
+        o.scale.setScalar(0.8 + rr() * 0.6);
+        o.updateMatrix();
+        blooms.setMatrixAt(i * 6 + k, o.matrix);
+        blooms.setColorAt(i * 6 + k, c.set(col));
+      }
+    });
+    scene.add(bush, blooms);
+  }
+
   // ---------- Hoàn tất: gộp vật đứng yên, ngày đêm, lư hương và thùng công đức ----------
   function finish({ rituals = [], skip = [] } = {}) {
     batching = false;
@@ -484,6 +625,7 @@ export function createKit(renderer, { quality = 'high', skyTop = '#7fb3d9', skyB
   return {
     scene, pickables, updaters, nightHooks, lods, roofs, std, M, mesh, box, cyl, group, floor, terrace, stairs,
     plaque, stoneLamp, lampPost, lion, flagPole, hall, gild, forest, palms, bamboo, scatter, rr, finish,
+    gate3, bellPavilion, water, pines, flowers,
     stopBatching: () => (batching = false),
     startBatching: () => (batching = true),
     staticRoots,
@@ -498,5 +640,35 @@ export function hallWalk(H) {
     { minX: x - H.hx + 1, maxX: x + H.hx - 1, minZ: H.z1 + 3.0, maxZ: H.z0 - 0.6 },
   ];
 }
+// vùng đi qua ba cửa của cổng gate3 đặt ở (x, z)
+export function gateWalk(x, z) {
+  return [rect(x - 2.3, x + 2.3, z - 4.5, z + 4.5), rect(x + 6.6, x + 9.0, z - 4.5, z + 4.5), rect(x - 9.0, x - 6.6, z - 4.5, z + 4.5)];
+}
 // độ cao sàn trong điện
 export const inHall = (H, x, z) => Math.abs(x - (H.x ?? 0)) < H.hx + 0.7 && z < H.z0 + 1.1 && z > H.z1 - 0.5;
+
+// Đồi / núi tiện tròn: profile = [[bán kính, độ cao]…] từ tâm ra ngoài. Trả về hàm độ cao mặt đồi tại (x, z).
+export function profileY(profile, r) {
+  for (let i = 1; i < profile.length; i++) {
+    if (r <= profile[i][0]) {
+      const [r0, y0] = profile[i - 1], [r1, y1] = profile[i];
+      return y0 + ((y1 - y0) * (r - r0)) / (r1 - r0);
+    }
+  }
+  return profile[profile.length - 1][1];
+}
+export function makeHill(K, cx, cz, profile, { color = '#56713e', seg = 72, bumps = 1.2 } = {}) {
+  const top = profile[0][1];
+  const geo = new THREE.LatheGeometry([...profile].reverse().map(([r, y]) => new THREE.Vector2(Math.max(r, 0.01), y)), seg);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i), a = Math.atan2(p.getZ(i), p.getX(i));
+    if (y > 0 && y < top - 0.1) p.setY(i, y + (Math.sin(a * 9) * 1.0 + Math.sin(a * 17) * 0.5) * bumps);
+  }
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, K.std(color, { roughness: 0.95, flatShading: true }));
+  m.position.set(cx, 0, cz);
+  m.receiveShadow = true;
+  K.scene.add(m);
+  return (x, z) => profileY(profile, Math.hypot(x - cx, z - cz));
+}

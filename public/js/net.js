@@ -8,9 +8,15 @@ export const SITES = {
   chuadoi: { name: 'Chùa Dơi', page: 'chua.html?site=chuadoi', roomLabel: 'Chùa Dơi', desc: 'chùa Khmer mái nhọn, vườn cây cổ thụ có đàn dơi' },
   baden: { name: 'Núi Bà Đen', page: 'chua.html?site=baden', roomLabel: 'Núi Bà Đen', desc: 'chùa Bà lưng chừng núi, cáp treo lên tượng Phật Bà trên đỉnh' },
   phatdai: { name: 'Thích Ca Phật Đài', page: 'chua.html?site=phatdai', roomLabel: 'Phật Đài', desc: 'tượng Phật Thích Ca trắng trên sườn núi nhìn ra biển' },
+  // các chùa miền Trung dựng kỹ
+  thienmu: { name: 'Chùa Thiên Mụ', page: 'chua.html?site=thienmu', roomLabel: 'Thiên Mụ', desc: 'tháp Phước Duyên bảy tầng bên sông Hương' },
+  linhungbb: { name: 'Chùa Linh Ứng Bãi Bụt', page: 'chua.html?site=linhungbb', roomLabel: 'Linh Ứng', desc: 'tượng Quan Âm trắng trên vách đá nhìn ra biển Sơn Trà' },
+  longson: { name: 'Chùa Long Sơn', page: 'chua.html?site=longson', roomLabel: 'Long Sơn', desc: 'tượng Phật nằm và Kim Thân Phật Tổ trên đồi Trại Thủy' },
+  truclamdl: { name: 'Thiền viện Trúc Lâm Đà Lạt', page: 'chua.html?site=truclamdl', roomLabel: 'Trúc Lâm', desc: 'thiền viện giữa rừng thông bên hồ Tuyền Lâm' },
 };
 // các khu dựng kỹ ở miền Nam: mỗi khu một phòng
-const SOUTH = [['vinhnghiem', 'vinh-nghiem', 'Vĩnh Nghiêm'], ['chuadoi', 'chua-doi', 'Chùa Dơi'], ['baden', 'ba-den', 'Núi Bà Đen'], ['phatdai', 'phat-dai', 'Phật Đài']];
+const SOUTH = [['vinhnghiem', 'vinh-nghiem', 'Vĩnh Nghiêm'], ['chuadoi', 'chua-doi', 'Chùa Dơi'], ['baden', 'ba-den', 'Núi Bà Đen'], ['phatdai', 'phat-dai', 'Phật Đài'],
+  ['thienmu', 'thien-mu', 'Thiên Mụ'], ['linhungbb', 'linh-ung', 'Linh Ứng'], ['longson', 'long-son', 'Long Sơn'], ['truclamdl', 'truc-lam', 'Trúc Lâm']];
 export const ROOMS = [
   ...Array.from({ length: 2 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
   ...Array.from({ length: 2 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),

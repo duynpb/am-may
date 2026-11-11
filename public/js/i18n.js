@@ -116,6 +116,18 @@ const BOARDS = {
   'THÍCH CA PHẬT ĐÀI': [['SHAKYAMUNI BUDDHA TERRACE'], ['释迦佛台'], ['SHAKYAMUNI-BUDDHA-TERRASSE']],
   'VƯỜN LỘC UYỂN': [['DEER PARK'], ['鹿野苑'], ['HIRSCHPARK']],
   'BẢO THÁP XÁ LỢI': [['RELIC STUPA'], ['舍利宝塔'], ['RELIQUIEN-STUPA']],
+  // các chùa miền Trung
+  'THIÊN MỤ TỰ': [['THIÊN MỤ PAGODA'], ['天姥寺'], ['THIÊN-MỤ-PAGODE']],
+  'PHƯỚC DUYÊN BẢO THÁP': [['PHƯỚC DUYÊN TOWER'], ['福缘宝塔'], ['PHƯỚC-DUYÊN-TURM']],
+  'ĐÌNH BIA': [['STELE PAVILION'], ['碑亭'], ['STELENPAVILLON']],
+  'LINH ỨNG TỰ': [['LINH ỨNG PAGODA'], ['灵应寺'], ['LINH-ỨNG-PAGODE']],
+  'QUÁN THẾ ÂM BỒ TÁT': [['GUANYIN BODHISATTVA'], ['观世音菩萨'], ['GUANYIN BODHISATTVA']],
+  'VƯỜN LA HÁN': [['ARHAT GARDEN'], ['罗汉园'], ['ARHAT-GARTEN']],
+  'LONG SƠN TỰ': [['LONG SƠN PAGODA'], ['龙山寺'], ['LONG-SƠN-PAGODE']],
+  'PHẬT NHẬP NIẾT BÀN': [['BUDDHA ENTERING NIRVANA'], ['佛入涅槃'], ['BUDDHA GEHT INS NIRWANA EIN']],
+  'KIM THÂN PHẬT TỔ': [['GOLDEN-BODY BUDDHA'], ['金身佛祖'], ['GOLDENER BUDDHA']],
+  'TRÚC LÂM THIỀN VIỆN': [['TRÚC LÂM ZEN MONASTERY'], ['竹林禅院'], ['TRÚC-LÂM-ZEN-KLOSTER']],
+  'NỘI VIỆN': [['INNER COURT'], ['内院'], ['INNERER HOF']],
 };
 export function tBoard(lines) {
   if (col == null) return lines;

@@ -25,6 +25,11 @@ const LOAD = {
   chuadoi: () => import('./chuadoi.js'),
   baden: () => import('./baden.js'),
   phatdai: () => import('./phatdai.js'),
+  // miền Trung
+  thienmu: () => import('./thienmu.js'),
+  linhungbb: () => import('./linhungbb.js'),
+  longson: () => import('./longson.js'),
+  truclamdl: () => import('./truclamdl.js'),
 };
 let siteId = params.get('site');
 {
