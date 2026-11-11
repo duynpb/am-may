@@ -1,6 +1,7 @@
 // Bảng dịch: "câu tiếng Việt" → [English, 中文, Deutsch]. {0}, {1}… là phần thay đổi (số, tên).
 // Thêm câu mới: thêm một dòng ở đây. Câu không có trong bảng thì giữ nguyên tiếng Việt.
 import PART2 from './i18n-data2.js';
+import PART3 from './i18n-data3.js';
 const D = {
   // ---------- Khung trang, nút chính ----------
   'Am Mây — Chùa trực tuyến': ['Am Mây — Online Pagoda', '云庵 — 线上寺院', 'Am Mây — Online-Pagode'],
@@ -140,5 +141,6 @@ const D = {
   'Tròn một chuỗi 108 hạt. Nam mô A Di Đà Phật.': ['One full round of 108 beads. Namo Amitabha Buddha.', '圆满一串108颗念珠。南无阿弥陀佛。', 'Eine volle Runde mit 108 Perlen. Namo Amitabha Buddha.'],
   'Hôm nay: {0} hạt': ['Today: {0} beads', '今日：{0}颗', 'Heute: {0} Perlen'],
   ...PART2,
+  ...PART3,
 };
 export default D;

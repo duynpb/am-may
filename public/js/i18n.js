@@ -102,6 +102,20 @@ const BOARDS = {
   'TIẾNG ĐỨC': [['GERMAN'], ['德语'], ['DEUTSCH']],
   'TIẾNG HÀN': [['KOREAN'], ['韩语'], ['KOREANISCH']],
   'PHẬT HỌC': [['BUDDHIST STUDIES'], ['佛学'], ['BUDDHISMUS']],
+  // các chùa miền Nam
+  'VĨNH NGHIÊM TỰ': [['VĨNH NGHIÊM PAGODA'], ['永严寺'], ['VĨNH-NGHIÊM-PAGODE']],
+  'TỔ ĐƯỜNG': [['PATRIARCHS’ HALL'], ['祖堂'], ['HALLE DER PATRIARCHEN']],
+  'BẢO THÁP QUAN ÂM': [['GUANYIN TOWER'], ['观音宝塔'], ['GUANYIN-TURM']],
+  'CHUÔNG': [['BELL'], ['钟'], ['GLOCKE']],
+  'CHÙA DƠI': [['BAT PAGODA'], ['蝙蝠寺'], ['FLEDERMAUS-PAGODE']],
+  'CHÁNH ĐIỆN': [['MAIN HALL'], ['大殿'], ['HAUPTHALLE']],
+  'NÚI BÀ ĐEN': [['BÀ ĐEN MOUNTAIN'], ['黑婆山'], ['BÀ-ĐEN-BERG']],
+  'LINH SƠN TIÊN THẠCH TỰ': [['LINH SƠN TIÊN THẠCH TEMPLE'], ['灵山仙石寺'], ['LINH-SƠN-TIÊN-THẠCH-TEMPEL']],
+  'CÁP TREO': [['CABLE CAR'], ['缆车'], ['SEILBAHN']],
+  'TƯỢNG PHẬT BÀ TÂY BỔ ĐÀ SƠN': [['GUANYIN OF TÂY BỔ ĐÀ SƠN'], ['西补陀山观音像'], ['GUANYIN VON TÂY BỔ ĐÀ SƠN']],
+  'THÍCH CA PHẬT ĐÀI': [['SHAKYAMUNI BUDDHA TERRACE'], ['释迦佛台'], ['SHAKYAMUNI-BUDDHA-TERRASSE']],
+  'VƯỜN LỘC UYỂN': [['DEER PARK'], ['鹿野苑'], ['HIRSCHPARK']],
+  'BẢO THÁP XÁ LỢI': [['RELIC STUPA'], ['舍利宝塔'], ['RELIQUIEN-STUPA']],
 };
 export function tBoard(lines) {
   if (col == null) return lines;

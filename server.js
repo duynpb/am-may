@@ -18,6 +18,9 @@ const MAX_PER_ROOM = 120;
 const ROOMS = [
   ...Array.from({ length: 2 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
   ...Array.from({ length: 2 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
+  // các chùa miền Nam dựng kỹ (chua.html?site=…), mỗi chùa một phòng
+  ...[['vinhnghiem', 'vinh-nghiem', 'Vĩnh Nghiêm'], ['chuadoi', 'chua-doi', 'Chùa Dơi'], ['baden', 'ba-den', 'Núi Bà Đen'], ['phatdai', 'phat-dai', 'Phật Đài']]
+    .map(([site, id, name]) => ({ id: `${id}-1`, name: `${name} 1`, site })),
 ];
 const siteOf = (roomId) => ROOMS.find((r) => r.id === roomId)?.site || 'ammay';
 const rooms = new Map(ROOMS.map((r) => [r.id, new Map()]));
@@ -298,7 +301,7 @@ wss.on('connection', (ws, req) => {
     if (m.t === 'move') {
       // trong chánh điện và ngoài sân (khu Quan Âm)
       // khu Tam Chúc rộng hơn nhiều (hồ, sân lớn, sườn núi)
-      const wide = siteOf(roomId) === 'tamchuc';
+      const wide = siteOf(roomId) !== 'ammay'; // Tam Chúc và các chùa miền Nam: khu rộng
       me.x = clamp(m.x, wide ? -260 : -60, wide ? 260 : 210); // tới hết Làng Mây phía đông
       me.z = clamp(m.z, wide ? -320 : -220, wide ? 320 : 160); // z dưới -100: tầng 2 khu tự học (toạ độ ảo)
       me.seat = Number.isInteger(m.seat) && m.seat >= 0 && m.seat < 128 ? m.seat : null;
@@ -307,7 +310,7 @@ wss.on('connection', (ws, req) => {
     } else if (m.t === 'act' && ['gassho', 'bow', 'bell', 'drum', 'incense', 'greatbell', 'wipe'].includes(m.a)) {
       const to = typeof m.to === 'string' ? m.to.slice(0, 12) : undefined;
       const n = m.a === 'incense' ? (m.n === 3 ? 3 : 1) : undefined;
-      const place = m.a === 'incense' && ['out', 'tower', 'qahall', 'tamthe', 'ngoa', 'peak', 'quanam', 'phapchu', 'dinh'].includes(m.place) ? m.place : undefined;
+      const place = m.a === 'incense' && typeof m.place === 'string' && /^[a-z0-9]{1,16}$/.test(m.place) ? m.place : undefined; // tên lư hương (mỗi khu một bộ)
       const statue = m.a === 'wipe' && DUST_IDS.includes(m.id) ? m.id : undefined; // đang lau tượng nào
       broadcast(roomId, { t: 'act', id: me.id, a: m.a, to, n, place, statue }, me.id);
       if (m.a === 'bow') award(ws, uid, 'bow');

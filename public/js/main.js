@@ -3951,11 +3951,13 @@ $('#btn-room').addEventListener('click', async () => {
   const list = $('#room-list');
   const render = (counts) => {
     list.innerHTML = '';
+    let lastSite = 'ammay';
     for (const r of ROOMS) {
-      if (r.site !== 'ammay' && !list.querySelector('.site-head')) {
+      if (r.site !== lastSite) {
+        lastSite = r.site;
         const h = document.createElement('p');
         h.className = 'site-head';
-        h.textContent = `Khu ${SITES[r.site].name} — hồ lớn, cổng Tam Quan sát mặt nước`;
+        h.textContent = `${SITES[r.site].name} — ${SITES[r.site].desc}`;
         list.append(h);
       }
       const b = document.createElement('button');

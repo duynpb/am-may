@@ -209,6 +209,7 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 
 .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 9; transition: opacity 0.5s; }
 .flash.on { opacity: 0.7; transition: none; }
+.flash.dark { background: #0b0d10; opacity: 1; transition: opacity 0.9s; }
 /* tối dần khi lên / xuống tháp */
 .fade {
   position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; pointer-events: none;
@@ -272,6 +273,11 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .map-svg .m-terrace { fill: #8f897d; }
 .map-svg .m-stairs { fill: #cbc6ba; }
 .map-svg .m-tree { fill: #3f6a34; }
+.map-svg .m-statue { fill: #d9a43f; }
+.map-svg .m-gold { fill: #d9a43f; }
+.map-svg .m-white { fill: #f1eee6; }
+.map-svg .m-rock { fill: #6f6a5c; }
+.map-svg .m-cable { fill: #222; }
 .map-svg .m-tower { fill: #ece3cf; stroke: #9c2a1c; stroke-width: 0.5; }
 .map-svg .m-place { cursor: pointer; }
 .map-svg .m-place text {

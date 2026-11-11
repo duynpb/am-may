@@ -1584,7 +1584,7 @@ $('#btn-room').addEventListener('click', async () => {
         lastSite = r.site;
         const h = document.createElement('p');
         h.className = 'site-head';
-        h.textContent = r.site === 'tamchuc' ? 'Khu Tam Chúc — hồ lớn, cổng Tam Quan sát mặt nước' : `Khu ${SITES[r.site].name} — chánh điện, tháp, hành lang La Hán`;
+        h.textContent = `${r.site === 'tamchuc' || r.site === 'ammay' ? 'Khu ' : ''}${SITES[r.site].name} — ${SITES[r.site].desc}`;
         list.append(h);
       }
       const b = document.createElement('button');

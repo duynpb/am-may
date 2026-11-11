@@ -7,7 +7,11 @@ const NS = 'http://www.w3.org/2000/svg';
 const LON0 = 101.6, LAT0 = 24.0, K = 60, KX = K * Math.cos((16 * Math.PI) / 180);
 const X = (lon) => (lon - LON0) * KX, Y = (lat) => (LAT0 - lat) * K;
 const W = X(117.8), H = Y(6.6);
-const PAGES = { ammay: './', tamchuc: './tamchuc.html' };
+const PAGES = {
+  ammay: './', tamchuc: './tamchuc.html',
+  // các chùa miền Nam dựng kỹ: chung trang chua.html
+  vinhnghiem: './chua.html?site=vinhnghiem', chuadoi: './chua.html?site=chuadoi', baden: './chua.html?site=baden', phatdai: './chua.html?site=phatdai',
+};
 
 function el(tag, attrs = {}, parent) {
   const e = document.createElementNS(NS, tag);
