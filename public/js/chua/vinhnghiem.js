@@ -169,8 +169,8 @@ function build(renderer, { quality = 'high' } = {}) {
     for (let k = 0; k < 4; k++) cyl(0.35 - k * 0.07, 0.4 - k * 0.07, 0.25, M.gold, 0, y + 1.9 + k * 0.35, 0, { parent: g }, 10);
     mesh(new THREE.ConeGeometry(0.16, 1.4, 8), M.gold, 0, y + 3.8, 0, { parent: g });
     plaque(g, 'BẢO THÁP QUAN ÂM', 0, 3.6, TOWER.half + 0.08, 3.4, 0.6, 0, { size: 90 });
-    // tượng Quan Âm trước tháp
-    const qa = K.gild(makeQuanAm({ quality: quality === 'high' ? 'high' : 'low' }), { color: '#f1ede4', stone: true });
+    // tượng Quan Âm trước tháp (cùng mẫu tượng chạm khắc trong Quan Âm điện ở Am Mây)
+    const qa = K.gild(makeQuanAm({ quality: 'low', stone: '#f1ede4' }), { color: '#f1ede4', stone: true });
     qa.position.set(TOWER.x, 0.6, TOWER.z + TOWER.half + 0.9);
     qa.scale.setScalar(0.9);
     scene.add(qa);

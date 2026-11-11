@@ -85,7 +85,7 @@ function head(x, y, z) {
   return Math.abs(d) < 0.02 ? d + faceLines(x, y, z) : d;
 }
 
-export function makeQuanAm({ quality = 'high' } = {}) {
+export function makeQuanAm({ quality = 'high', shadow = false, stone = null, color = null } = {}) {
   const g = new THREE.Group();
   const q = quality === 'high' ? 1 : 1.4;
   const marble = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.38, metalness: 0 });
@@ -172,6 +172,9 @@ export function makeQuanAm({ quality = 'high' } = {}) {
   halo.position.set(0, 2.3, -0.2);
   figure.add(halo);
   g.userData.halo = halo;
+  if (stone || color) g.userData.gild = { color: stone || color, stone: Boolean(stone) };
+  // Mọi tượng Quan Âm đều tự thay bằng mẫu chạm khắc giống tượng trong Quan Âm điện ở Am Mây khi tải xong
+  swapToCarvedQuanAm(g, { shadow }).catch((e) => console.warn('Không nạp được tượng mẫu Quan Âm, giữ tượng cũ', e));
   return g;
 }
 
@@ -179,20 +182,32 @@ export function makeQuanAm({ quality = 'high' } = {}) {
 // Mẫu tượng Quan Âm Bồ Tát đứng trên tòa sen, tay cầm bình cam lộ và nhành dương liễu (nguồn: mẫu khắc miễn phí maufree.vn, số 6687),
 // đã giảm còn 120 nghìn mặt và nén Draco. File chuẩn hóa: cao 1, đáy ở y = 0, mặt tượng nhìn về +z.
 // Nạp xong thì thay thân tượng cũ, giữ vầng hào quang sau đầu; lỗi mạng / máy không đọc được thì giữ nguyên tượng cũ.
-export async function swapToCarvedQuanAm(group, { url = CARVED.quanam, height = 2.85, shadow = false } = {}) {
-  const { geo, gold } = await loadCarved(url);
-  const statue = new THREE.Mesh(geo, gold);
-  statue.scale.setScalar(height);
-  statue.castShadow = shadow;
-  statue.receiveShadow = true;
-  const halo = group.userData.halo;
-  for (const o of [...group.children]) group.remove(o);
-  if (halo) {
-    halo.removeFromParent();
-    halo.position.set(0, height * 0.87, -height * 0.095);
-    halo.scale.setScalar(height / 2.8);
-    group.add(halo);
-  }
-  group.add(statue);
-  return true;
+export async function swapToCarvedQuanAm(group, { url = CARVED.quanam, height = 2.85, shadow = false, material = null } = {}) {
+  if (group.userData.carvedSwap) return group.userData.carvedSwap;
+  const p = (async () => {
+    const { geo, gold } = await loadCarved(url);
+    let mat = material;
+    if (!mat && group.userData.gild) {
+      const { color, stone } = group.userData.gild;
+      mat = stone
+        ? new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0, envMapIntensity: 0.6 })
+        : new THREE.MeshStandardMaterial({ color, vertexColors: true, metalness: 0.88, roughness: 0.32, envMapIntensity: 1.6 });
+    }
+    const statue = new THREE.Mesh(geo, mat || gold);
+    statue.scale.setScalar(height);
+    statue.castShadow = shadow;
+    statue.receiveShadow = true;
+    const halo = group.userData.halo;
+    for (const o of [...group.children]) group.remove(o);
+    if (halo) {
+      halo.removeFromParent();
+      halo.position.set(0, height * 0.87, -height * 0.095);
+      halo.scale.setScalar(height / 2.8);
+      group.add(halo);
+    }
+    group.add(statue);
+    return true;
+  })();
+  group.userData.carvedSwap = p;
+  return p;
 }

@@ -143,8 +143,8 @@ function build(renderer, { quality = 'high' } = {}) {
       K.stoneLamp(s * 15, TER.y, -34);
     }
     K.hall(HALL, (y, z) => {
-      // tượng Linh Sơn Thánh Mẫu dát vàng, khoác áo đỏ
-      const ba = K.gild(makeQuanAm({ quality: 'low' }), { color: '#f0c25a' });
+      // tượng Linh Sơn Thánh Mẫu dát vàng (cùng mẫu chạm khắc với Quan Âm điện ở Am Mây)
+      const ba = K.gild(makeQuanAm({ quality: 'low', color: '#f0c25a' }), { color: '#f0c25a' });
       ba.position.set(0, y, z);
       ba.scale.setScalar(1.15);
       ba.traverse((m) => (m.castShadow = false));
@@ -237,7 +237,7 @@ function build(renderer, { quality = 'high' } = {}) {
       p.rotation.y = -a + Math.PI / 2;
     }
     cyl(4.2, 4.4, 0.8, petalM, 0, 3.6, 0, { parent: ped }, 32);
-    const qa = K.gild(makeQuanAm({ quality: quality === 'high' ? 'high' : 'low' }), { color: '#8f6c3c' });
+    const qa = K.gild(makeQuanAm({ quality: 'low', color: '#8f6c3c' }), { color: '#8f6c3c' });
     qa.position.set(STATUE.x, S + 4.0, STATUE.z);
     qa.scale.setScalar(8);
     scene.add(qa);

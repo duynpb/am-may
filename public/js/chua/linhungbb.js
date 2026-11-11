@@ -105,7 +105,7 @@ function build(renderer, { quality = 'high' } = {}) {
     // cửa vào lòng bệ (điện thờ bên trong) nhìn ra biển
     box(2.2, 2.4, 0.1, std('#3a2418'), 0, 2.6, QA.r - 0.55, { parent: g, cast: false });
     plaque(g, 'QUÁN THẾ ÂM BỒ TÁT', 0, 4.2, QA.r - 0.5, 4.2, 0.7, 0, { size: 80 });
-    const qa = K.gild(makeQuanAm({ quality: quality === 'high' ? 'high' : 'low' }), { color: '#f6f3ec', stone: true });
+    const qa = K.gild(makeQuanAm({ quality: 'low', stone: '#f6f3ec' }), { color: '#f6f3ec', stone: true });
     qa.position.set(QA.x, 6.0, QA.z);
     qa.scale.setScalar(11);
     scene.add(qa);

@@ -245,6 +245,7 @@ export function createKit(renderer, { quality = 'high', skyTop = '#7fb3d9', skyB
 
   // Tượng Phật: dát vàng mặc định; stone = tượng đá trắng
   function gild(obj, { color = '#f3c560', stone = false } = {}) {
+    obj.userData.gild = { color, stone };
     const cache = new Map();
     obj.traverse((m) => {
       if (!m.isMesh) return;
