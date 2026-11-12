@@ -19,7 +19,8 @@ const STA = { x: 22, z: 2 };
 const ROBIN = { x: 232, z: 168, y: 34, r: 22 };
 const STB = { x: 226, z: 158 };
 const CABLE_A = { x: STA.x, y: Y + 5, z: STA.z }, CABLE_B = { x: STB.x, y: ROBIN.y + 5, z: STB.z };
-const RIDE_SEC = 70; // một chuyến cáp treo (giây)
+const RIDE_SEC = 10; // một chuyến cáp treo chở người chơi (giây)
+const LOOP_SEC = 70; // cabin chạy sẵn trên dây: một vòng (giây), chậm cho êm mắt
 
 const WALK_AREAS = [
   rect(-40, 40, STAIR.zBottom + 0.4, SHORE - 1), // bờ hồ
@@ -229,7 +230,7 @@ function build(renderer, { quality = 'high' } = {}) {
     const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
     K.updaters.push((t) => {
       for (const L of loop) {
-        let u = (t / RIDE_SEC + L.ph) % 1;
+        let u = (t / LOOP_SEC + L.ph) % 1;
         if (L.s > 0) u = 1 - u; // dây bên kia chạy ngược chiều
         lineAt(u, L.s, L.c.position);
         lineAt(Math.min(1, Math.max(0, u + (L.s > 0 ? -0.01 : 0.01))), L.s, tmp);
@@ -272,7 +273,7 @@ export const SITE = {
   info: 'Thiền viện Trúc Lâm Đà Lạt nằm trên núi Phụng Hoàng bên hồ Tuyền Lâm, giữa rừng thông. Qua cổng tam quan là sân vườn hoa rực rỡ, gác chuông, chánh điện; phía sau là nội viện dành cho thiền sinh tu tập, khách không vào. Cáp treo từ đồi Robin bay qua rừng thông tới cạnh thiền viện. (Dựng phỏng theo không khí, không phải bản sao.)',
   tips: [
     ['Thỉnh chuông', 'Chạm vào quả chuông ở gác chuông bên trái sân để đi tới thỉnh một hồi.'],
-    ['Đi cáp treo', 'Ra ga cáp treo bên phải sân, bấm “Đi cáp treo lên đồi Robin”: bạn ngồi vào cabin, bay qua rừng thông và hồ Tuyền Lâm khoảng 70 giây (bấm “Tới ga ngay” nếu muốn tới luôn). Trên đồi Robin có ga để về lại.'],
+    ['Đi cáp treo', 'Ra ga cáp treo bên phải sân, bấm “Đi cáp treo lên đồi Robin”: bạn ngồi vào cabin, bay qua rừng thông và hồ Tuyền Lâm khoảng 10 giây (bấm “Tới ga ngay” nếu muốn tới luôn). Trên đồi Robin có ga để về lại.'],
     ['Thắp nhang', 'Trong chánh điện thì thắp trước bàn thờ; ngoài sân thì ở lư hương đá giữa vườn hoa.'],
   ],
   LAND: 0,

@@ -518,7 +518,8 @@ function boardRide(g) {
   cam.yaw = world.ride.heading(0, g.ride) + Math.PI; // nhìn theo hướng cabin chạy
   sendMove();
   toast(g.msg || g.label, 4200);
-  setTimeout(() => rides.has(player) && toast(`Cáp treo đang chạy, khoảng ${world.ride.duration} giây tới ga · kéo màn hình để ngắm cảnh`, 4200), 4600);
+  // chuyến dài thì nhắc thêm còn bao lâu; chuyến ngắn thì thôi
+  if (world.ride.duration > 20) setTimeout(() => rides.has(player) && toast(`Cáp treo đang chạy, khoảng ${world.ride.duration} giây tới ga · kéo màn hình để ngắm cảnh`, 4200), 4600);
 }
 function ridesTick() {
   if (!rides.size) return;
