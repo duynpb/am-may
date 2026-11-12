@@ -411,11 +411,8 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
       lunarErr,
     );
 
-    sheet.replaceChildren(
-      h('div', { class: 'sheet-head' },
-        h('h2', { id: 'duyen-title', text: 'Sớ cầu duyên lành' }),
-        h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' }),
-      ),
+    const prevScroll = sheet.querySelector('.duyen-body')?.scrollTop || 0;
+    const body = h('div', { class: 'duyen-body' },
       h('p', { class: 'muted duyen-intro', text: 'Thành tâm dâng sớ cầu duyên trước Quán Thế Âm Bồ Tát. Mọi thông tin bạn điền chỉ lưu trên trình duyệt của bạn, không gửi đi đâu.' }),
       h('div', { class: 'duyen-grid' }, WISHES.map((w) => h('button', {
         type: 'button',
@@ -492,6 +489,15 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
         },
       }, 'Thành tâm dâng sớ cầu duyên'),
     );
+
+    sheet.replaceChildren(
+      h('div', { class: 'sheet-head duyen-head' },
+        h('h2', { id: 'duyen-title', text: 'Sớ cầu duyên lành' }),
+        h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' }),
+      ),
+      body,
+    );
+    if (prevScroll) body.scrollTop = prevScroll;
   }
 
   function renderSoSummary(mine) {
@@ -523,13 +529,15 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
     },
     // thẻ lời nhắn sau khi thắt dải lụa / dâng sớ
     showCard(w, msg, mine) {
-      sheet.replaceChildren(...[
-        h('div', { class: 'sheet-head' }, h('h2', { id: 'duyen-title' }, `${w.icon} `, h('span', { text: w.name })), h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' })),
-        renderSoSummary(mine),
-        h('div', { class: 'duyen-card' }, h('small', { text: 'Lời nhắn từ cây duyên' }), h('p', { text: msg })),
-        h('p', { class: 'muted', text: 'Nguyện cho bạn và mọi người đều gặp duyên lành. Nam mô Đại Từ Đại Bi Quán Thế Âm Bồ Tát.' }),
-        h('button', { class: 'btn-primary duyen-go', 'data-close': true }, 'Hoan hỷ'),
-      ].filter(Boolean));
+      sheet.replaceChildren(
+        h('div', { class: 'sheet-head duyen-head' }, h('h2', { id: 'duyen-title' }, `${w.icon} `, h('span', { text: w.name })), h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' })),
+        h('div', { class: 'duyen-body' }, ...[
+          renderSoSummary(mine),
+          h('div', { class: 'duyen-card' }, h('small', { text: 'Lời nhắn từ cây duyên' }), h('p', { text: msg })),
+          h('p', { class: 'muted', text: 'Nguyện cho bạn và mọi người đều gặp duyên lành. Nam mô Đại Từ Đại Bi Quán Thế Âm Bồ Tát.' }),
+          h('button', { class: 'btn-primary duyen-go', 'data-close': true }, 'Hoan hỷ'),
+        ].filter(Boolean)),
+      );
       openModal('#modal-duyen');
     },
   };
