@@ -2,7 +2,7 @@
 // tam quan, vào sân vườn hoa rực rỡ, gác chuông bên trái, chánh điện ở giữa, phía sau là khu thiền (nội viện) yên tĩnh;
 // bên phải có ga cáp treo: ngồi vào cabin bay qua rừng thông và hồ Tuyền Lâm lên đồi Robin (đồi là một "tầng" riêng,
 // chỉ lên xuống bằng cáp treo). (Phỏng theo không khí, không sao chép công trình thật.)
-import { createKit, curvedRoof, THREE, rect, stairY, hallWalk, inHall, gateWalk, makeHill } from './base.js';
+import { createKit, curvedRoof, THREE, rect, stairY, hallWalk, inHall, gateWalk, makeHill, cableCabins } from './base.js';
 import { makeThichCa } from '../buddha.js';
 
 const Y = 10; // mặt núi nơi đặt thiền viện
@@ -187,39 +187,8 @@ function build(renderer, { quality = 'high' } = {}) {
       const arm = box(0.4, 0.4, 3.6, steel, p.x, p.y + 0.3, p.z);
       arm.rotation.y = Math.atan2(side.x, side.z);
     }
-    // cabin: khung đỏ, kính trong để thấy người ngồi bên trong, ghế băng, thanh treo lên cáp
-    const frameM = std('#d6402c', { roughness: 0.45 });
-    const glassM = new THREE.MeshStandardMaterial({ color: '#bfe3f2', transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide });
-    const benchM = std('#5b3a24');
-    const HANG = 3.0; // sàn cabin thấp hơn dây cáp 3 m
-    const riderCabs = []; // cabin chở người (main.js gắn vào cảnh khi đi, gỡ ra khi tới ga)
-    function makeCabin(forRider = true) {
-      const g = new THREE.Group();
-      if (forRider) {
-        for (let i = riderCabs.length - 1; i >= 0; i--) if (!riderCabs[i].parent) riderCabs.splice(i, 1);
-        riderCabs.push(g);
-      }
-      const add = (geo, mat, x, y, z) => {
-        const m = new THREE.Mesh(geo, mat);
-        m.position.set(x, y, z);
-        m.castShadow = mat !== glassM;
-        g.add(m);
-        return m;
-      };
-      add(new THREE.CylinderGeometry(0.05, 0.05, 1.0, 6), std('#444'), 0, -0.5, 0);
-      add(new THREE.BoxGeometry(0.5, 0.3, 0.9), std('#444'), 0, 0.05, 0);
-      add(new THREE.BoxGeometry(2.3, 0.14, 2.3), frameM, 0, -HANG, 0); // sàn
-      add(new THREE.BoxGeometry(2.4, 0.16, 2.4), frameM, 0, -1.0, 0); // mái
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.BoxGeometry(0.1, 2.0, 0.1), frameM, sx * 1.12, -2.0, sz * 1.12);
-      add(new THREE.BoxGeometry(2.2, 0.55, 0.06), frameM, 0, -2.72, 1.13); // tấm che chân
-      add(new THREE.BoxGeometry(2.2, 0.55, 0.06), frameM, 0, -2.72, -1.13);
-      for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.06, 0.55, 2.2), frameM, sx * 1.13, -2.72, 0);
-      add(new THREE.BoxGeometry(2.2, 1.35, 0.03), glassM, 0, -1.78, 1.13); // kính
-      add(new THREE.BoxGeometry(2.2, 1.35, 0.03), glassM, 0, -1.78, -1.13);
-      for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.03, 1.35, 2.2), glassM, sx * 1.13, -1.78, 0);
-      add(new THREE.BoxGeometry(1.9, 0.12, 0.5), benchM, 0, -2.5, -0.8); // ghế băng sau lưng
-      return g;
-    }
+    // cabin kính dùng chung (base.js): khung đỏ, kính trong để thấy người ngồi bên trong, ghế băng
+    const { HANG, makeCabin, riderCabs } = cableCabins(K);
     // cabin chạy liên tục trên hai dây (cho cảnh có sức sống); cabin của người chơi do main.js tạo riêng
     const loop = [];
     for (let i = 0; i < 10; i++) {

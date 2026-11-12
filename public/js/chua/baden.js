@@ -1,7 +1,7 @@
 // Núi Bà Đen (Tây Ninh): ngọn núi cao nhất Nam Bộ. Dưới chân núi là sân lớn và cổng đá, bậc thang dài lên chùa Bà
 // (điện thờ Linh Sơn Thánh Mẫu) lưng chừng núi; ga cáp treo đưa lên đỉnh, nơi có tượng Phật Bà bằng đồng rất lớn giữa mây.
-// Đỉnh núi là một "tầng" riêng: chỉ lên xuống bằng cáp treo. (Phỏng theo không khí, không sao chép công trình thật.)
-import { createKit, THREE, rect, stairY, hallWalk, inHall } from './base.js';
+// Đỉnh núi là một "tầng" riêng: chỉ lên xuống bằng cáp treo — ngồi vào cabin bay theo dây cáp lên đỉnh. (Phỏng theo không khí, không sao chép công trình thật.)
+import { createKit, THREE, rect, stairY, hallWalk, inHall, cableCabins } from './base.js';
 import { makeQuanAm } from '../quanam.js';
 
 const MT = { x: 0, z: -215, top: 88, plateau: 34 }; // núi: tâm, độ cao đỉnh, bán kính mặt bằng đỉnh
@@ -11,6 +11,8 @@ const HALL = { x: 0, z0: -38, z1: -52, hx: 11, y: TER.y, plaque: 'LINH SƠN TIÊ
 const GATE_Z = 36;
 const STATION = { x: 30, z: 22 }; // ga cáp treo dưới chân núi
 const TOPST = { x: 22, z: MT.z + 20 }; // ga cáp treo trên đỉnh
+const RIDE_SEC = 10; // một chuyến cáp treo chở người chơi (giây)
+const LOOP_SEC = 240; // cabin chạy sẵn trên dây: một vòng (giây)
 const STATUE = { x: 0, z: MT.z - 6 };
 const S = MT.top;
 
@@ -158,6 +160,7 @@ function build(renderer, { quality = 'high' } = {}) {
 
   // ---------- Cáp treo: ga dưới chân núi, ga trên đỉnh, trụ, cáp, cabin chạy liên tục ----------
   const gotoHits = [];
+  const ride = {};
   {
     const station = (x, z, y, ry, goto, label) => {
       const g = group(x, y, z, ry, { merge: false });
@@ -175,13 +178,12 @@ function build(renderer, { quality = 'high' } = {}) {
     station(TOPST.x, TOPST.z, S, Math.atan2(STATION.x - TOPST.x, STATION.z - TOPST.z) + Math.PI, 1, 'CÁP TREO');
     const A = new THREE.Vector3(STATION.x, 5.6, STATION.z), B = new THREE.Vector3(TOPST.x, S + 5.6, TOPST.z);
     const side = new THREE.Vector3().subVectors(B, A).cross(new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(1.2);
-    const lines = [[A.clone().add(side), B.clone().add(side)], [B.clone().sub(side), A.clone().sub(side)]];
+    // điểm trên dây cáp: u = 0 ga chân núi, 1 ga đỉnh; s = +1 dây đi lên, -1 dây đi xuống; võng nhẹ giữa các trụ
+    const lineAt = (u, s, out = new THREE.Vector3()) => out.lerpVectors(A, B, u).addScaledVector(side, s).add(new THREE.Vector3(0, -Math.sin(Math.PI * ((u * 5) % 1)) * 1.2, 0));
     const cableM = new THREE.LineBasicMaterial({ color: '#333' });
-    // dây cáp võng nhẹ giữa các trụ
-    const sag = (a, b, t) => new THREE.Vector3().lerpVectors(a, b, t).add(new THREE.Vector3(0, -Math.sin(Math.PI * ((t * 5) % 1)) * 1.2, 0));
-    for (const [a, b] of lines) {
+    for (const s of [-1, 1]) {
       const pts = [];
-      for (let i = 0; i <= 100; i++) pts.push(sag(a, b, i / 100));
+      for (let i = 0; i <= 200; i++) pts.push(lineAt(i / 200, s));
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), cableM));
     }
     // trụ cáp
@@ -193,27 +195,38 @@ function build(renderer, { quality = 'high' } = {}) {
       const arm = box(0.4, 0.4, 3.4, std('#8c8f93', { metalness: 0.6, roughness: 0.4 }), p.x, p.y + 0.3, p.z);
       arm.rotation.y = Math.atan2(side.x, side.z);
     }
-    // cabin
-    const cabM = std('#d84b3a', { roughness: 0.4 }), glassM = std('#26343f', { roughness: 0.1, metalness: 0.6 });
-    const cabins = [];
+    // cabin kính chạy liên tục trên hai dây; cabin chở người chơi do main.js tạo riêng (world.ride)
+    const C = cableCabins(K);
+    const loop = [];
     for (let i = 0; i < 14; i++) {
-      const g = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.7, 1.8), cabM);
-      body.position.y = -2.2;
-      const win = new THREE.Mesh(new THREE.BoxGeometry(1.84, 0.7, 1.84), glassM);
-      win.position.y = -1.9;
-      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 6), std('#444'));
-      rod.position.y = -0.7;
-      g.add(body, win, rod);
-      body.castShadow = true;
-      scene.add(g);
-      cabins.push({ g, line: lines[i % 2], ph: i / 14 });
+      const c = C.makeCabin(false);
+      scene.add(c);
+      loop.push({ c, s: i % 2 ? -1 : 1, ph: i / 14 });
     }
+    const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
     updaters.push((t) => {
-      for (const c of cabins) {
-        const u = (t / 240 + c.ph) % 1;
-        c.g.position.copy(sag(c.line[0], c.line[1], u));
+      for (const L of loop) {
+        let u = (t / LOOP_SEC + L.ph) % 1;
+        if (L.s < 0) u = 1 - u; // dây đi xuống chạy ngược chiều
+        lineAt(u, L.s, L.c.position);
+        lineAt(Math.min(1, Math.max(0, u + (L.s > 0 ? 0.01 : -0.01))), L.s, tmp);
+        L.c.rotation.y = Math.atan2(tmp.x - L.c.position.x, tmp.z - L.c.position.z);
+        L.c.visible = u > 0.02 && u < 0.98 && !C.riderCabs.some((g) => g.parent && g.position.distanceTo(L.c.position) < 6);
       }
+    });
+    // chuyến của người chơi: up = chân núi → đỉnh (dây +1), down = đỉnh → chân núi (dây -1); k: 0 rời ga, 1 tới ga
+    Object.assign(ride, {
+      duration: RIDE_SEC,
+      hang: C.HANG,
+      makeCabin: () => C.makeCabin(true),
+      at(k, dir, out = new THREE.Vector3()) {
+        return lineAt(dir === 'up' ? k : 1 - k, dir === 'up' ? 1 : -1, out);
+      },
+      heading(k, dir) {
+        const u = dir === 'up' ? k : 1 - k, s = dir === 'up' ? 1 : -1;
+        const a = lineAt(Math.max(0, u - 0.005), s, tmp), b = lineAt(Math.min(1, u + 0.005), s, tmp2);
+        return dir === 'up' ? Math.atan2(b.x - a.x, b.z - a.z) : Math.atan2(a.x - b.x, a.z - b.z);
+      },
     });
   }
 
@@ -265,6 +278,7 @@ function build(renderer, { quality = 'high' } = {}) {
 
   const world = K.finish({ rituals: RITUALS });
   world.gotoHits = gotoHits;
+  world.ride = ride;
   return world;
 }
 
@@ -282,7 +296,7 @@ export const SITE = {
   hint: 'lên bậc thang tới chùa Bà, hoặc ra ga cáp treo lên đỉnh núi',
   info: 'Núi Bà Đen ở Tây Ninh là ngọn núi cao nhất Nam Bộ. Lưng chừng núi có chùa Bà thờ Linh Sơn Thánh Mẫu; trên đỉnh núi có tượng Phật Bà Tây Bổ Đà Sơn bằng đồng rất lớn, đi cáp treo lên ngắm mây. (Dựng phỏng theo không khí, không phải bản sao; núi được thu nhỏ cho dễ đi.)',
   tips: [
-    ['Cáp treo', 'Ra ga cáp treo bên phải sân chân núi, bấm nút “Đi cáp treo lên đỉnh” (hoặc chạm vào nhà ga). Trên đỉnh có ga để xuống lại.'],
+    ['Cáp treo', 'Ra ga cáp treo bên phải sân chân núi, bấm nút “Đi cáp treo lên đỉnh” (hoặc chạm vào nhà ga): bạn ngồi vào cabin, bay theo dây cáp lên đỉnh khoảng 10 giây (bấm “Tới ga ngay” nếu muốn tới luôn). Trên đỉnh có ga để xuống lại.'],
     ['Thắp nhang', 'Trong chùa Bà thì thắp trước khám thờ; dưới chân núi thì ở lư hương đá trước bậc thang; trên đỉnh thì trước tượng Phật Bà.'],
   ],
   LAND: 0,
@@ -300,8 +314,8 @@ export const SITE = {
   PLACE_INFO,
   bowRy: (x, z) => (onTop(x, z) ? Math.atan2(STATUE.x - x, STATUE.z - z) : Math.PI),
   GOTOS: [
-    { x: STATION.x - 3.6, z: STATION.z + 3.6, r: 4.5, label: 'Đi cáp treo lên đỉnh', msg: 'Cabin đang đưa bạn lên đỉnh núi…', done: 'Bạn đã lên tới đỉnh núi Bà Đen — tượng Phật Bà ở ngay trước mặt', to: { x: TOPST.x - 4, z: TOPST.z - 4, ry: Math.atan2(STATUE.x - TOPST.x, STATUE.z - TOPST.z) }, ms: 1800 },
-    { x: TOPST.x - 3, z: TOPST.z - 3, r: 4.5, label: 'Đi cáp treo xuống chân núi', msg: 'Cabin đang đưa bạn xuống chân núi…', done: 'Bạn đã xuống tới chân núi', to: { x: STATION.x - 4, z: STATION.z + 5, ry: Math.PI }, ms: 1800 },
+    { x: STATION.x - 3.6, z: STATION.z + 3.6, r: 4.5, ride: 'up', label: 'Đi cáp treo lên đỉnh', msg: 'Mời bạn vào cabin — cáp treo đưa bạn lên đỉnh núi Bà Đen', done: 'Bạn đã lên tới đỉnh núi Bà Đen — tượng Phật Bà ở ngay trước mặt', to: { x: TOPST.x - 4, z: TOPST.z - 4, ry: Math.atan2(STATUE.x - TOPST.x, STATUE.z - TOPST.z) } },
+    { x: TOPST.x - 3, z: TOPST.z - 3, r: 4.5, ride: 'down', label: 'Đi cáp treo xuống chân núi', msg: 'Mời bạn vào cabin — cáp treo đưa bạn xuống chân núi', done: 'Bạn đã xuống tới chân núi', to: { x: STATION.x - 4, z: STATION.z + 5, ry: Math.PI } },
   ],
   PLACES: [
     { id: 'chan', name: 'Chân núi', x: 0, z: 50, ry: Math.PI },

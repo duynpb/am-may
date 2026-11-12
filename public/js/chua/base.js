@@ -689,3 +689,44 @@ export function makeHill(K, cx, cz, profile, { color = '#56713e', seg = 144, bum
   K.scene.add(m);
   return yAt; // độ cao mặt đồi (đã hạ trong khuôn viên) — dùng để trồng cây cho đúng mặt đất
 }
+
+// Cabin cáp treo dùng chung (Trúc Lâm, Bà Đen…): khung đỏ, kính trong để thấy người ngồi bên trong, ghế băng,
+// thanh treo lên dây. Gốc toạ độ cabin là điểm bám trên dây cáp; sàn thấp hơn dây HANG m.
+// makeCabin(true) = cabin chở người (main.js gắn vào cảnh khi đi, gỡ ra khi tới ga); riderCabs: các cabin đó,
+// để cabin chạy sẵn trên dây tự ẩn khi trùng chỗ.
+export function cableCabins(K) {
+  const HANG = 3.0;
+  const frameM = K.std('#d6402c', { roughness: 0.45 });
+  const glassM = new THREE.MeshStandardMaterial({ color: '#bfe3f2', transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide });
+  const benchM = K.std('#5b3a24');
+  const rodM = K.std('#444');
+  const riderCabs = [];
+  function makeCabin(forRider = true) {
+    const g = new THREE.Group();
+    if (forRider) {
+      for (let i = riderCabs.length - 1; i >= 0; i--) if (!riderCabs[i].parent) riderCabs.splice(i, 1);
+      riderCabs.push(g);
+    }
+    const add = (geo, mat, x, y, z) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.castShadow = mat !== glassM;
+      g.add(m);
+      return m;
+    };
+    add(new THREE.CylinderGeometry(0.05, 0.05, 1.0, 6), rodM, 0, -0.5, 0);
+    add(new THREE.BoxGeometry(0.5, 0.3, 0.9), rodM, 0, 0.05, 0);
+    add(new THREE.BoxGeometry(2.3, 0.14, 2.3), frameM, 0, -HANG, 0); // sàn
+    add(new THREE.BoxGeometry(2.4, 0.16, 2.4), frameM, 0, -1.0, 0); // mái
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.BoxGeometry(0.1, 2.0, 0.1), frameM, sx * 1.12, -2.0, sz * 1.12);
+    add(new THREE.BoxGeometry(2.2, 0.55, 0.06), frameM, 0, -2.72, 1.13); // tấm che chân
+    add(new THREE.BoxGeometry(2.2, 0.55, 0.06), frameM, 0, -2.72, -1.13);
+    for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.06, 0.55, 2.2), frameM, sx * 1.13, -2.72, 0);
+    add(new THREE.BoxGeometry(2.2, 1.35, 0.03), glassM, 0, -1.78, 1.13); // kính
+    add(new THREE.BoxGeometry(2.2, 1.35, 0.03), glassM, 0, -1.78, -1.13);
+    for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.03, 1.35, 2.2), glassM, sx * 1.13, -1.78, 0);
+    add(new THREE.BoxGeometry(1.9, 0.12, 0.5), benchM, 0, -2.5, -0.8); // ghế băng sau lưng
+    return g;
+  }
+  return { HANG, makeCabin, riderCabs };
+}
