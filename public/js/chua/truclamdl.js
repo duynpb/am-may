@@ -191,8 +191,13 @@ function build(renderer, { quality = 'high' } = {}) {
     const glassM = new THREE.MeshStandardMaterial({ color: '#bfe3f2', transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide });
     const benchM = std('#5b3a24');
     const HANG = 3.0; // sàn cabin thấp hơn dây cáp 3 m
-    function makeCabin() {
+    const riderCabs = []; // cabin chở người (main.js gắn vào cảnh khi đi, gỡ ra khi tới ga)
+    function makeCabin(forRider = true) {
       const g = new THREE.Group();
+      if (forRider) {
+        for (let i = riderCabs.length - 1; i >= 0; i--) if (!riderCabs[i].parent) riderCabs.splice(i, 1);
+        riderCabs.push(g);
+      }
       const add = (geo, mat, x, y, z) => {
         const m = new THREE.Mesh(geo, mat);
         m.position.set(x, y, z);
@@ -217,7 +222,7 @@ function build(renderer, { quality = 'high' } = {}) {
     // cabin chạy liên tục trên hai dây (cho cảnh có sức sống); cabin của người chơi do main.js tạo riêng
     const loop = [];
     for (let i = 0; i < 10; i++) {
-      const c = makeCabin();
+      const c = makeCabin(false);
       scene.add(c);
       loop.push({ c, s: i % 2 ? 1 : -1, ph: i / 10 });
     }
@@ -229,7 +234,8 @@ function build(renderer, { quality = 'high' } = {}) {
         lineAt(u, L.s, L.c.position);
         lineAt(Math.min(1, Math.max(0, u + (L.s > 0 ? -0.01 : 0.01))), L.s, tmp);
         L.c.rotation.y = Math.atan2(tmp.x - L.c.position.x, tmp.z - L.c.position.z);
-        L.c.visible = u > 0.02 && u < 0.98; // vào ga thì ẩn
+        // vào ga thì ẩn; trùng chỗ cabin đang chở người thì cũng ẩn
+        L.c.visible = u > 0.02 && u < 0.98 && !riderCabs.some((g) => g.parent && g.position.distanceTo(L.c.position) < 6);
       }
     });
     // dữ liệu cho chuyến đi của người chơi: up = thiền viện → đồi Robin (dây bên trái), down = ngược lại (dây bên phải)
@@ -237,11 +243,13 @@ function build(renderer, { quality = 'high' } = {}) {
       duration: RIDE_SEC,
       hang: HANG,
       makeCabin,
-      at(u, dir, out = new THREE.Vector3()) {
-        return lineAt(u, dir === 'up' ? -1 : 1, out);
+      // k: 0 = vừa rời ga đi, 1 = tới ga đến (chiều về chạy ngược dây từ đồi Robin)
+      at(k, dir, out = new THREE.Vector3()) {
+        return lineAt(dir === 'up' ? k : 1 - k, dir === 'up' ? -1 : 1, out);
       },
-      heading(u, dir) {
-        const a = lineAt(Math.max(0, u - 0.005), dir === 'up' ? -1 : 1, tmp), b = lineAt(Math.min(1, u + 0.005), dir === 'up' ? -1 : 1, tmp2);
+      heading(k, dir) {
+        const u = dir === 'up' ? k : 1 - k, s = dir === 'up' ? -1 : 1;
+        const a = lineAt(Math.max(0, u - 0.005), s, tmp), b = lineAt(Math.min(1, u + 0.005), s, tmp2);
         return dir === 'up' ? Math.atan2(b.x - a.x, b.z - a.z) : Math.atan2(a.x - b.x, a.z - b.z);
       },
     });
@@ -264,6 +272,7 @@ export const SITE = {
   info: 'Thiền viện Trúc Lâm Đà Lạt nằm trên núi Phụng Hoàng bên hồ Tuyền Lâm, giữa rừng thông. Qua cổng tam quan là sân vườn hoa rực rỡ, gác chuông, chánh điện; phía sau là nội viện dành cho thiền sinh tu tập, khách không vào. Cáp treo từ đồi Robin bay qua rừng thông tới cạnh thiền viện. (Dựng phỏng theo không khí, không phải bản sao.)',
   tips: [
     ['Thỉnh chuông', 'Chạm vào quả chuông ở gác chuông bên trái sân để đi tới thỉnh một hồi.'],
+    ['Đi cáp treo', 'Ra ga cáp treo bên phải sân, bấm “Đi cáp treo lên đồi Robin”: bạn ngồi vào cabin, bay qua rừng thông và hồ Tuyền Lâm khoảng 70 giây (bấm “Tới ga ngay” nếu muốn tới luôn). Trên đồi Robin có ga để về lại.'],
     ['Thắp nhang', 'Trong chánh điện thì thắp trước bàn thờ; ngoài sân thì ở lư hương đá giữa vườn hoa.'],
   ],
   LAND: 0,

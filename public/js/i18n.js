@@ -128,6 +128,7 @@ const BOARDS = {
   'KIM THÂN PHẬT TỔ': [['GOLDEN-BODY BUDDHA'], ['金身佛祖'], ['GOLDENER BUDDHA']],
   'TRÚC LÂM THIỀN VIỆN': [['TRÚC LÂM ZEN MONASTERY'], ['竹林禅院'], ['TRÚC-LÂM-ZEN-KLOSTER']],
   'NỘI VIỆN': [['INNER COURT'], ['内院'], ['INNERER HOF']],
+  'ĐỒI ROBIN': [['ROBIN HILL'], ['罗宾山'], ['ROBIN-HÜGEL']],
 };
 export function tBoard(lines) {
   if (col == null) return lines;

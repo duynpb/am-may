@@ -155,6 +155,10 @@ function addAvatar(a) {
 function removeAvatar(id) {
   const a = avatars.get(id);
   if (!a) return;
+  if (rides.has(a)) { // đang ngồi cáp treo thì dọn cabin
+    scene.remove(rides.get(a).cab);
+    rides.delete(a);
+  }
   a.dispose();
   a.nameEl?.remove();
   a.bubbleEl?.remove();
@@ -350,11 +354,17 @@ async function walkRoute(a, x, z) {
 let net = null;
 function sendMove(w) {
   if (!net) return;
+  const r = rides.get(player);
+  if (r) return net.send({ t: 'move', x: +r.to.x.toFixed(2), z: +r.to.z.toFixed(2), seat: RIDE_SEAT + (r.dir === 'up' ? 0 : 1) });
   const g = player.routeTo ?? player.goal ?? player.pos;
   net.send({ t: 'move', x: +g.x.toFixed(2), z: +g.z.toFixed(2), seat: null, w: w ? 1 : undefined });
 }
 const reachable = (x, z) => !!routeTo(player.pos.x, player.pos.z, x, z);
 function movePlayerTo(x, z) {
+  if (rides.has(player)) {
+    toast('Bạn đang ngồi cáp treo — tới ga sẽ ra khỏi cabin', 2600);
+    return false;
+  }
   [x, z] = clampWalk(x, z);
   if (!reachable(x, z)) {
     toast(SITE.unreachable || 'Chỗ đó chưa đi bộ tới được', 2800);
@@ -429,13 +439,20 @@ let goNear = null, goUiT = 0, going = false;
 function gotoTick(dt) {
   if ((goUiT -= dt) > 0) return;
   goUiT = 0.3;
+  if (rides.has(player)) {
+    goBtn.hidden = false;
+    goBtn.querySelector('span').textContent = 'Tới ga ngay';
+    return;
+  }
   goNear = GOTOS.find((g) => Math.hypot(player.pos.x - g.x, player.pos.z - g.z) < g.r) || null;
   goBtn.hidden = !goNear || going;
   if (goNear) goBtn.querySelector('span').textContent = goNear.label;
 }
 async function useGoto(g = goNear) {
+  if (rides.has(player)) return finishRide(player); // bấm "Tới ga ngay"
   if (!g || going) return;
   sound.init();
+  if (g.ride && world.ride) return boardRide(g);
   going = true;
   goBtn.hidden = true;
   toast(g.msg || g.label, 2600);
@@ -455,6 +472,73 @@ function teleport(p) {
   cam.target.set(player.root.position.x, player.root.position.y + 1.1, player.root.position.z);
   cam.yaw = p.ry + Math.PI;
   net?.send({ t: 'move', x: p.x, z: p.z, seat: null, w: 1 });
+}
+
+// ---------- Cáp treo thật (world.ride): bước vào cabin, ngồi xuống, cabin chạy theo dây cáp tới ga bên kia ----------
+// Người khác cùng phòng thấy mình ngồi trong cabin: báo chỗ ngồi RIDE_SEAT (đang lên) / RIDE_SEAT + 1 (đang về), toạ độ là ga tới.
+const RIDE_SEAT = 70;
+const rides = new Map(); // avatar → { cab, dir, t0, dur, to }
+const rideV = new THREE.Vector3();
+let rideCam = null;
+function startRide(a, dir, to) {
+  const R = world.ride;
+  const cab = R.makeCabin();
+  scene.add(cab);
+  a.route = null;
+  a.routeTo = null;
+  a.goal = null;
+  a.seat = 'cab'; // tư thế ngồi trên ghế băng
+  rides.set(a, { cab, dir, t0: performance.now(), dur: R.duration * 1000, to });
+  ridesTick();
+}
+function finishRide(a) {
+  const r = rides.get(a);
+  if (!r) return;
+  rides.delete(a);
+  scene.remove(r.cab);
+  a.seat = null;
+  a.placeAt(r.to.x, r.to.z, r.to.ry);
+  if (a !== player) return;
+  if (rideCam) Object.assign(cam, rideCam);
+  rideCam = null;
+  cam.target.set(player.root.position.x, player.root.position.y + 1.1, player.root.position.z);
+  cam.yaw = r.to.ry + Math.PI;
+  sendMove(true);
+  if (r.g?.done) toast(r.g.done, 3600);
+}
+function boardRide(g) {
+  closeModal($('#modal-map'));
+  setOverview(false);
+  pendingBell = null;
+  startRide(player, g.ride, g.to);
+  rides.get(player).g = g;
+  rideCam = { dist: cam.dist, pitch: cam.pitch };
+  cam.dist = 9;
+  cam.pitch = 0.22;
+  cam.yaw = world.ride.heading(0, g.ride) + Math.PI; // nhìn theo hướng cabin chạy
+  sendMove();
+  toast(g.msg || g.label, 4200);
+  setTimeout(() => rides.has(player) && toast(`Cáp treo đang chạy, khoảng ${world.ride.duration} giây tới ga · kéo màn hình để ngắm cảnh`, 4200), 4600);
+}
+function ridesTick() {
+  if (!rides.size) return;
+  const R = world.ride, now = performance.now();
+  for (const [a, r] of rides) {
+    const k = Math.min(1, (now - r.t0) / r.dur);
+    if (k >= 1) {
+      finishRide(a);
+      continue;
+    }
+    const u = 0.85 * k + 0.15 * k * k * (3 - 2 * k); // rời ga và vào ga chậm hơn một chút
+    R.at(u, r.dir, r.cab.position);
+    const ry = R.heading(u, r.dir);
+    r.cab.rotation.set(Math.sin(now / 900) * 0.015, ry, Math.sin(now / 700) * 0.02); // cabin đung đưa nhẹ
+    r.cab.updateMatrixWorld();
+    rideV.set(0, -R.hang + 0.56, -0.72).applyMatrix4(r.cab.matrixWorld); // ngồi trên ghế băng sau lưng cabin
+    a.pos.set(rideV.x, 0, rideV.z);
+    a.root.position.set(rideV.x, rideV.y - 0.04 * a.p.sit, rideV.z);
+    a.root.rotation.y = a.ry = a.seatRy = ry;
+  }
 }
 
 // ---------- Chuông: chạm vào chuông để đi tới thỉnh ----------
@@ -493,6 +577,13 @@ function quickTravel(p) {
   closeModal($('#modal-map'));
   setOverview(false);
   pendingBell = null;
+  if (rides.has(player)) {
+    scene.remove(rides.get(player).cab);
+    rides.delete(player);
+    player.seat = null;
+    if (rideCam) Object.assign(cam, rideCam);
+    rideCam = null;
+  }
   teleport(p);
   toast(`Bạn đang ở ${p.name}`, 2600);
 }
@@ -570,6 +661,17 @@ let botSeq = 0;
 const BOT_SAYS = SITE.BOT_SAYS || ['Nam mô A Di Đà Phật', 'Cảnh thật thanh tịnh'];
 async function botGo(a, x, z) {
   [x, z] = clampWalk(x, z);
+  const rideG = world.ride && !routeTo(a.pos.x, a.pos.z, x, z) && GOTOS.find((g) => g.ride && routeTo(a.pos.x, a.pos.z, g.x, g.z) && routeTo(g.to.x, g.to.z, x, z));
+  if (rideG) {
+    walkRoute(a, rideG.x + rnd(-1, 1), rideG.z + rnd(-0.6, 0.6));
+    await wait(200);
+    while (bots.has(a) && (a.moving || a.routeTo)) await wait(300);
+    if (!bots.has(a)) return false;
+    startRide(a, rideG.ride, { ...rideG.to, x: rideG.to.x + rnd(-1, 1) });
+    bubble(a, 'đi cáp treo', 3000);
+    while (bots.has(a) && rides.has(a)) await wait(500);
+    if (!bots.has(a)) return false;
+  }
   if (!routeTo(a.pos.x, a.pos.z, x, z)) {
     // khác tầng (vd đỉnh núi): đi cáp treo — biến mất một lúc rồi hiện ở nơi đến
     a.root.visible = false;
@@ -626,6 +728,10 @@ function syncBots() {
   for (const a of [...bots]) {
     if (bots.size <= target) break;
     bots.delete(a);
+    if (rides.has(a)) {
+      scene.remove(rides.get(a).cab);
+      rides.delete(a);
+    }
     removeAvatar(a.id);
   }
 }
@@ -1289,7 +1395,7 @@ window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => keys.clear());
 let keySendT = 0;
 function keyMove(t) {
-  if (!keys.size || going) return;
+  if (!keys.size || going || rides.has(player)) return;
   let f = 0, s = 0;
   if (keys.has('w') || keys.has('arrowup')) f += 1;
   if (keys.has('s') || keys.has('arrowdown')) f -= 1;
@@ -1384,6 +1490,11 @@ function addRemote(p) {
   a.wearSandals(true);
   const [x, z] = p.z === 16 && p.x === 0 ? [SPAWN.x + rnd(-3, 3), SPAWN.z] : clampWalk(p.x, p.z);
   a.placeAt(x, z, SPAWN.ry);
+  // vào phòng lúc người này đang ngồi cáp treo: cho ngồi cabin tới ga đến
+  if ((p.seat === RIDE_SEAT || p.seat === RIDE_SEAT + 1) && world.ride) {
+    const dir = p.seat === RIDE_SEAT ? 'up' : 'down';
+    startRide(a, dir, GOTOS.find((g) => g.ride === dir)?.to ?? { x, z, ry: SPAWN.ry });
+  }
 }
 function wireNet(n) {
   n.on('join', (m) => {
@@ -1394,6 +1505,15 @@ function wireNet(n) {
   n.on('move', (m) => {
     const a = avatars.get('n' + m.id);
     if (!a) return;
+    if ((m.seat === RIDE_SEAT || m.seat === RIDE_SEAT + 1) && world.ride) {
+      const dir = m.seat === RIDE_SEAT ? 'up' : 'down';
+      if (!rides.has(a)) {
+        startRide(a, dir, GOTOS.find((g) => g.ride === dir)?.to ?? { x: m.x, z: m.z, ry: a.ry });
+        bubble(a, 'đi cáp treo', 3000);
+      }
+      return;
+    }
+    if (rides.has(a)) finishRide(a);
     const [x, z] = clampWalk(m.x, m.z);
     if (m.w) a.placeAt(x, z, a.ry);
     else walkRoute(a, x, z);
@@ -1534,6 +1654,7 @@ function frame() {
     const arrived = a.update(dt);
     if (arrived && a === player) sendMove();
   }
+  ridesTick();
   gotoTick(dt);
   bellTick();
   if (mapOpen) updateMap();
