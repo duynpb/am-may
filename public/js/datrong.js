@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as T from './textures.js';
 import { pagodaById } from './vnmap-data.js';
 import { createVnMap } from './vnmap.js';
+import { createCalendar } from './calendar.js';
 
 const q = new URLSearchParams(location.search);
 const P = pagodaById(q.get('chua')) ?? { name: 'Khu đất chờ dựng chùa', prov: '' };
@@ -146,5 +147,7 @@ function closeModal(m) {
   m.classList.remove('show');
   setTimeout(() => !m.classList.contains('show') && (m.hidden = true), 250);
 }
+const calendar = createCalendar({ openModal, closeModal });
+$('#btn-cal')?.addEventListener('click', () => calendar.open());
 const vnMap = createVnMap({ openModal, closeModal, here: q.get('chua'), from });
 $('#dt-map').addEventListener('click', () => vnMap.open());

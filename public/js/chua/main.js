@@ -11,6 +11,7 @@ import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } fro
 import { applyEvent, newProfile, publicProfile, vnDate, RULES, CLIENT_KINDS } from '../karma.js';
 import { festivalOf, FESTIVAL_PHUOC } from '../lunar.js';
 import { createVnMap } from '../vnmap.js';
+import { createCalendar } from '../calendar.js';
 import { createDuyenDialog } from '../duyen.js';
 
 const $ = (s) => document.querySelector(s);
@@ -235,6 +236,8 @@ function closeModal(m) {
   m.classList.remove('show');
   setTimeout(() => !m.classList.contains('show') && (m.hidden = true), 250);
 }
+const calendar = createCalendar({ openModal, closeModal });
+$('#btn-cal')?.addEventListener('click', () => calendar.open());
 const vnMap = createVnMap({ openModal, closeModal, here: SITE.mapId ?? siteId }); // mã chùa trên bản đồ Việt Nam
 $('#btn-vn')?.addEventListener('click', () => {
   closeModal($('#modal-map'));

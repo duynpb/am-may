@@ -187,6 +187,8 @@ function closeModal(m) {
   setTimeout(() => !m.classList.contains('show') && (m.hidden = true), 250);
 }
 // Bản đồ Việt Nam (nút trong hộp Bản đồ khu Tam Chúc)
+const calendar = createCalendar({ openModal, closeModal });
+$('#btn-cal')?.addEventListener('click', () => calendar.open());
 const vnMap = createVnMap({ openModal, closeModal, here: 'tamchuc' });
 $('#btn-vn')?.addEventListener('click', () => {
   closeModal($('#modal-map'));
