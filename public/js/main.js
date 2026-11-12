@@ -3364,6 +3364,9 @@ document.querySelectorAll('.actions button').forEach((b) => {
     } else if (act === 'beads') {
       sound.init();
       beads.open();
+    } else if (act === 'duyen') {
+      sound.init();
+      duyenDlg.open();
     }
   });
 });
@@ -3666,7 +3669,7 @@ function hover(x, y) {
   let o = hit?.object;
   while (o && !o.userData.kind) o = o.parent;
   const k = o?.userData.kind;
-  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'veg' || k === 'orchard' || k === 'tower' || k === 'greatbell' || k === 'zen' || k === 'zen-stair' || k === 'peak-stair' || k === 'lahan' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
+  canvas.classList.toggle('can-pick', k === 'seat' || k === 'bell' || k === 'drum' || k === 'merit' || k === 'broom' || k === 'field' || k === 'veg' || k === 'orchard' || k === 'tower' || k === 'greatbell' || k === 'zen' || k === 'zen-stair' || k === 'peak-stair' || k === 'lahan' || k === 'duyen' || ray.intersectObjects(rack.hitboxes(), false).length > 0 || !!pickAvatar() || !!pickDog());
 }
 
 // Bàn phím (máy tính)
@@ -3893,9 +3896,19 @@ const duyenDlg = createDuyenDialog({ openModal: (id) => openModal(id), closeModa
 let duyenRun = null; // { w, mine, x, z, started }
 function startDuyen(w, mine) {
   sound.init();
+  setOverview(false);
+  if (intro) skipIntro();
   if (player.script) {
     toast('Đợi một chút — bạn đang mang / cởi dép ở thềm');
     return;
+  }
+  if (zoneOfA(player) !== 'out' || loftOf(player) || Math.hypot(player.pos.x - DUYEN.stand.x, player.pos.z - DUYEN.stand.z) > 22) {
+    if (!player.missingSandal) {
+      warpPlace(player, DUYEN.stand.x, DUYEN.stand.z + 1.4, Math.PI);
+      cam.target.set(player.root.position.x, player.root.position.y + 1.1, player.root.position.z);
+      cam.yaw = 0;
+      net?.send({ t: 'move', x: +player.pos.x.toFixed(2), z: +player.pos.z.toFixed(2), seat: null, w: 1 });
+    }
   }
   duyenRun = { w, mine, x: DUYEN.stand.x, z: DUYEN.stand.z, started: false };
   movePlayerTo(DUYEN.stand.x, DUYEN.stand.z);

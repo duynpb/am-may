@@ -11,6 +11,7 @@ import { connect, fetchRooms, fetchMerit, ROOMS, SITES, siteRooms, roomUrl } fro
 import { applyEvent, newProfile, publicProfile, vnDate, RULES, CLIENT_KINDS } from '../karma.js';
 import { festivalOf, FESTIVAL_PHUOC } from '../lunar.js';
 import { createVnMap } from '../vnmap.js';
+import { createDuyenDialog } from '../duyen.js';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -226,6 +227,22 @@ $('#btn-vn')?.addEventListener('click', () => {
   vnMap.open();
 });
 $('#btn-vn-nav')?.addEventListener('click', () => vnMap.open());
+const duyenDlg = createDuyenDialog({
+  openModal,
+  closeModal,
+  onPray(w, mine) {
+    sound.init();
+    player.act('bow', bowRyAt(player));
+    sound.bow();
+    net?.send({ t: 'act', a: 'bow' });
+    bubble(player, 'dâng sớ cầu duyên lành', 3200);
+    setTimeout(() => {
+      sound.bead();
+      earn('duyen');
+      duyenDlg.showCard(w, pick(w.msgs), mine);
+    }, 2800);
+  },
+});
 document.querySelectorAll('.modal').forEach((m) => {
   m.addEventListener('click', (e) => {
     if (e.target === m || e.target.closest('[data-close]')) closeModal(m);
@@ -399,6 +416,9 @@ document.querySelectorAll('.actions button').forEach((b) => b.addEventListener('
   } else if (act === 'beads') {
     sound.init();
     beads.open();
+  } else if (act === 'duyen') {
+    sound.init();
+    duyenDlg.open();
   }
 }));
 

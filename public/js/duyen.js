@@ -2,6 +2,25 @@
 // Quán Thế Âm Bồ Tát, thắt một dải lụa đỏ lên cây và nhận một lời nhắn theo tinh thần Phật dạy (duyên do tâm tạo).
 // Điều mong cầu viết riêng chỉ hiện trên máy mình, không gửi đi đâu, không lưu lại.
 import * as THREE from 'three';
+import { solarToLunar } from './lunar.js';
+
+const CAN = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'];
+const CHI = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'];
+function autoLunarBirth(str) {
+  const s = (str || '').trim();
+  let dd = 0, mm = 0, yy = 0;
+  const m1 = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  const m2 = s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})$/);
+  if (m1) [dd, mm, yy] = [+m1[1], +m1[2], +m1[3]];
+  else if (m2) [yy, mm, dd] = [+m2[1], +m2[2], +m2[3]];
+  if (!dd || mm < 1 || mm > 12 || dd > 31 || yy < 1900 || yy > 2100) return '';
+  const dt = new Date(yy, mm - 1, dd);
+  if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return '';
+  const [ld, lm, ly, leap] = solarToLunar(dd, mm, yy);
+  const pad = (n) => String(n).padStart(2, '0');
+  const canChi = `${CAN[(ly + 6) % 10]} ${CHI[(ly + 8) % 12]}`;
+  return `${pad(ld)}/${pad(lm)}/${ly}${leap ? ' (nhuận)' : ''} (năm ${canChi})`;
+}
 
 const GY = -0.36;
 export const DUYEN = { x: 22.2, z: 20.4, r: 1.5, stand: { x: 23.4, z: 21.9 } };
@@ -126,31 +145,156 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
     if (e.target === modal || e.target.closest('[data-close]')) closeModal(modal);
   });
   modal.addEventListener('keydown', (e) => e.stopPropagation());
-  let pick = WISHES[0].id, wishText = '';
+  const STORAGE_KEY = 'ammay.duyenForm';
+  let form = {
+    pick: WISHES[0].id,
+    fullName: '',
+    birthSolar: '',
+    birthLunar: '',
+    address: '',
+    personality: '',
+    appearanceAge: '',
+    jobEducation: '',
+    wishText: '',
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (saved && typeof saved === 'object') Object.assign(form, saved);
+  } catch { /* ignore */ }
+  const saveDraft = () => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(form)); } catch { /* ignore */ }
+  };
+
+  function makeInput(key, placeholder, opts = {}) {
+    const isArea = !!opts.rows;
+    const el = h(isArea ? 'textarea' : 'input', {
+      class: 'duyen-in',
+      rows: opts.rows || undefined,
+      type: isArea ? undefined : (opts.type || 'text'),
+      maxlength: opts.maxlength || 180,
+      placeholder,
+      'data-no-i18n': true,
+    });
+    el.value = form[key] || '';
+    el.addEventListener('input', () => {
+      form[key] = el.value;
+      opts.onInput?.(el.value);
+      saveDraft();
+    });
+    return el;
+  }
 
   function ask() {
-    const note = h('textarea', { class: 'duyen-note', rows: 2, maxlength: 140, placeholder: 'Điều bạn mong cầu (không bắt buộc) — chỉ hiện trên máy bạn, không gửi đi, không lưu lại' });
-    note.value = wishText;
-    note.addEventListener('input', () => (wishText = note.value));
+    let lunarIn = null;
+    const solarIn = makeInput('birthSolar', 'Ngày dương lịch (VD: 15/08/2000)', {
+      maxlength: 40,
+      onInput: (val) => {
+        const auto = autoLunarBirth(val);
+        if (auto && lunarIn) {
+          form.birthLunar = auto;
+          lunarIn.value = auto;
+        }
+      },
+    });
+    lunarIn = makeInput('birthLunar', 'Ngày âm lịch (tự tính khi nhập ngày dương hoặc tự ghi)', { maxlength: 60 });
+
     sheet.replaceChildren(
-      h('div', { class: 'sheet-head' }, h('h2', { id: 'duyen-title', text: 'Cầu duyên' }), h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' })),
-      h('p', { text: 'Thành tâm cầu duyên lành trước Quán Thế Âm Bồ Tát: bạn sẽ chắp tay lạy, thắt một dải lụa đỏ lên cây duyên và nhận một lời nhắn. Phật dạy duyên do tâm tạo — sống tử tế, chân thành thì duyên lành sẽ đến.' }),
-      h('div', { class: 'duyen-grid' }, WISHES.map((w) => h('button', { class: 'duyen-opt' + (w.id === pick ? ' on' : ''), onclick: () => { pick = w.id; ask(); } },
-        h('span', { class: 'duyen-ico', text: w.icon }), h('span', { text: w.name })))),
-      note,
-      h('button', { class: 'btn-primary duyen-go', onclick: () => { closeModal(modal); onPray(WISHES.find((w) => w.id === pick), wishText.trim()); } }, 'Thành tâm cầu duyên'),
+      h('div', { class: 'sheet-head' },
+        h('h2', { id: 'duyen-title', text: 'Sớ cầu duyên lành' }),
+        h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' }),
+      ),
+      h('p', { class: 'muted duyen-intro', text: 'Thành tâm dâng sớ cầu duyên trước Quán Thế Âm Bồ Tát. Mọi thông tin bạn điền chỉ lưu trên trình duyệt của bạn, không gửi đi đâu.' }),
+      h('div', { class: 'duyen-grid' }, WISHES.map((w) => h('button', {
+        type: 'button',
+        class: 'duyen-opt' + (w.id === form.pick ? ' on' : ''),
+        onclick: () => { form.pick = w.id; saveDraft(); ask(); },
+      }, h('span', { class: 'duyen-ico', text: w.icon }), h('span', { text: w.name })))),
+
+      // 1. Thông tin cá nhân để viết sớ và khấn
+      h('section', { class: 'duyen-sec' },
+        h('h3', { text: '1. Thông tin cá nhân để viết sớ và khấn' }),
+        h('p', { class: 'duyen-sec-desc', text: 'Khi đi lễ cầu duyên, bạn sẽ cần ghi thông tin của mình vào sớ (hoặc tự khấn) theo cấu trúc:' }),
+        h('label', { class: 'duyen-field' },
+          h('span', { class: 'duyen-lbl' }, h('b', { text: 'Họ và tên:' }), ' ', h('small', { text: 'Tên khai sinh của bạn.' })),
+          makeInput('fullName', 'Nhập họ và tên khai sinh của bạn…', { maxlength: 80 }),
+        ),
+        h('div', { class: 'duyen-field' },
+          h('span', { class: 'duyen-lbl' }, h('b', { text: 'Ngày tháng năm sinh:' }), ' ', h('small', { text: 'Nên chuẩn bị cả ngày dương lịch và ngày âm lịch (vì đi lễ chùa thường dùng lịch âm).' })),
+          h('div', { class: 'duyen-date-row' }, solarIn, lunarIn),
+        ),
+        h('label', { class: 'duyen-field' },
+          h('span', { class: 'duyen-lbl' }, h('b', { text: 'Địa chỉ hiện tại:' }), ' ', h('small', { text: 'Nơi bạn đang sinh sống, học tập hoặc làm việc (nêu rõ số nhà, đường, phường, quận/huyện, tỉnh/thành phố) để “bề trên” biết lối mà tìm.' })),
+          makeInput('address', 'Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố…', { rows: 2, maxlength: 200 }),
+        ),
+      ),
+
+      // 2. "Hình mẫu" người yêu mong muốn (càng chi tiết càng tốt)
+      h('section', { class: 'duyen-sec' },
+        h('h3', { text: '2. “Hình mẫu” người yêu mong muốn (càng chi tiết càng tốt)' }),
+        h('p', { class: 'duyen-sec-desc', text: 'Khi cầu duyên, bạn không nên chỉ nói chung chung là “xin cho con có người yêu”. Hãy chuẩn bị sẵn trong đầu các tiêu chí cụ thể để khấn rõ ràng:' }),
+        h('label', { class: 'duyen-field' },
+          h('span', { class: 'duyen-lbl' }, h('b', { text: 'Tính cách:' }), ' ', h('small', { text: 'Ví dụ như hiền lành, biết quan tâm, có chí tiến thủ, chung thủy…' })),
+          makeInput('personality', 'Hiền lành, biết quan tâm, có chí tiến thủ, chung thủy…', { rows: 2, maxlength: 200 }),
+        ),
+        h('label', { class: 'duyen-field' },
+          h('span', { class: 'duyen-lbl' }, h('b', { text: 'Ngoại hình/Tuổi tác:' }), ' ', h('small', { text: 'Khoảng tuổi mong muốn (hợp tuổi, hơn hoặc kém bao nhiêu tuổi), chiều cao…' })),
+          makeInput('appearanceAge', 'Khoảng tuổi mong muốn (hợp tuổi, hơn/kém bao nhiêu tuổi), chiều cao…', { rows: 2, maxlength: 200 }),
+        ),
+        h('label', { class: 'duyen-field' },
+          h('span', { class: 'duyen-lbl' }, h('b', { text: 'Công việc/Học vấn:' }), ' ', h('small', { text: 'Có công việc ổn định, cùng ngành nghề hoặc định hướng tương lai tương đồng…' })),
+          makeInput('jobEducation', 'Công việc ổn định, cùng ngành nghề hoặc định hướng tương lai tương đồng…', { rows: 2, maxlength: 200 }),
+        ),
+        h('label', { class: 'duyen-field' },
+          h('span', { class: 'duyen-lbl' }, h('b', { text: 'Lời khấn / tâm nguyện thêm:' }), ' ', h('small', { text: 'Điều bạn muốn gửi gắm thêm (không bắt buộc).' })),
+          makeInput('wishText', 'Lời nguyện riêng của bạn…', { rows: 2, maxlength: 200 }),
+        ),
+        h('p', { class: 'duyen-warn' }, h('em', { text: 'Lưu ý: Hãy thực tế với mong ước của mình, tránh cầu những tiêu chí quá hoàn hảo, xa rời thực tế.' })),
+      ),
+
+      h('button', {
+        type: 'button',
+        class: 'btn-primary duyen-go',
+        onclick: () => {
+          closeModal(modal);
+          const w = WISHES.find((x) => x.id === form.pick) || WISHES[0];
+          onPray(w, { ...form });
+        },
+      }, 'Thành tâm dâng sớ cầu duyên'),
     );
   }
+
+  function renderSoSummary(mine) {
+    if (!mine) return null;
+    if (typeof mine === 'string') {
+      return mine ? h('p', { class: 'duyen-mine', 'data-no-i18n': true, text: `“${mine}”` }) : null;
+    }
+    const rows = [
+      ['Tín chủ', mine.fullName],
+      ['Sinh ngày (DL)', mine.birthSolar],
+      ['Sinh ngày (ÂL)', mine.birthLunar],
+      ['Ngụ tại', mine.address],
+      ['Tính cách mong cầu', mine.personality],
+      ['Ngoại hình / Tuổi tác', mine.appearanceAge],
+      ['Công việc / Học vấn', mine.jobEducation],
+      ['Tâm nguyện', mine.wishText],
+    ].filter(([, v]) => v && String(v).trim());
+    if (!rows.length) return null;
+    return h('div', { class: 'duyen-so', 'data-no-i18n': true },
+      h('small', { class: 'duyen-so-title', text: 'Sớ cầu duyên của bạn' }),
+      ...rows.map(([k, v]) => h('div', { class: 'duyen-so-row' }, h('b', { text: `${k}: ` }), h('span', { text: String(v).trim() }))),
+    );
+  }
+
   return {
     open() {
       ask();
       openModal('#modal-duyen');
     },
-    // thẻ lời nhắn sau khi thắt dải lụa
+    // thẻ lời nhắn sau khi thắt dải lụa / dâng sớ
     showCard(w, msg, mine) {
       sheet.replaceChildren(...[
         h('div', { class: 'sheet-head' }, h('h2', { id: 'duyen-title' }, `${w.icon} `, h('span', { text: w.name })), h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' })),
-        mine ? h('p', { class: 'duyen-mine', 'data-no-i18n': true, text: `“${mine}”` }) : null,
+        renderSoSummary(mine),
         h('div', { class: 'duyen-card' }, h('small', { text: 'Lời nhắn từ cây duyên' }), h('p', { text: msg })),
         h('p', { class: 'muted', text: 'Nguyện cho bạn và mọi người đều gặp duyên lành. Nam mô Đại Từ Đại Bi Quán Thế Âm Bồ Tát.' }),
         h('button', { class: 'btn-primary duyen-go', 'data-close': true }, 'Hoan hỷ'),

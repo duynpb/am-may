@@ -603,17 +603,32 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .cal-rleft { font-size: 12.5px; color: #a3201f; white-space: nowrap; }
 
 /* ---------- Cầu duyên ---------- */
-.duyen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
-.duyen-opt { display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 14px; background: rgba(196, 34, 42, 0.06); border: 1px solid rgba(196, 34, 42, 0.15); color: var(--ink); font-size: 14px; text-align: left; }
+.duyen-sheet { width: min(620px, 100%); }
+.duyen-intro { margin: 0 0 8px !important; }
+.duyen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 12px; }
+.duyen-opt { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; background: rgba(196, 34, 42, 0.06); border: 1px solid rgba(196, 34, 42, 0.15); color: var(--ink); font-size: 13.5px; text-align: left; }
 .duyen-opt.on { background: rgba(196, 34, 42, 0.16); border-color: #c4222a; font-weight: 600; }
-.duyen-ico { font-size: 22px; }
-.duyen-note { width: 100%; box-sizing: border-box; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 12px; padding: 10px; font: inherit; font-size: 14px; resize: vertical; background: #fff; color: var(--ink); }
+.duyen-ico { font-size: 20px; }
+.duyen-sec { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(196, 34, 42, 0.04); border: 1px solid rgba(196, 34, 42, 0.14); display: flex; flex-direction: column; gap: 10px; }
+.duyen-sec h3 { margin: 0; font-size: 15px; font-weight: 700; color: #8a1f1a; }
+.duyen-sec-desc { margin: 0 !important; font-size: 13px !important; color: var(--ink-muted); line-height: 1.45 !important; }
+.duyen-field { display: flex; flex-direction: column; gap: 5px; }
+.duyen-lbl { font-size: 13px; line-height: 1.45; color: var(--ink); }
+.duyen-lbl b { font-weight: 600; color: #3d241c; }
+.duyen-lbl small { font-size: 12.5px; color: var(--ink-muted); }
+.duyen-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.duyen-in, .duyen-note { width: 100%; box-sizing: border-box; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13.5px; resize: vertical; background: #fff; color: var(--ink); outline: none; transition: border-color 0.15s; }
+.duyen-in:focus, .duyen-note:focus { border-color: #c4222a; }
+.duyen-warn { margin: 2px 0 0 !important; padding: 8px 10px; border-radius: 10px; background: rgba(212, 160, 23, 0.12); color: #6e4e10; font-size: 12.5px !important; line-height: 1.45 !important; }
+.duyen-so { margin: 8px 0; padding: 12px 14px; border-radius: 14px; background: rgba(196, 34, 42, 0.05); border: 1px dashed rgba(196, 34, 42, 0.3); display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.45; }
+.duyen-so-title { font-weight: 700; color: #a3201f; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+.duyen-so-row b { color: #5a2820; }
 .duyen-go { width: 100%; margin-top: 12px; }
 .duyen-card { margin: 8px 0; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, #fbe9e4, #f6dcc9); border-left: 4px solid #c4222a; }
 .duyen-card small { color: #a3201f; font-weight: 600; font-size: 12.5px; }
 .duyen-card p { font-family: 'Noto Serif', Georgia, serif; font-size: 18px !important; line-height: 1.6; margin: 6px 0 0 !important; }
 .duyen-mine { font-style: italic; color: var(--ink-muted); }
-@media (max-width: 480px) { .duyen-grid { grid-template-columns: 1fr; } .cal-cell { min-height: 42px; } }
+@media (max-width: 480px) { .duyen-grid, .duyen-date-row { grid-template-columns: 1fr; } .cal-cell { min-height: 42px; } }
 
 /* ---------- Bản đồ Việt Nam ---------- */
 .vn-open { width: 100%; height: 40px; margin: 0 0 10px; font-size: 14px; }
