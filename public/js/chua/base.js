@@ -668,7 +668,8 @@ export function makeHill(K, cx, cz, profile, { color = '#56713e', seg = 144, bum
   pts.push(new THREE.Vector2(0.01, top));
   const geo = new THREE.LatheGeometry(pts, seg);
   const p = geo.attributes.position;
-  const bump = (y, a) => (y > 0 && y < top - 0.1 ? (Math.sin(a * 9) * 1.0 + Math.sin(a * 17) * 0.5) * bumps : 0);
+  // gồ ghề nhỏ dần khi gần mặt đỉnh (trong 8 m) để mép đỉnh phẳng không bị nhô lên trên sân đá
+  const bump = (y, a) => (y > 0 && y < top - 0.1 ? (Math.sin(a * 9) * 1.0 + Math.sin(a * 17) * 0.5) * bumps * Math.min(1, (top - y) / 8) : 0);
   const yAt = (x, z) => {
     const a = Math.atan2(z - cz, x - cx);
     let y = profileY(profile, Math.hypot(x - cx, z - cz));
@@ -729,4 +730,78 @@ export function cableCabins(K) {
     return g;
   }
   return { HANG, makeCabin, riderCabs };
+}
+
+// Tuyến cáp treo trọn bộ: hai nhà ga, hai dây (đi / về), trụ thép, cabin chạy sẵn, và chuyến chở người chơi (world.ride).
+// A, B: điểm dây cáp ở ga đi (A, thấp) và ga đến (B); stations: [{x, y, z}] chân hai nhà ga (gotoHits nhận goto 0 / 1);
+// ground(x, z): mặt đất dưới trụ; towers: vị trí trụ theo tỉ lệ 0..1. Trả về { ride, gotoHits }.
+export function cableway(K, { A, B, stations = [], ground = () => 0, towers = [0.25, 0.5, 0.75], sag = 2.5, loopN = 10, loopSec = 200, rideSec = 10, label = 'CÁP TREO' } = {}) {
+  const { scene, std, box, cyl, group, plaque } = K;
+  const gotoHits = [];
+  stations.forEach((s, i) => {
+    const st = group(s.x, s.y, s.z, s.ry ?? 0, { merge: false });
+    st.userData.goto = i;
+    box(7, 4.4, 7, std('#e9ecef', { roughness: 0.4, metalness: 0.2 }), 0, 2.2, 0, { parent: st });
+    box(7.4, 0.4, 7.4, std('#c0392b'), 0, 4.6, 0, { parent: st });
+    box(3.2, 2.6, 0.06, std('#3b6e8f', { roughness: 0.15, metalness: 0.5 }), 0, 1.6, 3.53, { parent: st, cast: false });
+    cyl(0.5, 0.5, 1.2, std('#555'), 0, 5.4, 0, { parent: st }, 12);
+    plaque(st, label, 0, 3.6, 3.55, 3.0, 0.5, 0, { size: 90 });
+    gotoHits.push(st);
+  });
+  const vA = new THREE.Vector3(A.x, A.y, A.z), vB = new THREE.Vector3(B.x, B.y, B.z);
+  const side = new THREE.Vector3().subVectors(vB, vA).cross(new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(1.3);
+  const seg = [0, ...towers, 1];
+  const sagAt = (u) => {
+    for (let k = 1; k < seg.length; k++) if (u <= seg[k]) return Math.sin(Math.PI * ((u - seg[k - 1]) / (seg[k] - seg[k - 1]))) * sag;
+    return 0;
+  };
+  // s = +1 dây đi (A → B), -1 dây về
+  const lineAt = (u, s, out = new THREE.Vector3()) => out.lerpVectors(vA, vB, u).addScaledVector(side, s).add(new THREE.Vector3(0, -sagAt(u), 0));
+  const cableM = new THREE.LineBasicMaterial({ color: '#2b2b2b' });
+  for (const s of [-1, 1]) {
+    const pts = [];
+    for (let i = 0; i <= 240; i++) pts.push(lineAt(i / 240, s));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), cableM));
+  }
+  const steel = std('#8c8f93', { metalness: 0.6, roughness: 0.4 });
+  for (const u of towers) {
+    const p = lineAt(u, 0);
+    const gy = ground(p.x, p.z);
+    const h = p.y - gy + 0.6;
+    box(1.0, h, 1.0, steel, p.x, gy + h / 2 - 0.3, p.z);
+    box(0.4, 0.4, 3.8, steel, p.x, p.y + 0.3, p.z).rotation.y = Math.atan2(side.x, side.z);
+  }
+  const C = cableCabins(K);
+  const loop = [];
+  for (let i = 0; i < loopN; i++) {
+    const c = C.makeCabin(false);
+    scene.add(c);
+    loop.push({ c, s: i % 2 ? -1 : 1, ph: i / loopN });
+  }
+  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
+  K.updaters.push((t) => {
+    for (const L of loop) {
+      let u = (t / loopSec + L.ph) % 1;
+      if (L.s < 0) u = 1 - u;
+      lineAt(u, L.s, L.c.position);
+      lineAt(Math.min(1, Math.max(0, u + (L.s > 0 ? 0.01 : -0.01))), L.s, tmp);
+      L.c.rotation.y = Math.atan2(tmp.x - L.c.position.x, tmp.z - L.c.position.z);
+      L.c.visible = u > 0.02 && u < 0.98 && !C.riderCabs.some((g) => g.parent && g.position.distanceTo(L.c.position) < 6);
+    }
+  });
+  const ride = {
+    duration: rideSec,
+    hang: C.HANG,
+    makeCabin: () => C.makeCabin(true),
+    // k: 0 = rời ga, 1 = tới ga; up = A → B (dây +1), down = B → A (dây -1)
+    at(k, dir, out = new THREE.Vector3()) {
+      return lineAt(dir === 'up' ? k : 1 - k, dir === 'up' ? 1 : -1, out);
+    },
+    heading(k, dir) {
+      const u = dir === 'up' ? k : 1 - k, s = dir === 'up' ? 1 : -1;
+      const a = lineAt(Math.max(0, u - 0.005), s, tmp), b = lineAt(Math.min(1, u + 0.005), s, tmp2);
+      return dir === 'up' ? Math.atan2(b.x - a.x, b.z - a.z) : Math.atan2(a.x - b.x, a.z - b.z);
+    },
+  };
+  return { ride, gotoHits };
 }

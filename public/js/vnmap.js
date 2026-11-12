@@ -12,6 +12,7 @@ const PAGES = {
   // các chùa miền Nam dựng kỹ: chung trang chua.html
   vinhnghiem: './chua.html?site=vinhnghiem', chuadoi: './chua.html?site=chuadoi', baden: './chua.html?site=baden', phatdai: './chua.html?site=phatdai',
   thienmu: './chua.html?site=thienmu', linhungbb: './chua.html?site=linhungbb', longson: './chua.html?site=longson', truclamdl: './chua.html?site=truclamdl',
+  baidinh: './chua.html?site=baidinh', yentu: './chua.html?site=yentu', bavang: './chua.html?site=bavang', taythien: './chua.html?site=taythien',
 };
 
 function el(tag, attrs = {}, parent) {

@@ -129,6 +129,21 @@ const BOARDS = {
   'TRÚC LÂM THIỀN VIỆN': [['TRÚC LÂM ZEN MONASTERY'], ['竹林禅院'], ['TRÚC-LÂM-ZEN-KLOSTER']],
   'NỘI VIỆN': [['INNER COURT'], ['内院'], ['INNERER HOF']],
   'ĐỒI ROBIN': [['ROBIN HILL'], ['罗宾山'], ['ROBIN-HÜGEL']],
+  // các chùa miền Bắc
+  'BÁI ĐÍNH TỰ': [['BÁI ĐÍNH PAGODA'], ['拜顶寺'], ['BÁI-ĐÍNH-PAGODE']],
+  'ĐIỆN QUAN ÂM': [['GUANYIN HALL'], ['观音殿'], ['GUANYIN-HALLE']],
+  'ĐIỆN PHÁP CHỦ': [['DHARMA LORD HALL'], ['法主殿'], ['DHARMA-HERR-HALLE']],
+  'ĐIỆN TAM THẾ': [['THREE AGES HALL'], ['三世殿'], ['HALLE DER DREI ZEITALTER']],
+  'ĐẠI HỒNG CHUNG': [['GREAT BELL'], ['大洪钟'], ['GROSSE GLOCKE']],
+  'GIẾNG NGỌC': [['JADE WELL'], ['玉井'], ['JADEBRUNNEN']],
+  'BẢO THÁP': [['STUPA'], ['宝塔'], ['STUPA']],
+  'TRÚC LÂM YÊN TỬ': [['TRÚC LÂM YÊN TỬ'], ['竹林安子'], ['TRÚC LÂM YÊN TỬ']],
+  'CHÙA GIẢI OAN': [['GIẢI OAN PAGODA'], ['解冤寺'], ['GIẢI-OAN-PAGODE']],
+  'CHÙA ĐỒNG': [['BRONZE PAGODA'], ['铜寺'], ['BRONZEPAGODE']],
+  'CHÙA BA VÀNG': [['BA VÀNG PAGODA'], ['三金寺'], ['BA-VÀNG-PAGODE']],
+  'THIỀN VIỆN TÂY THIÊN': [['TÂY THIÊN ZEN MONASTERY'], ['西天禅院'], ['TÂY-THIÊN-ZEN-KLOSTER']],
+  'ĐỀN THƯỢNG': [['UPPER TEMPLE'], ['上祠'], ['OBERER TEMPEL']],
+  'THÁC BẠC': [['SILVER WATERFALL'], ['银瀑'], ['SILBERWASSERFALL']],
 };
 export function tBoard(lines) {
   if (col == null) return lines;

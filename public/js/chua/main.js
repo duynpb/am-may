@@ -31,6 +31,11 @@ const LOAD = {
   linhungbb: () => import('./linhungbb.js'),
   longson: () => import('./longson.js'),
   truclamdl: () => import('./truclamdl.js'),
+  // miền Bắc — núi thiêng
+  baidinh: () => import('./baidinh.js'),
+  yentu: () => import('./yentu.js'),
+  bavang: () => import('./bavang.js'),
+  taythien: () => import('./taythien.js'),
 };
 let siteId = params.get('site');
 {
