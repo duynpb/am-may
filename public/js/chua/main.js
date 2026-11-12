@@ -1715,7 +1715,6 @@ function frame() {
   updateGains(performance.now());
   updateCaption();
 }
-window.__dbg = { frame, player, teleport, rides, cam, renderer, scene, camera, world, setOverview }; // TẠM
 renderer.setAnimationLoop(frame);
 renderer.compile(scene, camera);
 setTimeout(() => $('#loader').classList.add('done'), 400);

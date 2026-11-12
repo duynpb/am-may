@@ -129,6 +129,16 @@ const BOARDS = {
   'TRÚC LÂM THIỀN VIỆN': [['TRÚC LÂM ZEN MONASTERY'], ['竹林禅院'], ['TRÚC-LÂM-ZEN-KLOSTER']],
   'NỘI VIỆN': [['INNER COURT'], ['内院'], ['INNERER HOF']],
   'ĐỒI ROBIN': [['ROBIN HILL'], ['罗宾山'], ['ROBIN-HÜGEL']],
+  // các chùa Hà Nội
+  'THÁNH CHÚA TỰ': [['THÁNH CHÚA PAGODA'], ['圣主寺'], ['THÁNH-CHÚA-PAGODE']],
+  'TAM BẢO': [['THREE JEWELS HALL'], ['三宝殿'], ['HALLE DER DREI JUWELEN']],
+  'ĐIỆN MẪU': [['MOTHER GODDESS HALL'], ['母殿'], ['HALLE DER MUTTERGÖTTIN']],
+  'CÂY DUYÊN': [['WISHING TREE'], ['姻缘树'], ['WUNSCHBAUM']],
+  'LIÊN HOA ĐÀI': [['LOTUS PLATFORM'], ['莲花台'], ['LOTUSPODEST']],
+  'DIÊN HỰU TỰ': [['DIÊN HỰU PAGODA'], ['延祐寺'], ['DIÊN-HỰU-PAGODE']],
+  'CÂY BỒ ĐỀ': [['BODHI TREE'], ['菩提树'], ['BODHIBAUM']],
+  'TRẤN QUỐC TỰ': [['TRẤN QUỐC PAGODA'], ['镇国寺'], ['TRẤN-QUỐC-PAGODE']],
+  'QUÁN SỨ TỰ': [['QUÁN SỨ PAGODA'], ['馆使寺'], ['QUÁN-SỨ-PAGODE']],
   // các chùa miền Bắc
   'BÁI ĐÍNH TỰ': [['BÁI ĐÍNH PAGODA'], ['拜顶寺'], ['BÁI-ĐÍNH-PAGODE']],
   'ĐIỆN QUAN ÂM': [['GUANYIN HALL'], ['观音殿'], ['GUANYIN-HALLE']],
