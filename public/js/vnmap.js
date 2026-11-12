@@ -34,6 +34,10 @@ function h(tag, props = {}, ...kids) {
   for (const c of kids.flat()) if (c != null && c !== false) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
   return e;
 }
+const BAC = ['Hà Nội', 'Ninh Bình', 'Hưng Yên', 'Bắc Ninh', 'Quảng Ninh', 'Hải Phòng', 'Phú Thọ', 'Lạng Sơn'];
+const TRUNG = ['Nghệ An', 'Huế', 'Đà Nẵng', 'Quảng Ngãi', 'Gia Lai', 'Khánh Hòa', 'Lâm Đồng', 'Đắk Lắk'];
+const REGIONS = ['Miền Bắc', 'Miền Trung', 'Miền Nam', 'Biển đảo'];
+const regionOf = (p) => (p.prov.startsWith('Đặc khu') ? 3 : BAC.includes(p.prov) ? 0 : TRUNG.includes(p.prov) ? 1 : 2);
 const path = (pts) => 'M' + pts.map(([lon, lat]) => `${X(lon).toFixed(1)},${Y(lat).toFixed(1)}`).join('L') + 'Z';
 
 // here: chỗ đang đứng (mã chùa: 'ammay', 'tamchuc' hoặc mã khu đất trống); from: khu đã dựng để quay về
@@ -58,10 +62,15 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
     h('button', { 'aria-label': 'Thu nhỏ', title: 'Thu nhỏ', text: '−', onclick: () => zoomBy(1.6) }),
     h('button', { class: 'vn-fit', title: 'Toàn cảnh', text: 'Toàn cảnh', onclick: () => { fit(); apply(); } }));
   view.append(tools, card);
+  // danh sách chùa bên phải: ô tìm, chia theo miền; di chuột / chạm vào tên thì sáng tên và chấm trên bản đồ
+  const search = h('input', { class: 'vn-search', type: 'search', placeholder: 'Tìm chùa hoặc tỉnh…', 'aria-label': 'Tìm chùa hoặc tỉnh' });
+  const listBox = h('div', { class: 'vn-list-items' });
+  const count = h('small', { class: 'muted vn-count' });
+  const side = h('aside', { class: 'vn-list', 'aria-label': 'Danh sách chùa' }, h('div', { class: 'vn-list-head' }, h('b', { text: 'Danh sách chùa' }), count), search, listBox);
   sheet.append(
     h('div', { class: 'sheet-head' }, h('h2', { id: 'vn-title', text: 'Bản đồ Việt Nam' }), h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' })),
-    h('p', { class: 'muted vn-help', text: 'Kéo để di chuyển · lăn chuột hoặc chụm hai ngón để phóng to. Chấm đỏ là chùa đã dựng trong Am Mây — bấm để tới; chấm nâu là chùa chưa dựng — bấm để xem khu đất.' }),
-    view,
+    h('p', { class: 'muted vn-help', text: 'Kéo để di chuyển · lăn chuột hoặc chụm hai ngón để phóng to. Chấm đỏ là chùa đã dựng trong Am Mây, chấm nâu là chùa chưa dựng. Di chuột vào tên trong danh sách để thấy chùa trên bản đồ, bấm để xem.' }),
+    h('div', { class: 'vn-body' }, view, side),
   );
 
   // ---------- khung nhìn (viewBox): x, y, rộng w; cao tính theo tỉ lệ khung ----------
@@ -91,7 +100,8 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
     svg.setAttribute('viewBox', `${vb.x.toFixed(2)} ${vb.y.toFixed(2)} ${vb.w.toFixed(2)} ${vb.h.toFixed(2)}`);
     const s = vb.w / size()[0]; // số đơn vị bản đồ cho một điểm ảnh màn hình
     for (const f of fixes) f.g.setAttribute('transform', `translate(${f.x.toFixed(1)},${f.y.toFixed(1)}) scale(${s.toFixed(4)})`);
-    svg.classList.toggle('vn-names', fitW / vb.w >= 2.6); // phóng to đủ thì hiện tên mọi chùa
+    svg.classList.toggle('vn-names', fitW / vb.w >= 2.6); // phóng to vừa: hiện tên chùa đã dựng
+    svg.classList.toggle('vn-names2', fitW / vb.w >= 6); // phóng to nhiều: hiện tên mọi chùa
     svg.classList.toggle('vn-mid', fitW / vb.w >= 1.5); // điện thoại: tên đảo nhỏ hiện khi đã phóng to một chút
   }
   // phóng to / thu nhỏ quanh một điểm trên màn hình (mặc định giữa khung)
@@ -245,20 +255,87 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
       const pick = () => moved < 6 && select(p); // kéo bản đồ thì không tính là bấm chùa
       g.addEventListener('click', pick);
       g.addEventListener('keydown', (e) => e.key === 'Enter' && select(p));
+      g.addEventListener('pointerenter', () => highlight(p, true));
+      g.addEventListener('pointerleave', () => highlight(null));
     }
+    buildList();
+  }
+
+  // ---------- danh sách chùa ----------
+  const norm = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+  function buildList() {
+    const nBuilt = PAGODAS.filter((p) => p.built).length;
+    count.textContent = `${PAGODAS.length} chùa · ${nBuilt} đã dựng`;
+    const groups = REGIONS.map((name) => ({ name, items: [] }));
+    for (const p of PAGODAS) groups[regionOf(p)].items.push(p);
+    for (const g of groups) {
+      // chùa đã dựng lên trước, rồi từ bắc xuống nam
+      g.items.sort((a, b) => (!!b.built - !!a.built) || b.lat - a.lat);
+      const head = h('div', { class: 'vn-group' }, h('span', { text: g.name }), h('small', { text: String(g.items.length) }));
+      g.head = head;
+      listBox.append(head);
+      for (const p of g.items) {
+        const row = h('button', { class: 'vn-item' + (p.built ? ' built' : '') + (p.id === here ? ' here' : ''), type: 'button' },
+          h('i', { class: 'vn-item-dot' }),
+          h('span', { class: 'vn-item-text' }, h('b', { text: p.name, 'data-no-i18n': true }), h('small', { text: p.prov, 'data-no-i18n': true })),
+          p.id === here ? h('em', { text: 'Bạn đang ở đây' }) : null);
+        row.addEventListener('pointerenter', () => highlight(p));
+        row.addEventListener('pointerleave', () => highlight(null));
+        row.addEventListener('focus', () => highlight(p));
+        row.addEventListener('blur', () => highlight(null));
+        row.addEventListener('click', () => {
+          select(p);
+          // đưa chùa vào giữa bản đồ; đang nhìn toàn cảnh thì phóng to vừa phải
+          centerOn(p.lon, p.lat, Math.min(vb.w, fitW / 3));
+        });
+        p.row = row;
+        p.key = norm(`${p.name} ${p.prov} ${p.old || ''}`);
+        listBox.append(row);
+      }
+    }
+    search.addEventListener('input', () => {
+      const q = norm(search.value.trim());
+      for (const g of groups) {
+        let shown = 0;
+        for (const p of g.items) {
+          const ok = !q || p.key.includes(q);
+          p.row.hidden = !ok;
+          shown += ok;
+        }
+        g.head.hidden = !shown;
+      }
+    });
+  }
+  // làm sáng một chùa: tên trong danh sách và chấm trên bản đồ (đưa chấm lên trên cùng cho khỏi bị che)
+  let hl = null;
+  function highlight(p, fromMap = false) {
+    if (hl === p) return;
+    if (hl) {
+      hl.node?.classList.remove('hl');
+      hl.row?.classList.remove('hl');
+    }
+    hl = p;
+    if (!p) return;
+    p.node?.classList.add('hl');
+    p.node?.parentNode?.append(p.node);
+    p.row?.classList.add('hl');
+    if (fromMap && p.row && !p.row.hidden) p.row.scrollIntoView({ block: 'nearest' });
   }
 
   function select(p) {
     selected?.node?.classList.remove('sel');
+    selected?.row?.classList.remove('sel');
     selected = p;
     p.node?.classList.add('sel');
+    p.row?.classList.add('sel');
+    p.node?.parentNode?.append(p.node);
     const go = p.id === here
       ? h('button', { class: 'btn-primary', 'data-close': true, text: 'Bạn đang ở đây' })
       : p.built
         ? h('button', { class: 'btn-primary', text: `Đến ${p.name}`, onclick: () => (location.href = PAGES[p.built]) })
         : h('button', { class: 'btn-primary', text: 'Xem khu đất', onclick: () => (location.href = `./datrong.html?chua=${encodeURIComponent(p.id)}&tu=${home}`) });
     card.replaceChildren(...[
-      h('button', { class: 'x vn-card-x', 'aria-label': 'Đóng', text: '×', onclick: () => { card.replaceChildren(); selected?.node?.classList.remove('sel'); selected = null; } }),
+      h('button', { class: 'x vn-card-x', 'aria-label': 'Đóng', text: '×', onclick: () => { card.replaceChildren(); selected?.node?.classList.remove('sel'); selected?.row?.classList.remove('sel'); selected = null; } }),
       h('div', { class: 'vn-card-head' }, h('b', { text: p.name }), h('span', { class: 'muted', text: p.prov })),
       p.old ? h('small', { class: 'muted vn-old', text: `Trước 7/2025 thuộc ${p.old}` }) : null,
       h('p', { class: 'muted', text: p.built ? 'Chùa đã dựng trong Am Mây.' : 'Chùa này chưa được dựng trong Am Mây — hiện là khu đất trống chờ ngày dựng chùa.' }),
@@ -278,7 +355,10 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
           first = false;
           fit();
           const me = PAGODAS.find((p) => p.id === here);
-          if (me) select(me);
+          if (me) {
+            select(me);
+            me.row?.scrollIntoView({ block: 'center' });
+          }
         }
         apply();
       };

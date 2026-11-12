@@ -738,7 +738,8 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .vn-modal { padding: 12px; }
 .vn-sheet { width: min(1180px, 100%); height: min(92vh, 980px); max-height: none; display: flex; flex-direction: column; overflow: hidden; padding: 16px 16px 14px; }
 .vn-help { margin: 2px 0 10px !important; font-size: 13px !important; }
-.vn-view { position: relative; flex: 1; min-height: 0; border-radius: 14px; overflow: hidden; background: #b9dbe8; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.vn-body { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.vn-view { position: relative; flex: 1; min-width: 0; min-height: 0; border-radius: 14px; overflow: hidden; background: #b9dbe8; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .vn-view.drag { cursor: grabbing; }
 .vn-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; stroke: none; } /* không nhận nét vẽ chung của biểu tượng */
 .vn-zoom { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
@@ -763,11 +764,35 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
 .vn-dot { fill: #8a5a2c; stroke: #fff; stroke-width: 1.2; }
 .vn-pin:hover .vn-dot, .vn-pin.sel .vn-dot { fill: #d4a017; r: 5.5; }
 .vn-name { display: none; font-size: 11px; font-weight: 600; fill: #5a3a1c; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
-.vn-names .vn-name, .vn-pin:hover .vn-name, .vn-pin.sel .vn-name { display: block; }
+.vn-names2 .vn-name, .vn-pin:hover .vn-name, .vn-pin.sel .vn-name, .vn-pin.hl .vn-name { display: block; }
+.vn-pin-label { display: none; }
+.vn-names .vn-pin-label, .vn-pin.here .vn-pin-label, .vn-pin:hover .vn-pin-label, .vn-pin.sel .vn-pin-label, .vn-pin.hl .vn-pin-label { display: block; }
+.vn-pin.hl .vn-dot { fill: #d4a017; r: 7; stroke-width: 2; }
+.vn-pin.hl .vn-dot-built { fill: #f2b01e; r: 9; stroke-width: 2.5; }
+.vn-pin.hl .vn-name, .vn-pin.hl .vn-pin-label { font-size: 14px; fill: #6a1410; stroke-width: 4px; }
+.vn-pin.hl .vn-hit { fill: rgba(242, 176, 30, 0.28); stroke: #f2b01e; stroke-width: 2; r: 16; }
 .vn-dot-built { fill: #d43a3a; stroke: #fff; stroke-width: 2; }
 .vn-pin.built:hover .vn-dot-built, .vn-pin.built.sel .vn-dot-built { fill: #b3261e; r: 7.5; }
 .vn-pin-label { font-size: 12px; font-weight: 700; fill: #8a1f1a; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 /* thẻ chùa nổi ở góc dưới bên trái bản đồ */
+/* danh sách chùa bên phải */
+.vn-list { width: 290px; flex: none; display: flex; flex-direction: column; min-height: 0; background: #f7f2e8; border-radius: 14px; padding: 10px; }
+.vn-list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 2px 8px; }
+.vn-count { font-size: 12px; }
+.vn-search { width: 100%; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(0, 0, 0, 0.12); background: #fff; font: inherit; font-size: 15px; margin-bottom: 8px; }
+.vn-list-items { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+.vn-group { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; padding: 6px 8px 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8a6a3a; background: #f4efe4; border-radius: 8px; }
+.vn-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 10px; text-align: left; background: transparent; color: var(--ink); cursor: pointer; }
+.vn-item:hover, .vn-item.hl { background: #fdf0c8; box-shadow: inset 0 0 0 1.5px #f2b01e; }
+.vn-item.sel { background: #f9e2a8; }
+.vn-item-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #8a5a2c; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15); }
+.vn-item.built .vn-item-dot { width: 13px; height: 13px; background: #d43a3a; }
+.vn-item.hl .vn-item-dot { background: #f2b01e; }
+.vn-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.vn-item-text b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vn-item.built .vn-item-text b { color: #8a1f1a; font-weight: 700; }
+.vn-item-text small { font-size: 11.5px; color: #7a6e5c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vn-item em { flex: none; font-style: normal; font-size: 11px; color: #8a1f1a; background: #fde3dc; padding: 2px 6px; border-radius: 6px; }
 .vn-card { position: absolute; left: 10px; bottom: 10px; width: min(330px, calc(100% - 20px)); z-index: 2; padding: 12px 14px; border-radius: 14px; background: rgba(250, 247, 240, 0.96); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18); cursor: default; }
 .vn-card:empty { display: none; }
 .vn-card-x { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; font-size: 20px; }
@@ -781,6 +806,13 @@ button.pill:hover, .icon-btn:hover { background: var(--glass-hover); }
   .vn-sheet { height: 94vh; border-radius: 22px 22px 0 0; padding: 14px 12px calc(12px + var(--sab)); }
   .vn-help { font-size: 12px !important; }
   .vn-svg:not(.vn-mid) .vn-isle-label { display: none; }
+}
+@media (max-width: 760px) {
+  .vn-body { flex-direction: column; gap: 8px; }
+  .vn-view { flex: 1.4; }
+  .vn-list { width: auto; flex: 1; padding: 8px; }
+  .vn-list-head { margin-bottom: 6px; }
+  .vn-search { height: 36px; font-size: 16px; } /* 16px: điện thoại không tự phóng to khi gõ */
 }
 
 /* ---------- Trang khu đất trống ---------- */

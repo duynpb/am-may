@@ -404,4 +404,14 @@ export default {
   'Chùa Một Cột — điện nhỏ trên một cột đá giữa hồ sen': ['One Pillar Pagoda — a small shrine on a single stone pillar in a lotus pond', '独柱寺——莲池中立于一根石柱上的小殿', 'Einsäulenpagode — ein kleiner Schrein auf einer einzigen Steinsäule im Lotusteich'],
   'Chùa Trấn Quốc — chùa cổ trên bán đảo Hồ Tây, bảo tháp đỏ mười một tầng': ['Trấn Quốc Pagoda — an ancient pagoda on a West Lake peninsula, with an eleven-storey red stupa', '镇国寺——西湖半岛上的古寺，十一层红色宝塔', 'Trấn-Quốc-Pagode — eine alte Pagode auf einer Halbinsel im Westsee, mit elfstöckigem rotem Stupa'],
   'Chùa Quán Sứ — chùa giữa phố, trụ sở Giáo hội Phật giáo Việt Nam': ['Quán Sứ Pagoda — a city pagoda, headquarters of the Vietnam Buddhist Sangha', '馆使寺——城中寺院，越南佛教教会总部', 'Quán-Sứ-Pagode — eine Stadtpagode, Sitz der Buddhistischen Sangha Vietnams'],
+  // ---------- danh sách chùa trên bản đồ Việt Nam ----------
+  'Danh sách chùa': ['Pagoda list', '寺院列表', 'Pagodenliste'],
+  'Tìm chùa hoặc tỉnh…': ['Search pagoda or province…', '搜索寺院或省份…', 'Pagode oder Provinz suchen…'],
+  'Tìm chùa hoặc tỉnh': ['Search pagoda or province', '搜索寺院或省份', 'Pagode oder Provinz suchen'],
+  '{0} chùa · {1} đã dựng': ['{0} pagodas · {1} built', '{0}座寺院 · 已建{1}座', '{0} Pagoden · {1} gebaut'],
+  'Miền Bắc': ['North', '北部', 'Norden'],
+  'Miền Trung': ['Central', '中部', 'Mitte'],
+  'Miền Nam': ['South', '南部', 'Süden'],
+  'Biển đảo': ['Islands', '海岛', 'Inseln'],
+  'Kéo để di chuyển · lăn chuột hoặc chụm hai ngón để phóng to. Chấm đỏ là chùa đã dựng trong Am Mây, chấm nâu là chùa chưa dựng. Di chuột vào tên trong danh sách để thấy chùa trên bản đồ, bấm để xem.': ['Drag to move · scroll or pinch to zoom. Red dots are pagodas built in Am Mây, brown dots are not built yet. Hover a name in the list to see the pagoda on the map, click to view it.', '拖动移动 · 滚轮或双指缩放。红点是暗云中已建成的寺院，棕点是尚未建造的寺院。将鼠标移到列表中的名称上即可在地图上看到寺院，点击查看。', 'Ziehen zum Verschieben · Scrollen oder Zwei-Finger-Geste zum Zoomen. Rote Punkte sind in Am Mây gebaute Pagoden, braune noch nicht gebaut. Fahr mit der Maus über einen Namen in der Liste, um die Pagode auf der Karte zu sehen, klick zum Ansehen.'],
 };
