@@ -18,11 +18,17 @@ export const SITES = {
   yentu: { name: 'Chùa Đồng Yên Tử', page: 'chua.html?site=yentu', roomLabel: 'Yên Tử', desc: 'cáp treo lên chùa Đồng trên đỉnh núi thiêng' },
   bavang: { name: 'Chùa Ba Vàng', page: 'chua.html?site=bavang', roomLabel: 'Ba Vàng', desc: 'chánh điện rất lớn trên sườn núi nhìn xuống đồng bằng' },
   taythien: { name: 'Thiền viện Tây Thiên', page: 'chua.html?site=taythien', roomLabel: 'Tây Thiên', desc: 'thiền viện giữa rừng Tam Đảo, cáp treo lên đền Thượng' },
+  // các chùa Hà Nội
+  chuaha: { name: 'Chùa Hà', page: 'chua.html?site=chuaha', roomLabel: 'Chùa Hà', desc: 'chùa cầu duyên giữa phố, cây duyên treo lụa đỏ' },
+  motcot: { name: 'Chùa Một Cột', page: 'chua.html?site=motcot', roomLabel: 'Một Cột', desc: 'điện nhỏ trên một cột đá giữa hồ sen' },
+  tranquoc: { name: 'Chùa Trấn Quốc', page: 'chua.html?site=tranquoc', roomLabel: 'Trấn Quốc', desc: 'chùa cổ trên bán đảo Hồ Tây, bảo tháp đỏ mười một tầng' },
+  quansu: { name: 'Chùa Quán Sứ', page: 'chua.html?site=quansu', roomLabel: 'Quán Sứ', desc: 'chùa giữa phố, trụ sở Giáo hội Phật giáo Việt Nam' },
 };
 // các khu dựng kỹ ở miền Nam: mỗi khu một phòng
 const SOUTH = [['vinhnghiem', 'vinh-nghiem', 'Vĩnh Nghiêm'], ['chuadoi', 'chua-doi', 'Chùa Dơi'], ['baden', 'ba-den', 'Núi Bà Đen'], ['phatdai', 'phat-dai', 'Phật Đài'],
   ['thienmu', 'thien-mu', 'Thiên Mụ'], ['linhungbb', 'linh-ung', 'Linh Ứng'], ['longson', 'long-son', 'Long Sơn'], ['truclamdl', 'truc-lam', 'Trúc Lâm'],
-  ['baidinh', 'bai-dinh', 'Bái Đính'], ['yentu', 'yen-tu', 'Yên Tử'], ['bavang', 'ba-vang', 'Ba Vàng'], ['taythien', 'tay-thien', 'Tây Thiên']];
+  ['baidinh', 'bai-dinh', 'Bái Đính'], ['yentu', 'yen-tu', 'Yên Tử'], ['bavang', 'ba-vang', 'Ba Vàng'], ['taythien', 'tay-thien', 'Tây Thiên'],
+  ['chuaha', 'chua-ha', 'Chùa Hà'], ['motcot', 'mot-cot', 'Một Cột'], ['tranquoc', 'tran-quoc', 'Trấn Quốc'], ['quansu', 'quan-su', 'Quán Sứ']];
 export const ROOMS = [
   ...Array.from({ length: 2 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
   ...Array.from({ length: 2 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),

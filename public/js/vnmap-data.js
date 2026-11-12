@@ -69,9 +69,10 @@ export const PAGODAS = [
   { id: 'ammay', name: 'Am Mây', prov: 'Ninh Bình', lat: 20.236, lon: 105.926, built: 'ammay' },
   { id: 'tamchuc', name: 'Chùa Tam Chúc', prov: 'Ninh Bình', old: 'Hà Nam', lat: 20.534, lon: 105.84, built: 'tamchuc' },
   // Miền Bắc
-  { id: 'motcot', name: 'Chùa Một Cột', prov: 'Hà Nội', lat: 21.0359, lon: 105.8336 },
-  { id: 'tranquoc', name: 'Chùa Trấn Quốc', prov: 'Hà Nội', lat: 21.0479, lon: 105.8368 },
-  { id: 'quansu', name: 'Chùa Quán Sứ', prov: 'Hà Nội', lat: 21.0234, lon: 105.8455 },
+  { id: 'motcot', name: 'Chùa Một Cột', prov: 'Hà Nội', lat: 21.0359, lon: 105.8336, built: 'motcot' },
+  { id: 'tranquoc', name: 'Chùa Trấn Quốc', prov: 'Hà Nội', lat: 21.0479, lon: 105.8368, built: 'tranquoc' },
+  { id: 'quansu', name: 'Chùa Quán Sứ', prov: 'Hà Nội', lat: 21.0234, lon: 105.8455, built: 'quansu' },
+  { id: 'chuaha', name: 'Chùa Hà', prov: 'Hà Nội', lat: 21.0367, lon: 105.7965, built: 'chuaha' },
   { id: 'huong', name: 'Chùa Hương', prov: 'Hà Nội', lat: 20.618, lon: 105.747 },
   { id: 'thay', name: 'Chùa Thầy', prov: 'Hà Nội', lat: 21.019, lon: 105.643 },
   { id: 'tayphuong', name: 'Chùa Tây Phương', prov: 'Hà Nội', lat: 21.039, lon: 105.61 },

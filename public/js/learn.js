@@ -209,8 +209,9 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
     room = ROOMS[key];
     course = COURSES[key];
     lang = room.lang;
+    const modes = modesOf(key);
     const st = (state[key] ??= {});
-    mode = m || st.mode;
+    mode = (m && modes[m] ? m : null) || (st.mode && modes[st.mode] ? st.mode : null);
     if (!mode) return openShelf(key);
     st.mode = mode;
     render();
@@ -221,6 +222,7 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
   let body = null;
   function render() {
     const modes = modesOf(room.key);
+    const isPhat = room.key === 'phat';
     body = h('div', { class: 'chalk-body' });
     chalk.replaceChildren(
       h('div', { class: 'chalk-head' },
@@ -230,7 +232,7 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
         h('button', { class: id === mode ? 'on' : '', onclick: () => { synth?.cancel(); listenOnce.stop?.(); mode = id; state[room.key].mode = id; render(); } }, `${md.icon} `, h('span', { text: md.name })))),
       body,
     );
-    if (synth && !voiceFor(lang)) body.append(h('p', { class: 'chalk-note', text: `Máy này chưa có giọng đọc ${room.name}, phát âm có thể chưa đúng. Có thể cài thêm giọng đọc trong cài đặt ngôn ngữ của máy, hoặc dùng Chrome / Edge.` }));
+    if (!isPhat && synth && !voiceFor(lang)) body.append(h('p', { class: 'chalk-note', text: `Máy này chưa có giọng đọc ${room.name}, phát âm có thể chưa đúng. Có thể cài thêm giọng đọc trong cài đặt ngôn ngữ của máy, hoặc dùng Chrome / Edge.` }));
     ({ vocab: viewVocab, grammar: viewGrammar, listen: viewListen, speak: viewSpeak })[mode]();
   }
   const board = (head, lines) => setBoard(room.key, head, lines);
@@ -266,8 +268,9 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
       st.flip
         ? h('div', { class: 'card-back' }, raw('div', frontM, 'card-mean'), h('div', { class: 'card-word' }, raw('b', w), wp ? raw('i', ` ${wp}`) : null, raw('span', ` — ${m}`)))
         : h('div', { class: 'card-hint', text: 'Chạm vào thẻ để xem nghĩa' }));
+    const isPhat = room.key === 'phat';
     body.append(card, h('div', { class: 'chalk-actions' },
-      sayBtn(front), sayBtn(front, 0.6, '🐢 Đọc chậm'),
+      !isPhat ? sayBtn(front) : null, !isPhat ? sayBtn(front, 0.6, '🐢 Đọc chậm') : null,
       h('button', { class: 'chalk-btn ghost', onclick: () => { st.queue.push(st.queue.shift()); st.flip = false; render(); } }, '↻ Chưa nhớ'),
       h('button', { class: 'chalk-btn ok', onclick: () => { st.queue.shift(); (store.known[room.key] ??= []).push(w); save(store); st.flip = false; render(); } }, '✓ Đã nhớ')));
   }
@@ -276,9 +279,10 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
   function viewGrammar() {
     const st = (state[room.key].grammar ??= { i: null });
     const list = course.grammar;
+    const isPhat = room.key === 'phat';
     if (st.i == null) {
       board(modesOf(room.key).grammar.name, list.slice(0, 4).map((g, i) => `${i + 1}. ${g.title}`));
-      body.append(h('p', { class: 'chalk-sub', text: 'Mỗi bài gồm: công thức, giải thích dễ hiểu, ví dụ có giọng đọc, rồi làm bài chọn đáp án và xếp câu.' }),
+      body.append(h('p', { class: 'chalk-sub', text: isPhat ? 'Mỗi bài gồm: tóm tắt, giải thích dễ hiểu, ví dụ minh hoạ, rồi làm bài chọn đáp án và xếp câu.' : 'Mỗi bài gồm: công thức, giải thích dễ hiểu, ví dụ có giọng đọc, rồi làm bài chọn đáp án và xếp câu.' }),
         h('div', { class: 'chalk-list' }, list.map((g, i) => h('button', { class: 'chalk-item', onclick: () => { st.i = i; render(); } }, h('b', { text: `${i + 1}. ` }), raw('span', g.title)))));
       return;
     }
@@ -292,7 +296,7 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
       raw('div', g.pattern, 'chalk-pattern'),
       raw('p', g.explain, 'chalk-text'),
       h('div', { class: 'chalk-ex' }, g.ex.map(([tx, mean, pr]) => h('div', { class: 'ex-row' },
-        h('button', { class: 'chalk-ico', 'aria-label': 'Nghe', onclick: () => speak(tx, lang) }, '🔊'),
+        !isPhat ? h('button', { class: 'chalk-ico', 'aria-label': 'Nghe', onclick: () => speak(tx, lang) }, '🔊') : null,
         h('div', {}, raw('div', tx, 'ex-t'), pr ? raw('div', pr, 'card-pron') : null, raw('div', mean, 'ex-m'))))),
       h('h4', { class: 'chalk-h4', text: 'Luyện tập' }));
     // trắc nghiệm: bấm một đáp án, đúng hiện xanh, sai hiện đỏ kèm đáp án đúng
@@ -338,7 +342,7 @@ export function createLearn({ openModal, closeModal, toast, setBoard }) {
           const ok = said === words.join(sep);
           res.className = 'order-res ' + (ok ? 'good' : 'bad');
           res.textContent = ok ? t('Chính xác!') : `${t('Chưa đúng. Câu đúng là:')} ${words.join(sep)}`;
-          if (ok) speak(words.join(sep), lang);
+          if (ok && !isPhat) speak(words.join(sep), lang);
         } }, 'Kiểm tra'),
         h('button', { class: 'chalk-btn ghost', onclick: () => render() }, 'Làm lại'),
         st.i + 1 < list.length ? h('button', { class: 'chalk-btn ghost', onclick: () => { st.i++; render(); } }, 'Bài tiếp →') : null),

@@ -36,6 +36,11 @@ const LOAD = {
   yentu: () => import('./yentu.js'),
   bavang: () => import('./bavang.js'),
   taythien: () => import('./taythien.js'),
+  // Hà Nội
+  chuaha: () => import('./chuaha.js'),
+  motcot: () => import('./motcot.js'),
+  tranquoc: () => import('./tranquoc.js'),
+  quansu: () => import('./quansu.js'),
 };
 let siteId = params.get('site');
 {
@@ -241,6 +246,14 @@ const duyenDlg = createDuyenDialog({
   closeModal,
   onPray(w, mine) {
     sound.init();
+    // chùa có cây duyên (vd chùa Hà): đi tới gốc cây, chắp tay, thắt dải lụa đỏ
+    const D = world.duyen;
+    if (D?.stand && !rides.has(player)) {
+      if (!movePlayerTo(D.stand.x, D.stand.z)) teleport(D.stand);
+      duyenRun = { w, mine, started: false };
+      toast('Đi tới cây duyên…', 1800);
+      return;
+    }
     player.act('bow', bowRyAt(player));
     sound.bow();
     net?.send({ t: 'act', a: 'bow' });
@@ -252,6 +265,28 @@ const duyenDlg = createDuyenDialog({
     }, 2800);
   },
 });
+let duyenRun = null; // { w, mine, started }
+function duyenTick() {
+  const R = duyenRun, D = world.duyen;
+  if (!R || R.started || !D) return;
+  const g = player.routeTo ?? player.goal;
+  if (g && Math.hypot(g.x - D.stand.x, g.z - D.stand.z) > 0.2) {
+    duyenRun = null; // đi chỗ khác: thôi
+    return;
+  }
+  if (player.moving || player.routeTo) return;
+  R.started = true;
+  player.act('gassho', Math.atan2(D.head.x - player.pos.x, D.head.z - player.pos.z));
+  net?.send({ t: 'act', a: 'gassho' });
+  bubble(player, 'thắt dải lụa đỏ cầu duyên lành', 3200);
+  setTimeout(() => {
+    D.addRibbon();
+    sound.bead();
+    earn('duyen');
+    duyenDlg.showCard(R.w, pick(R.w.msgs), R.mine);
+    duyenRun = null;
+  }, 2600);
+}
 document.querySelectorAll('.modal').forEach((m) => {
   m.addEventListener('click', (e) => {
     if (e.target === m || e.target.closest('[data-close]')) closeModal(m);
@@ -1252,6 +1287,7 @@ function handleTap(x, y) {
   const who = pickAvatar();
   if (who) return doGassho(who);
   if (ray.intersectObjects(world.merits.map((m) => m.group), true)[0]) return openMeritDialog();
+  if (world.duyen?.group && ray.intersectObjects([world.duyen.group], true)[0]) return duyenDlg.open(); // chạm cây duyên
   const bell = world.bells?.length && ray.intersectObjects(world.bells.map((b) => b.group), true)[0];
   if (bell) return goBell(world.bells.find((b) => bell.object === b.group || b.group.getObjectById(bell.object.id)));
   const goHit = world.gotoHits?.length && ray.intersectObjects(world.gotoHits, true)[0];
@@ -1661,6 +1697,7 @@ function frame() {
     if (arrived && a === player) sendMove();
   }
   ridesTick();
+  duyenTick();
   gotoTick(dt);
   bellTick();
   if (mapOpen) updateMap();
@@ -1678,6 +1715,7 @@ function frame() {
   updateGains(performance.now());
   updateCaption();
 }
+window.__dbg = { frame, player, teleport, rides, cam, renderer, scene, camera, world, setOverview }; // TẠM
 renderer.setAnimationLoop(frame);
 renderer.compile(scene, camera);
 setTimeout(() => $('#loader').classList.add('done'), 400);

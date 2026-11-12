@@ -13,6 +13,7 @@ const PAGES = {
   vinhnghiem: './chua.html?site=vinhnghiem', chuadoi: './chua.html?site=chuadoi', baden: './chua.html?site=baden', phatdai: './chua.html?site=phatdai',
   thienmu: './chua.html?site=thienmu', linhungbb: './chua.html?site=linhungbb', longson: './chua.html?site=longson', truclamdl: './chua.html?site=truclamdl',
   baidinh: './chua.html?site=baidinh', yentu: './chua.html?site=yentu', bavang: './chua.html?site=bavang', taythien: './chua.html?site=taythien',
+  chuaha: './chua.html?site=chuaha', motcot: './chua.html?site=motcot', tranquoc: './chua.html?site=tranquoc', quansu: './chua.html?site=quansu',
 };
 
 function el(tag, attrs = {}, parent) {

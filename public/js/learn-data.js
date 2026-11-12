@@ -401,6 +401,4 @@ export const MODES = {
 export const PHAT_MODES = {
   vocab: { icon: '🪷', name: 'Thuật ngữ Phật học', desc: 'Thẻ ghi nhớ các thuật ngữ, theo cụm hoặc theo câu' },
   grammar: { icon: '☸️', name: 'Giáo lý căn bản', desc: 'Tam Bảo, Ngũ giới, Tứ Diệu Đế, Bát Chánh Đạo, Lục độ — kèm bài ôn' },
-  listen: { icon: '🎧', name: 'Nghe kinh, chép chính tả', desc: 'Nghe câu kinh, câu kệ rồi điền chỗ trống, 3 độ khó' },
-  speak: { icon: '📿', name: 'Đọc tụng theo', desc: 'Đọc câu kinh, câu kệ, máy kiểm tra phát âm: chữ sai bôi đỏ' },
 };

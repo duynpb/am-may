@@ -92,13 +92,15 @@ export const WISHES = [
 ];
 
 // ---------- Cây duyên: thân gỗ, tán lá tròn, dải lụa đỏ và thẻ gỗ treo trên cành ----------
-export function buildDuyenTree({ scene, std, pickables, obstacles }) {
+// at: { x, y, z, r } để đặt cây ở chùa khác (mặc định: trước điện Quan Âm khu Am Mây)
+export function buildDuyenTree({ scene, std, pickables, obstacles, at = null }) {
+  const P = at ?? { x: DUYEN.x, y: GY, z: DUYEN.z, r: DUYEN.r };
   const g = new THREE.Group();
-  g.position.set(DUYEN.x, GY, DUYEN.z);
+  g.position.set(P.x, P.y, P.z);
   g.userData = { kind: 'duyen' };
   scene.add(g);
   pickables.push(g);
-  obstacles.push({ x: DUYEN.x, z: DUYEN.z, r: DUYEN.r });
+  obstacles?.push({ x: P.x, z: P.z, r: P.r });
   const add = (geo, mat, x, y, z) => {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z);
@@ -158,7 +160,8 @@ export function buildDuyenTree({ scene, std, pickables, obstacles }) {
       rg.scale.setScalar(1.15);
       return rg;
     },
-    head: new THREE.Vector3(DUYEN.x, GY + 2.8, DUYEN.z),
+    head: new THREE.Vector3(P.x, P.y + 2.8, P.z),
+    group: g,
   };
 }
 
