@@ -2,24 +2,63 @@
 // Quán Thế Âm Bồ Tát, thắt một dải lụa đỏ lên cây và nhận một lời nhắn theo tinh thần Phật dạy (duyên do tâm tạo).
 // Điều mong cầu viết riêng chỉ hiện trên máy mình, không gửi đi đâu, không lưu lại.
 import * as THREE from 'three';
-import { solarToLunar } from './lunar.js';
+import { solarToLunar, jdFromDate } from './lunar.js';
 
 const CAN = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'];
 const CHI = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'];
-function autoLunarBirth(str) {
+const pad2 = (n) => String(n).padStart(2, '0');
+
+// Kiểm tra và đổi ngày dương lịch (dd/mm/yyyy) → âm lịch
+function parseAndValidateSolar(str) {
   const s = (str || '').trim();
+  if (!s) return { ok: true, empty: true };
   let dd = 0, mm = 0, yy = 0;
   const m1 = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
   const m2 = s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})$/);
   if (m1) [dd, mm, yy] = [+m1[1], +m1[2], +m1[3]];
   else if (m2) [yy, mm, dd] = [+m2[1], +m2[2], +m2[3]];
-  if (!dd || mm < 1 || mm > 12 || dd > 31 || yy < 1900 || yy > 2100) return '';
+  else return { ok: false, error: 'Định dạng ngày dương chưa đúng (nhập dd/mm/yyyy, VD: 15/08/2000)' };
+  if (mm < 1 || mm > 12) return { ok: false, error: 'Tháng dương lịch phải từ 01 đến 12' };
+  if (yy < 1900 || yy > 2100) return { ok: false, error: 'Năm sinh phải từ 1900 đến 2100' };
   const dt = new Date(yy, mm - 1, dd);
-  if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return '';
-  const [ld, lm, ly, leap] = solarToLunar(dd, mm, yy);
-  const pad = (n) => String(n).padStart(2, '0');
-  const canChi = `${CAN[(ly + 6) % 10]} ${CHI[(ly + 8) % 12]}`;
-  return `${pad(ld)}/${pad(lm)}/${ly}${leap ? ' (nhuận)' : ''} (năm ${canChi})`;
+  if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) {
+    return { ok: false, error: `Ngày ${pad2(dd)}/${pad2(mm)}/${yy} không tồn tại trong lịch dương` };
+  }
+  const L = solarToLunar(dd, mm, yy);
+  const canChi = `${CAN[(L.year + 6) % 10]} ${CHI[(L.year + 8) % 12]}`;
+  return {
+    ok: true,
+    dd,
+    mm,
+    yy,
+    lunar: L,
+    formattedSolar: `${pad2(dd)}/${pad2(mm)}/${yy}`,
+    formattedLunar: `${pad2(L.day)}/${pad2(L.month)}/${L.year}${L.leap ? ' (nhuận)' : ''} (năm ${canChi})`,
+  };
+}
+
+// Kiểm tra định dạng ngày âm lịch độc lập với ngày dương (user có thể tự sửa)
+function parseAndValidateLunar(str) {
+  const s = (str || '').trim();
+  if (!s) return { ok: true, empty: true };
+  let dd = 0, mm = 0, yy = 0, suffix = '';
+  const m1 = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\s+(.*))?$/);
+  const m2 = s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})(?:\s+(.*))?$/);
+  if (m1) {
+    [dd, mm, yy] = [+m1[1], +m1[2], +m1[3]];
+    suffix = (m1[4] || '').trim();
+  } else if (m2) {
+    [yy, mm, dd] = [+m2[1], +m2[2], +m2[3]];
+    suffix = (m2[4] || '').trim();
+  } else {
+    return { ok: false, error: 'Định dạng ngày âm chưa đúng (nhập dd/mm/yyyy, VD: 15/07/2000)' };
+  }
+  if (mm < 1 || mm > 12) return { ok: false, error: 'Tháng âm lịch phải từ 01 đến 12' };
+  if (dd < 1 || dd > 30) return { ok: false, error: 'Ngày âm lịch phải từ 01 đến 30' };
+  if (yy < 1900 || yy > 2100) return { ok: false, error: 'Năm âm lịch phải từ 1900 đến 2100' };
+  const canChi = `${CAN[(yy + 6) % 10]} ${CHI[(yy + 8) % 12]}`;
+  const formattedLunar = `${pad2(dd)}/${pad2(mm)}/${yy}${suffix ? ' ' + suffix : ` (năm ${canChi})`}`;
+  return { ok: true, dd, mm, yy, formattedLunar };
 }
 
 const GY = -0.36;
@@ -185,18 +224,192 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
   }
 
   function ask() {
+    // Nếu đã có ngày dương hợp lệ mà ngày âm đang trống (từ bản lưu trước), tự điền ngày âm
+    if (form.birthSolar && !form.birthLunar) {
+      const initRes = parseAndValidateSolar(form.birthSolar);
+      if (initRes.ok && !initRes.empty) {
+        form.birthLunar = initRes.formattedLunar;
+        saveDraft();
+      }
+    }
+
     let lunarIn = null;
-    const solarIn = makeInput('birthSolar', 'Ngày dương lịch (VD: 15/08/2000)', {
+    const solarErr = h('small', { class: 'duyen-err', hidden: true });
+    const lunarErr = h('small', { class: 'duyen-err', hidden: true });
+    const calPop = h('div', { class: 'duyen-cal-pop', hidden: true });
+
+    const setErr = (inputEl, errEl, msg) => {
+      inputEl.classList.toggle('invalid', !!msg);
+      errEl.textContent = msg || '';
+      errEl.hidden = !msg;
+    };
+
+    // Trạng thái tháng / năm đang mở của lịch chọn ngày dương
+    const curYear = new Date().getFullYear();
+    const parsedInit = parseAndValidateSolar(form.birthSolar);
+    let calView = {
+      m: parsedInit.ok && !parsedInit.empty ? parsedInit.mm : 8,
+      y: parsedInit.ok && !parsedInit.empty ? parsedInit.yy : 2000,
+    };
+
+    const solarIn = makeInput('birthSolar', 'Ngày dương lịch (dd/mm/yyyy, VD: 15/08/2000)', {
       maxlength: 40,
       onInput: (val) => {
-        const auto = autoLunarBirth(val);
-        if (auto && lunarIn) {
-          form.birthLunar = auto;
-          lunarIn.value = auto;
+        const res = parseAndValidateSolar(val);
+        if (res.ok && !res.empty) {
+          setErr(solarIn, solarErr, '');
+          // Tự động điền ngày âm lịch khi ngày dương hợp lệ; sau đó user có thể sửa ngày âm tùy ý
+          form.birthLunar = res.formattedLunar;
+          if (lunarIn) {
+            lunarIn.value = res.formattedLunar;
+            setErr(lunarIn, lunarErr, '');
+          }
+          calView = { m: res.mm, y: res.yy };
+          if (!calPop.hidden) renderCalPop();
+        } else if (res.empty) {
+          setErr(solarIn, solarErr, '');
+        } else if (val.trim().length >= 8) {
+          setErr(solarIn, solarErr, res.error);
+        } else {
+          setErr(solarIn, solarErr, '');
         }
       },
     });
-    lunarIn = makeInput('birthLunar', 'Ngày âm lịch (tự tính khi nhập ngày dương hoặc tự ghi)', { maxlength: 60 });
+    solarIn.addEventListener('blur', () => {
+      const res = parseAndValidateSolar(solarIn.value);
+      if (!res.ok) {
+        setErr(solarIn, solarErr, res.error);
+      } else {
+        setErr(solarIn, solarErr, '');
+        if (!res.empty && solarIn.value !== res.formattedSolar) {
+          form.birthSolar = res.formattedSolar;
+          solarIn.value = res.formattedSolar;
+          saveDraft();
+        }
+      }
+    });
+
+    lunarIn = makeInput('birthLunar', 'Ngày âm lịch (dd/mm/yyyy — tự điền hoặc tự sửa)', {
+      maxlength: 60,
+      onInput: (val) => {
+        // User chỉnh sửa ngày âm độc lập, không ảnh hưởng hay phụ thuộc ngày dương
+        const res = parseAndValidateLunar(val);
+        if (res.ok) setErr(lunarIn, lunarErr, '');
+        else if (val.trim().length >= 8) setErr(lunarIn, lunarErr, res.error);
+        else setErr(lunarIn, lunarErr, '');
+      },
+    });
+    lunarIn.addEventListener('blur', () => {
+      const res = parseAndValidateLunar(lunarIn.value);
+      if (!res.ok) {
+        setErr(lunarIn, lunarErr, res.error);
+      } else {
+        setErr(lunarIn, lunarErr, '');
+      }
+    });
+
+    function renderCalPop() {
+      const monthSel = h('select', {
+        class: 'duyen-cal-sel',
+        'aria-label': 'Chọn tháng dương lịch',
+        onchange: (e) => { calView.m = +e.target.value; renderCalPop(); },
+      }, Array.from({ length: 12 }, (_, i) => {
+        const m = i + 1;
+        const opt = h('option', { value: m, text: `Tháng ${m}` });
+        if (m === calView.m) opt.selected = true;
+        return opt;
+      }));
+
+      const years = [];
+      for (let y = curYear; y >= 1920; y--) {
+        const opt = h('option', { value: y, text: `Năm ${y}` });
+        if (y === calView.y) opt.selected = true;
+        years.push(opt);
+      }
+      const yearSel = h('select', {
+        class: 'duyen-cal-sel',
+        'aria-label': 'Chọn năm dương lịch',
+        onchange: (e) => { calView.y = +e.target.value; renderCalPop(); },
+      }, years);
+
+      const stepMonth = (dm) => {
+        calView.m += dm;
+        if (calView.m < 1) { calView.m = 12; calView.y = Math.max(1920, calView.y - 1); }
+        if (calView.m > 12) { calView.m = 1; calView.y = Math.min(curYear, calView.y + 1); }
+        renderCalPop();
+      };
+
+      const grid = h('div', { class: 'duyen-cal-grid' });
+      for (const w of ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']) {
+        grid.append(h('div', { class: 'duyen-cal-wd', text: w }));
+      }
+      const first = jdFromDate(1, calView.m, calView.y);
+      const lead = (first + 1) % 7 === 0 ? 6 : ((first + 1) % 7) - 1;
+      const days = new Date(Date.UTC(calView.y, calView.m, 0)).getUTCDate();
+      for (let i = 0; i < lead; i++) grid.append(h('div', { class: 'duyen-cal-cell empty' }));
+
+      const curSolar = parseAndValidateSolar(form.birthSolar);
+      for (let d = 1; d <= days; d++) {
+        const L = solarToLunar(d, calView.m, calView.y);
+        const isSel = curSolar.ok && !curSolar.empty && curSolar.dd === d && curSolar.mm === calView.m && curSolar.yy === calView.y;
+        grid.append(h('button', {
+          type: 'button',
+          class: 'duyen-cal-cell' + (isSel ? ' sel' : ''),
+          onclick: () => {
+            const picked = `${pad2(d)}/${pad2(calView.m)}/${calView.y}`;
+            const res = parseAndValidateSolar(picked);
+            if (res.ok && !res.empty) {
+              form.birthSolar = res.formattedSolar;
+              solarIn.value = res.formattedSolar;
+              setErr(solarIn, solarErr, '');
+              form.birthLunar = res.formattedLunar;
+              lunarIn.value = res.formattedLunar;
+              setErr(lunarIn, lunarErr, '');
+              saveDraft();
+            }
+            calPop.hidden = true;
+          },
+        },
+        h('span', { class: 'sd', text: d }),
+        h('span', { class: 'ld', text: L.day === 1 ? `${L.day}/${L.month}` : L.day })));
+      }
+
+      calPop.replaceChildren(
+        h('div', { class: 'duyen-cal-bar' },
+          h('button', { type: 'button', class: 'ghost duyen-cal-nav', 'aria-label': 'Tháng trước', onclick: () => stepMonth(-1), text: '‹' }),
+          monthSel,
+          yearSel,
+          h('button', { type: 'button', class: 'ghost duyen-cal-nav', 'aria-label': 'Tháng sau', onclick: () => stepMonth(1), text: '›' }),
+          h('button', { type: 'button', class: 'ghost duyen-cal-close', onclick: () => { calPop.hidden = true; }, text: 'Đóng' }),
+        ),
+        grid,
+        h('small', { class: 'duyen-cal-hint', text: 'Chạm vào một ngày để chọn ngày dương lịch và tự động điền ngày âm lịch tương ứng.' }),
+      );
+    }
+
+    const calBtn = h('button', {
+      type: 'button',
+      class: 'duyen-cal-btn',
+      title: 'Chọn ngày dương lịch từ lịch',
+      'aria-label': 'Chọn ngày dương lịch từ lịch',
+      onclick: () => {
+        const res = parseAndValidateSolar(solarIn.value);
+        if (res.ok && !res.empty) calView = { m: res.mm, y: res.yy };
+        calPop.hidden = !calPop.hidden;
+        if (!calPop.hidden) renderCalPop();
+      },
+    }, '📅');
+
+    const solarCol = h('div', { class: 'duyen-date-col' },
+      h('small', { class: 'duyen-sub-lbl', text: 'Ngày dương lịch (nhập dd/mm/yyyy hoặc chọn lịch)' }),
+      h('div', { class: 'duyen-input-wrap' }, solarIn, calBtn),
+      solarErr,
+    );
+    const lunarCol = h('div', { class: 'duyen-date-col' },
+      h('small', { class: 'duyen-sub-lbl', text: 'Ngày âm lịch (tự điền từ ngày dương, có thể sửa riêng)' }),
+      lunarIn,
+      lunarErr,
+    );
 
     sheet.replaceChildren(
       h('div', { class: 'sheet-head' },
@@ -220,7 +433,8 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
         ),
         h('div', { class: 'duyen-field' },
           h('span', { class: 'duyen-lbl' }, h('b', { text: 'Ngày tháng năm sinh:' }), ' ', h('small', { text: 'Nên chuẩn bị cả ngày dương lịch và ngày âm lịch (vì đi lễ chùa thường dùng lịch âm).' })),
-          h('div', { class: 'duyen-date-row' }, solarIn, lunarIn),
+          h('div', { class: 'duyen-date-row' }, solarCol, lunarCol),
+          calPop,
         ),
         h('label', { class: 'duyen-field' },
           h('span', { class: 'duyen-lbl' }, h('b', { text: 'Địa chỉ hiện tại:' }), ' ', h('small', { text: 'Nơi bạn đang sinh sống, học tập hoặc làm việc (nêu rõ số nhà, đường, phường, quận/huyện, tỉnh/thành phố) để “bề trên” biết lối mà tìm.' })),
@@ -255,6 +469,23 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
         type: 'button',
         class: 'btn-primary duyen-go',
         onclick: () => {
+          const sRes = parseAndValidateSolar(solarIn.value);
+          const lRes = parseAndValidateLunar(lunarIn.value);
+          setErr(solarIn, solarErr, sRes.ok ? '' : sRes.error);
+          setErr(lunarIn, lunarErr, lRes.ok ? '' : lRes.error);
+          if (!sRes.ok) {
+            solarIn.focus();
+            return;
+          }
+          if (!lRes.ok) {
+            lunarIn.focus();
+            return;
+          }
+          if (!sRes.empty) {
+            form.birthSolar = sRes.formattedSolar;
+            solarIn.value = sRes.formattedSolar;
+          }
+          saveDraft();
           closeModal(modal);
           const w = WISHES.find((x) => x.id === form.pick) || WISHES[0];
           onPray(w, { ...form });
