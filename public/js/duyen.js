@@ -522,23 +522,90 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
     );
   }
 
+  let animTimers = [];
+  const clearAnim = () => {
+    while (animTimers.length) clearTimeout(animTimers.pop());
+  };
+
+  function buildFortuneTube() {
+    const sticks = [-26, -17, -9, 0, 9, 17, 26].map((x, i) =>
+      h('i', { class: `duyen-stick s${i + 1}`, style: `--sx:${x}px;--sd:${(i * 0.07).toFixed(2)}s` }),
+    );
+    const chosenSlip = h('div', { class: 'duyen-chosen-slip' },
+      h('span', { class: 'duyen-slip-knot' }),
+      h('span', { class: 'duyen-slip-txt', text: 'Quẻ Duyên' }),
+    );
+    return h('div', { class: 'duyen-tube-wrap' },
+      h('div', { class: 'duyen-glow' }),
+      h('div', { class: 'duyen-sparks' },
+        h('i', { class: 'sp1', text: '✦' }),
+        h('i', { class: 'sp2', text: '✧' }),
+        h('i', { class: 'sp3', text: '✦' }),
+        h('i', { class: 'sp4', text: '✧' }),
+      ),
+      h('div', { class: 'duyen-tube' },
+        h('div', { class: 'duyen-sticks-back' }, ...sticks),
+        chosenSlip,
+        h('div', { class: 'duyen-tube-mouth' }),
+        h('div', { class: 'duyen-tube-body' },
+          h('div', { class: 'duyen-tube-rim top' }),
+          h('div', { class: 'duyen-tube-badge' }, h('span', { text: 'Duyên' })),
+          h('div', { class: 'duyen-tube-rim bot' }),
+        ),
+        h('div', { class: 'duyen-tube-base' }),
+      ),
+    );
+  }
+
   return {
     open() {
+      clearAnim();
       ask();
       openModal('#modal-duyen');
     },
-    // thẻ lời nhắn sau khi thắt dải lụa / dâng sớ
+    // Hoạt ảnh ống quẻ lắc và lời nhắn bay ra sau khi dâng sớ cầu duyên
     showCard(w, msg, mine) {
-      sheet.replaceChildren(
-        h('div', { class: 'sheet-head duyen-head' }, h('h2', { id: 'duyen-title' }, `${w.icon} `, h('span', { text: w.name })), h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' })),
-        h('div', { class: 'duyen-body' }, ...[
+      clearAnim();
+      const stage = h('div', { class: 'duyen-stage shaking' });
+      const tubeWrap = buildFortuneTube();
+      const statusTxt = h('p', { class: 'duyen-stage-txt', text: 'Đang thành tâm lắc ống quẻ cầu duyên…' });
+      const resultWrap = h('div', { class: 'duyen-result-wrap', hidden: true },
+         ...[
+          h('div', { class: 'duyen-card duyen-fly-card' },
+            h('small', { text: 'Lời nhắn bay ra từ ống quẻ' }),
+            h('p', { text: msg }),
+          ),
           renderSoSummary(mine),
-          h('div', { class: 'duyen-card' }, h('small', { text: 'Lời nhắn từ cây duyên' }), h('p', { text: msg })),
           h('p', { class: 'muted', text: 'Nguyện cho bạn và mọi người đều gặp duyên lành. Nam mô Đại Từ Đại Bi Quán Thế Âm Bồ Tát.' }),
           h('button', { class: 'btn-primary duyen-go', 'data-close': true }, 'Hoan hỷ'),
-        ].filter(Boolean)),
+        ].filter(Boolean),
+      );
+
+      stage.append(tubeWrap, statusTxt);
+      const body = h('div', { class: 'duyen-body' }, stage, resultWrap);
+      sheet.replaceChildren(
+        h('div', { class: 'sheet-head duyen-head' },
+          h('h2', { id: 'duyen-title' }, `${w.icon} `, h('span', { text: w.name })),
+          h('button', { class: 'x', 'data-close': true, 'aria-label': 'Đóng', text: '×' }),
+        ),
+        body,
       );
       openModal('#modal-duyen');
+
+      // Bước 1 (0 -> 1.65s): ống quẻ hiện ra và lắc lắc
+      // Bước 2 (1.65s): quẻ duyên phát sáng bay vọt ra khỏi ống quẻ
+      animTimers.push(setTimeout(() => {
+        stage.classList.remove('shaking');
+        stage.classList.add('flying');
+        statusTxt.textContent = 'Một quẻ duyên lành đang bay ra từ ống quẻ…';
+      }, 1650));
+
+      // Bước 3 (2.45s): lời nhắn mở ra từ quẻ duyên vừa bay lên
+      animTimers.push(setTimeout(() => {
+        stage.classList.add('done');
+        statusTxt.hidden = true;
+        resultWrap.hidden = false;
+      }, 2450));
     },
   };
 }
