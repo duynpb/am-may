@@ -47,10 +47,7 @@ function groundY(x, z) {
   if (Math.abs(x) < 1.6 && z > SHORE - 2 && z < SHORE + 9) return 0.1;
   return 0;
 }
-const mountY = (x, z) => {
-  const r = Math.hypot(x, z + 110);
-  return r < 60 ? 30 : r < 100 ? 30 - (r - 60) * 0.4 : r < 140 ? 14 - (r - 100) * 0.3 : r < 170 ? 2 - (r - 140) * 0.07 : 0;
-};
+let hillAt = () => -1; // độ cao mặt núi Phụng Hoàng (gán khi dựng cảnh)
 
 function build(renderer, { quality = 'high' } = {}) {
   const K = createKit(renderer, { quality, skyTop: '#86b8de', skyBottom: '#e6ebe6', fog: [120, 600], fogColor: 0xdfe6e2 });
@@ -72,9 +69,11 @@ function build(renderer, { quality = 'high' } = {}) {
       m.position.set(x, -1, z);
       scene.add(m);
     }
-    makeHill(K, 0, -110, [[0, 30], [60, 30], [100, 14], [140, 2], [170, -1]], { color: '#5a7442' });
-    const spots = [...K.scatter(-180, 180, -230, -70, 150), ...K.scatter(-140, -36, -70, 44, 60), ...K.scatter(36, 140, -70, 44, 60)];
-    K.pines(spots.map(([x, z]) => [x, z, Math.max(mountY(x, z), 0) - 0.2]));
+    // núi Phụng Hoàng lùi ra sau; trong khuôn viên (bờ hồ, bậc đá, thiền viện) mặt núi luôn thấp hơn mặt đất đi lại
+    const hy = makeHill(K, 0, -175, [[0, 30], [50, 30], [90, 14], [120, 4], [150, -1]], { color: '#5a7442', clip: { x0: -46, x1: 46, z0: -66, z1: SHORE + 1, floor: groundY } });
+    hillAt = hy;
+    const spots = [...K.scatter(-180, 180, -250, -72, 150), ...K.scatter(-140, -36, -70, 44, 60), ...K.scatter(36, 140, -70, 44, 60)];
+    K.pines(spots.map(([x, z]) => [x, z, Math.max(hy(x, z), 0) - 0.2]));
   }
 
   // ---------- Bậc đá lên núi, nền thiền viện ----------
@@ -160,7 +159,7 @@ export const SITE = {
   LAND: 0,
   SPAWN: { x: 0, z: 44, ry: Math.PI },
   WALK_AREAS, ROUND_OBSTACLES, groundY,
-  camFloor: (x, z) => Math.max(groundY(x, z), mountY(x, z)),
+  camFloor: (x, z) => Math.max(groundY(x, z), hillAt(x, z)),
   placeOf: (x, z) => (inHall(HALL, x, z) || z < HALL.z0 ? 'dien' : 'san'),
   defaultPlace: 'san',
   PLACE_INFO: {

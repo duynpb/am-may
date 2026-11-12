@@ -34,6 +34,7 @@ const RITUALS = [
 ];
 for (const R of RITUALS) ROUND_OBSTACLES.push({ x: R.burner.x, z: R.burner.z, r: 0.8 }, { x: R.merit.x, z: R.merit.z, r: 0.7 });
 
+let hillAt = () => -1; // độ cao mặt đồi (gán khi dựng cảnh)
 const HILL = [[0, 22], [26, 22], [60, 12], [100, 4], [140, 0.3], [170, -1]];
 function groundY(x, z) {
   for (const S of [ST1, ST2]) {
@@ -51,10 +52,6 @@ function build(renderer, { quality = 'high' } = {}) {
   const K = createKit(renderer, { quality, skyTop: '#62a4dc', skyBottom: '#e8ecea' });
   const { scene, M, std, mesh, box, cyl, group, floor, terrace, stairs, plaque, pickables } = K;
   const white = std('#f4f1ea', { roughness: 0.6 });
-  const hillY = (x, z) => {
-    const r = Math.hypot(x - 6, z + 150);
-    return r < 26 ? 22 : r < 60 ? 22 - (r - 26) * 0.29 : r < 100 ? 12 - (r - 60) * 0.2 : r < 140 ? 4 - (r - 100) * 0.09 : 0;
-  };
 
   // ---------- Phố, sân, đồi Trại Thủy ----------
   {
@@ -68,8 +65,10 @@ function build(renderer, { quality = 'high' } = {}) {
       const h = 7 + ((i * 41) % 8);
       box(9.4, h, 10, shop[i % 3], -95 + i * 10, h / 2, 68, { cast: false });
     }
-    makeHill(K, 6, -150, HILL);
-    K.forest([...K.scatter(-140, 150, -260, -84, 120), ...K.scatter(-110, -20, -84, -14, 40), ...K.scatter(44, 140, -84, 20, 40)].map(([x, z]) => [x, z, hillY(x, z) - 0.3]), 0, { scale: 1.2 });
+    // đồi Trại Thủy; trong khuôn viên mặt đồi luôn thấp hơn sân, nền, bậc thang
+    const hy = makeHill(K, 6, -160, HILL, { clip: { x0: -46, x1: 46, z0: -84, z1: 60, floor: groundY } });
+    hillAt = hy;
+    K.forest([...K.scatter(-140, 150, -270, -88, 120), ...K.scatter(-110, -20, -84, -14, 40), ...K.scatter(44, 140, -84, 20, 40)].map(([x, z]) => [x, z, Math.max(0, hy(x, z)) - 0.3]), 0, { scale: 1.2 });
   }
 
   // ---------- Cổng, chánh điện mái rồng khảm sành ----------
@@ -163,11 +162,7 @@ export const SITE = {
   LAND: 0,
   SPAWN: { x: 0, z: 49, ry: Math.PI },
   WALK_AREAS, ROUND_OBSTACLES, groundY,
-  camFloor: (x, z) => {
-    const r = Math.hypot(x - 6, z + 150);
-    const h = r < 26 ? 22 : r < 60 ? 22 - (r - 26) * 0.29 : r < 100 ? 12 - (r - 60) * 0.2 : r < 140 ? 4 - (r - 100) * 0.09 : 0;
-    return Math.max(groundY(x, z), h);
-  },
+  camFloor: (x, z) => Math.max(groundY(x, z), hillAt(x, z)),
   placeOf(x, z) {
     if (z < T2.z1 + 0.5) return 'kimthan';
     if (x > T1.x0 - 1 && z < T1.z1 + 0.5 && z > T1.z0 - 1) return 'nam';

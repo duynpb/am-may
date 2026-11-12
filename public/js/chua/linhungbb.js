@@ -66,12 +66,9 @@ function build(renderer, { quality = 'high' } = {}) {
     for (let x = -44; x <= 44; x += 2.2) cyl(0.12, 0.14, 1.0, M.stone, x, 0.5, EDGE - 0.2, {}, 8);
     K.water(-900, 900, EDGE + 4, EDGE + 900, -24, { color: '#3a7fa3' });
     // núi Sơn Trà phía sau
-    makeHill(K, 0, -245, [[0, 60], [40, 58], [90, 34], [130, 14], [165, 2], [190, -1]]);
-    K.forest([...K.scatter(-200, 200, -230, -60, 140), ...K.scatter(-120, -48, -60, 30, 30), ...K.scatter(48, 120, -60, 30, 30)].map(([x, z]) => {
-      const r = Math.hypot(x, z + 245);
-      const y = r < 40 ? 60 : r < 90 ? 58 - (r - 40) * 0.48 : r < 130 ? 34 - (r - 90) * 0.5 : r < 165 ? 14 - (r - 130) * 0.34 : 0;
-      return [x, z, Math.max(0, y) - 0.3];
-    }), 0, { scale: 1.2 });
+    // núi Sơn Trà phía sau; trong khuôn viên mặt núi luôn thấp hơn mặt đất đi lại
+    const hy = makeHill(K, 0, -245, [[0, 60], [40, 58], [90, 34], [130, 14], [165, 2], [190, -1]], { clip: { x0: -48, x1: 48, z0: -48, z1: EDGE + 1, floor: groundY } });
+    K.forest([...K.scatter(-200, 200, -230, -60, 140), ...K.scatter(-120, -50, -60, 30, 30), ...K.scatter(50, 120, -60, 30, 30)].map(([x, z]) => [x, z, Math.max(0, hy(x, z)) - 0.3]), 0, { scale: 1.2 });
   }
 
   // ---------- Cổng tam quan ----------

@@ -74,8 +74,9 @@ function build(renderer, { quality = 'high' } = {}) {
     const head = new THREE.CatmullRomCurve3([[0, 0.6, 4.4], [0, 1.4, 5.2], [0, 2.2, 5.0], [0, 2.4, 5.6]].map(([a, b, c]) => new THREE.Vector3(a, b, c)));
     mesh(new THREE.TubeGeometry(head, 12, 0.22, 8), M.glaze, 0, 0, 0, { parent: boat });
     // đồi Hà Khê sau chùa
-    makeHill(K, 0, -170, [[0, 26], [30, 26], [70, 14], [110, 5], [150, 0.4], [180, -1]]);
-    K.pines([...K.scatter(-120, 120, -150, -70, 70), ...K.scatter(-110, -36, -66, 26, 30), ...K.scatter(36, 110, -66, 26, 30)].map(([x, z]) => [x, z, Math.max(0, 26 - Math.max(0, Math.hypot(x, z + 170) - 30) * 0.28) - 0.2]));
+    // đồi lùi ra sau; trong khuôn viên (sân, bậc đá, bờ sông) mặt đồi luôn thấp hơn mặt đất đi lại
+    const hy = makeHill(K, 0, -185, [[0, 26], [30, 26], [70, 14], [110, 5], [150, 0.4], [180, -1]], { clip: { x0: -46, x1: 46, z0: -66, z1: RIVER_Z + 1, floor: groundY } });
+    K.pines([...K.scatter(-120, 120, -165, -72, 70), ...K.scatter(-110, -38, -66, 26, 30), ...K.scatter(38, 110, -66, 26, 30)].map(([x, z]) => [x, z, Math.max(0, hy(x, z)) - 0.2]));
   }
 
   // ---------- Đồi chùa: nền đất đắp, bậc đá từ bến sông ----------

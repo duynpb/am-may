@@ -658,18 +658,34 @@ export function profileY(profile, r) {
   }
   return profile[profile.length - 1][1];
 }
-export function makeHill(K, cx, cz, profile, { color = '#56713e', seg = 72, bumps = 1.2 } = {}) {
-  const top = profile[0][1];
-  const geo = new THREE.LatheGeometry([...profile].reverse().map(([r, y]) => new THREE.Vector2(Math.max(r, 0.01), y)), seg);
+// clip = { x0, x1, z0, z1, floor(x, z) }: trong khuôn viên chùa (hình chữ nhật này), mặt đồi luôn thấp hơn
+// mặt sân / nền / bậc thang ít nhất 1,5 m — đồi không bao giờ trồi lên phủ lối đi.
+export function makeHill(K, cx, cz, profile, { color = '#56713e', seg = 144, bumps = 1.2, clip = null } = {}) {
+  const top = profile[0][1], rMax = profile[profile.length - 1][0];
+  // chia dày các vòng (mỗi 3 m) để phần bị hạ thấp trong khuôn viên không bị tam giác lớn kéo trồi lên
+  const pts = [];
+  for (let r = rMax; r > 0; r -= 3) pts.push(new THREE.Vector2(r, profileY(profile, r)));
+  pts.push(new THREE.Vector2(0.01, top));
+  const geo = new THREE.LatheGeometry(pts, seg);
   const p = geo.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const y = p.getY(i), a = Math.atan2(p.getZ(i), p.getX(i));
-    if (y > 0 && y < top - 0.1) p.setY(i, y + (Math.sin(a * 9) * 1.0 + Math.sin(a * 17) * 0.5) * bumps);
-  }
+  const bump = (y, a) => (y > 0 && y < top - 0.1 ? (Math.sin(a * 9) * 1.0 + Math.sin(a * 17) * 0.5) * bumps : 0);
+  const yAt = (x, z) => {
+    const a = Math.atan2(z - cz, x - cx);
+    let y = profileY(profile, Math.hypot(x - cx, z - cz));
+    y += bump(y, a);
+    if (clip && x > clip.x0 && x < clip.x1 && z > clip.z0 && z < clip.z1) {
+      // lấy mặt đất thấp nhất quanh điểm (±7 m) vì các ô của đồi thưa: mép nền cao không kéo đồi trồi lên lối đi bên cạnh
+      let f = Infinity;
+      for (const dx of [-7, 0, 7]) for (const dz of [-7, 0, 7]) f = Math.min(f, clip.floor(x + dx, z + dz));
+      y = Math.min(y, f - 1.5);
+    }
+    return y;
+  };
+  for (let i = 0; i < p.count; i++) p.setY(i, yAt(p.getX(i) + cx, p.getZ(i) + cz));
   geo.computeVertexNormals();
   const m = new THREE.Mesh(geo, K.std(color, { roughness: 0.95, flatShading: true }));
   m.position.set(cx, 0, cz);
   m.receiveShadow = true;
   K.scene.add(m);
-  return (x, z) => profileY(profile, Math.hypot(x - cx, z - cz));
+  return yAt; // độ cao mặt đồi (đã hạ trong khuôn viên) — dùng để trồng cây cho đúng mặt đất
 }
