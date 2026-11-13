@@ -137,6 +137,15 @@ const BOARDS = {
   'PHẬT THÍCH CA': [['SHAKYAMUNI BUDDHA'], ['释迦牟尼佛'], ['SHAKYAMUNI-BUDDHA']],
   'TRÚC LÂM HỘ QUỐC': [['TRÚC LÂM HỘ QUỐC'], ['竹林护国'], ['TRÚC LÂM HỘ QUỐC']],
   'TÂY AN CỔ TỰ': [['TÂY AN ANCIENT PAGODA'], ['西安古寺'], ['ALTE TÂY-AN-PAGODE']],
+  // các chùa miền Nam — đợt ba
+  'GIÁC LÂM TỰ': [['GIÁC LÂM PAGODA'], ['觉林寺'], ['GIÁC-LÂM-PAGODE']],
+  'BẢO THÁP PHẬT': [['BUDDHA STUPA'], ['佛塔'], ['BUDDHA-STUPA']],
+  'NGỌC HOÀNG TỰ': [['JADE EMPEROR PAGODA'], ['玉皇寺'], ['JADEKAISER-PAGODE']],
+  'NGỌC HOÀNG ĐIỆN': [['JADE EMPEROR HALL'], ['玉皇殿'], ['JADEKAISER-HALLE']],
+  'HỒ RÙA': [['TURTLE POND'], ['乌龟池'], ['SCHILDKRÖTENTEICH']],
+  'VIỆT NAM QUỐC TỰ': [['VIETNAM QUỐC TỰ PAGODA'], ['越南国寺'], ['VIETNAM-QUỐC-TỰ-PAGODE']],
+  'QUAN ÂM BỒ TÁT': [['GUANYIN BODHISATTVA'], ['观音菩萨'], ['GUANYIN BODHISATTVA']],
+  'CHÙA ÂNG': [['ÂNG PAGODA'], ['翁寺'], ['ÂNG-PAGODE']],
   // các chùa Hà Nội
   'THÁNH CHÚA TỰ': [['THÁNH CHÚA PAGODA'], ['圣主寺'], ['THÁNH-CHÚA-PAGODE']],
   'TAM BẢO': [['THREE JEWELS HALL'], ['三宝殿'], ['HALLE DER DREI JUWELEN']],

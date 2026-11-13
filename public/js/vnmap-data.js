@@ -117,9 +117,9 @@ export const PAGODAS = [
   { id: 'khaidoan', name: 'Chùa Khải Đoan', prov: 'Đắk Lắk', lat: 12.675, lon: 108.04 },
   // Miền Nam
   { id: 'vinhnghiem', name: 'Chùa Vĩnh Nghiêm', prov: 'TP. Hồ Chí Minh', lat: 10.79, lon: 106.684, built: 'vinhnghiem' },
-  { id: 'giaclam', name: 'Chùa Giác Lâm', prov: 'TP. Hồ Chí Minh', lat: 10.779, lon: 106.651 },
-  { id: 'ngochoang', name: 'Chùa Ngọc Hoàng', prov: 'TP. Hồ Chí Minh', lat: 10.792, lon: 106.698 },
-  { id: 'vnquoctu', name: 'Việt Nam Quốc Tự', prov: 'TP. Hồ Chí Minh', lat: 10.77, lon: 106.675 },
+  { id: 'giaclam', name: 'Chùa Giác Lâm', prov: 'TP. Hồ Chí Minh', lat: 10.779, lon: 106.651, built: 'giaclam' },
+  { id: 'ngochoang', name: 'Chùa Ngọc Hoàng', prov: 'TP. Hồ Chí Minh', lat: 10.792, lon: 106.698, built: 'ngochoang' },
+  { id: 'vnquoctu', name: 'Việt Nam Quốc Tự', prov: 'TP. Hồ Chí Minh', lat: 10.77, lon: 106.675, built: 'vnquoctu' },
   { id: 'buulong', name: 'Chùa Bửu Long', prov: 'TP. Hồ Chí Minh', lat: 10.88, lon: 106.835, built: 'buulong' },
   { id: 'baden', name: 'Chùa Bà Núi Bà Đen', prov: 'Tây Ninh', lat: 11.38, lon: 106.17, built: 'baden' },
   { id: 'hoikhanh', name: 'Chùa Hội Khánh', prov: 'TP. Hồ Chí Minh', old: 'Bình Dương', lat: 10.98, lon: 106.656 },
@@ -131,7 +131,7 @@ export const PAGODAS = [
   { id: 'tayan', name: 'Chùa Tây An', prov: 'An Giang', lat: 10.679, lon: 105.082, built: 'tayan' },
   { id: 'doi', name: 'Chùa Dơi', prov: 'Cần Thơ', old: 'Sóc Trăng', lat: 9.59, lon: 105.97, built: 'chuadoi' },
   { id: 'kleang', name: 'Chùa Kh\'Leang', prov: 'Cần Thơ', old: 'Sóc Trăng', lat: 9.605, lon: 105.98 },
-  { id: 'ang', name: 'Chùa Âng', prov: 'Vĩnh Long', old: 'Trà Vinh', lat: 9.923, lon: 106.311 },
+  { id: 'ang', name: 'Chùa Âng', prov: 'Vĩnh Long', old: 'Trà Vinh', lat: 9.923, lon: 106.311, built: 'ang' },
   { id: 'phudung', name: 'Chùa Phù Dung', prov: 'An Giang', old: 'Kiên Giang', lat: 10.385, lon: 104.49 },
   { id: 'hoquoc', name: 'Thiền viện Trúc Lâm Hộ Quốc', prov: 'Đặc khu Phú Quốc, An Giang', old: 'Kiên Giang', lat: 10.13, lon: 104.05, built: 'hoquoc' },
   // Hoàng Sa, Trường Sa

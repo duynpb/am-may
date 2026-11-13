@@ -47,6 +47,11 @@ const LOAD = {
   vinhtrang: () => import('./vinhtrang.js'),
   hoquoc: () => import('./hoquoc.js'),
   tayan: () => import('./tayan.js'),
+  // miền Nam — đợt ba
+  giaclam: () => import('./giaclam.js'),
+  ngochoang: () => import('./ngochoang.js'),
+  vnquoctu: () => import('./vnquoctu.js'),
+  ang: () => import('./chuaang.js'),
 };
 let siteId = params.get('site');
 {
