@@ -2,12 +2,13 @@
 // là sân vườn rộng có ba pho tượng lớn ngoài trời: Phật Di Lặc bụng tròn, Phật Thích Ca ngồi thiền, Phật nằm; chánh điện nhiều
 // lớp mái ở giữa, vườn cây ăn trái và cây kiểng xung quanh. (Phỏng theo không khí chùa, không sao chép công trình thật.)
 import { createKit, THREE, rect, hallWalk, inHall, gateWalk } from './base.js';
-import { makeThichCa, loadRecliningBuddha, RELIEF_NAM } from '../buddha.js';
+import { makeThichCa, loadRecliningBuddha, RELIEF_NAM, loadDiLac } from '../buddha.js';
 
 const GATE_Z = 50;
 const YARD = { x0: -42, x1: 42, z0: -52, z1: 47 };
 const HALL = { x: 0, z0: 0, z1: -20, hx: 12, y: 0, plaque: 'VĨNH TRÀNG TỰ', wallH: 6.2 };
 const DILAC = { x: -26, z: 26, r: 4.2 }; // Phật Di Lặc
+const DILAC_H = 5.6; // chiều cao tượng Di Lặc mẫu (rộng ~7,1 m, sâu ~4 m)
 const THICHCA = { x: 26, z: 26, r: 4.2 }; // Phật Thích Ca ngồi thiền
 const NAM = { x: 0, z: -40, len: 18 }; // Phật nằm sau chánh điện
 const CENTER = { x: 0, z: 16 };
@@ -66,31 +67,18 @@ function build(renderer, { quality = 'high' } = {}) {
 
   // ---------- Ba pho tượng lớn ngoài trời ----------
   {
-    // Phật Di Lặc: bụng tròn, cười, tay cầm túi vải
+    // Phật Di Lặc (bệ tròn + tượng chạm nổi)
     const g = group(DILAC.x, 0, DILAC.z, 0.3);
     cyl(DILAC.r, DILAC.r + 0.4, 1.4, white, 0, 0.7, 0, { parent: g }, 28);
-    const robe = std('#f3d27a', { roughness: 0.55 });
-    mesh(new THREE.SphereGeometry(2.6, 24, 18), robe, 0, 3.4, 0, { parent: g }).scale.set(1.15, 1.0, 1.0); // bụng
-    mesh(new THREE.SphereGeometry(1.4, 20, 14), robe, 0, 5.9, 0, { parent: g }); // ngực, vai
-    mesh(new THREE.SphereGeometry(1.1, 20, 14), std('#f1d2a6', { roughness: 0.6 }), 0, 7.5, 0.1, { parent: g }); // đầu
-    for (const s of [-1, 1]) mesh(new THREE.SphereGeometry(0.34, 10, 8), std('#f1d2a6'), s * 1.1, 7.45, 0.1, { parent: g }).scale.set(0.5, 1.4, 0.6); // tai dài
-    // khuôn mặt: mắt cười, mũi, miệng cười rộng, má hồng
-    const dark = std('#4a2c1a', { roughness: 0.7 });
-    for (const sx of [-1, 1]) {
-      const eye = mesh(new THREE.TorusGeometry(0.2, 0.045, 6, 12, Math.PI), dark, sx * 0.42, 7.72, 1.12, { parent: g });
-      eye.rotation.z = 0;
-      mesh(new THREE.SphereGeometry(0.17, 10, 8), std('#f4a58f', { roughness: 0.7 }), sx * 0.7, 7.38, 1.0, { parent: g }).scale.set(1, 0.7, 0.4);
-    }
-    mesh(new THREE.SphereGeometry(0.16, 10, 8), std('#e8b890'), 0, 7.5, 1.22, { parent: g });
-    const mouth = mesh(new THREE.TorusGeometry(0.45, 0.06, 6, 14, Math.PI), std('#8a2d22', { roughness: 0.6 }), 0, 7.32, 1.1, { parent: g });
-    mouth.rotation.z = Math.PI;
-    mesh(new THREE.SphereGeometry(0.12, 8, 6), dark, 0, 3.7, 2.55, { parent: g }); // rốn
-    mesh(new THREE.TorusGeometry(2.4, 0.07, 6, 28, Math.PI * 0.9), std('#d9b04e', { roughness: 0.6 }), 0, 4.1, 0.2, { parent: g }).rotation.set(0.2, 0, Math.PI * 0.55); // nếp áo ngang bụng
-    mesh(new THREE.SphereGeometry(0.95, 14, 10), robe, -2.1, 3.0, 1.4, { parent: g }); // túi vải
-    for (const s of [-1, 1]) {
-      const arm = mesh(new THREE.CylinderGeometry(0.4, 0.55, 2.6, 10), robe, s * 2.3, 5.4, 0.2, { parent: g });
-      arm.rotation.z = s * 0.7;
-    }
+    // tượng Di Lặc chạm nổi (mẫu khắc maufree.vn số 6863): nạp xong thì đặt lên bệ; lỗi thì chỉ còn bệ trống
+    loadDiLac().then((st) => {
+      const m = st.clone();
+      m.scale.setScalar(DILAC_H);
+      m.position.y = 1.4;
+      m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+    }).catch((e) => console.warn('Không nạp được tượng Di Lặc mẫu', e));
     plaque(scene, 'PHẬT DI LẶC', DILAC.x + Math.sin(0.3) * (DILAC.r + 0.1), 0.9, DILAC.z + Math.cos(0.3) * (DILAC.r + 0.1), 2.6, 0.5, 0.3, { size: 90 });
 
     // Phật Thích Ca ngồi thiền trên tòa sen lớn, cùng mẫu tượng chánh điện Am Mây

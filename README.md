@@ -34,6 +34,7 @@ public/
   models/buddha-thien.glb  Tượng Phật ngồi thiền trên tòa sen trong chánh điện và giữa điện Tam Thế (mẫu khắc maufree.vn số 7021, giảm còn 120 nghìn mặt, nén Draco)
   models/buddha-thien-2.glb  Hai tượng hai bên điện Tam Thế (mẫu khắc maufree.vn số 6217, giảm còn 100 nghìn mặt, nén Draco)
   models/buddha-dung.glb  Tượng Phật đứng trên tòa sen trong khám thờ tháp trên núi đá (mẫu khắc maufree.vn số 7022, 90 nghìn mặt, nén Draco)
+  models/di-lac.glb  Tượng Phật Di Lặc chạm nổi ở chùa Vĩnh Tràng (mẫu khắc maufree.vn số 6863, giảm còn 110 nghìn mặt, không nén)
   models/quan-am.glb       Tượng Quan Âm đứng trên tòa sen trong điện Quan Âm (mẫu khắc maufree.vn số 6687, giảm còn 120 nghìn mặt, nén Draco)
   js/quanam.js       Tượng Quan Âm đứng trên tòa sen (dát vàng, trong điện Quan Âm)
   js/lahan.js        Tượng La Hán đá (ba tư thế, vẽ hàng loạt)

@@ -641,3 +641,29 @@ export function loadRecliningBuddha() {
   });
   return namPromise;
 }
+
+// ---------- Tượng Phật Di Lặc chạm nổi (mẫu khắc maufree.vn số 6863, chùa Vĩnh Tràng) ----------
+// File di-lac.glb: cao 1, rộng ~1,28, sâu ~0,71, đáy ở y = 0, mặt tượng nhìn về +z, mặt lưng phẳng ở z ≈ -0,35.
+// Sơn vàng ngà: chỗ nhô ra trước sáng hơn, chỗ lõm sâu (nếp áo, các em bé) sẫm hơn.
+export const DI_LAC = { url: '/models/di-lac.glb', width: 1.276, depth: 0.706 };
+let diLacPromise = null;
+export function loadDiLac() {
+  diLacPromise ??= loadGlbGeometry(DI_LAC.url).then((geo) => {
+    const pos = geo.attributes.position, nor = geo.attributes.normal, n = pos.count;
+    const col = new Float32Array(n * 3), lo = new THREE.Color('#9c7a3c'), hi = new THREE.Color('#fff1c4'), c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      const front = (pos.getZ(i) + DI_LAC.depth / 2) / DI_LAC.depth; // 0 = sát lưng, 1 = nhô ra nhất
+      const up = nor.getY(i) * 0.5 + 0.5;
+      const t = Math.min(1, Math.max(0, 0.15 + front * 0.65 + up * 0.25));
+      c.copy(lo).lerp(hi, t);
+      col.set([c.r, c.g, c.b], i * 3);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.55, metalness: 0.05, envMapIntensity: 0.7 });
+    return new THREE.Mesh(geo, mat);
+  }).catch((e) => {
+    diLacPromise = null;
+    throw e;
+  });
+  return diLacPromise;
+}
