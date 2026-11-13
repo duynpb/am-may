@@ -3,6 +3,7 @@
 // Điều mong cầu viết riêng chỉ hiện trên máy mình, không gửi đi đâu, không lưu lại.
 import * as THREE from 'three';
 import { solarToLunar, jdFromDate } from './lunar.js';
+import { t } from './i18n.js';
 
 const CAN = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'];
 const CHI = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'];
@@ -33,7 +34,7 @@ function parseAndValidateSolar(str) {
     yy,
     lunar: L,
     formattedSolar: `${pad2(dd)}/${pad2(mm)}/${yy}`,
-    formattedLunar: `${pad2(L.day)}/${pad2(L.month)}/${L.year}${L.leap ? ' (nhuận)' : ''} (năm ${canChi})`,
+    formattedLunar: t(`${pad2(L.day)}/${pad2(L.month)}/${L.year}${L.leap ? ' (nhuận)' : ''} (năm ${canChi})`),
   };
 }
 
@@ -57,7 +58,7 @@ function parseAndValidateLunar(str) {
   if (dd < 1 || dd > 30) return { ok: false, error: 'Ngày âm lịch phải từ 01 đến 30' };
   if (yy < 1900 || yy > 2100) return { ok: false, error: 'Năm âm lịch phải từ 1900 đến 2100' };
   const canChi = `${CAN[(yy + 6) % 10]} ${CHI[(yy + 8) % 12]}`;
-  const formattedLunar = `${pad2(dd)}/${pad2(mm)}/${yy}${suffix ? ' ' + suffix : ` (năm ${canChi})`}`;
+  const formattedLunar = suffix ? `${pad2(dd)}/${pad2(mm)}/${yy} ${suffix}` : t(`${pad2(dd)}/${pad2(mm)}/${yy} (năm ${canChi})`);
   return { ok: true, dd, mm, yy, formattedLunar };
 }
 
@@ -215,7 +216,6 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
       type: isArea ? undefined : (opts.type || 'text'),
       maxlength: opts.maxlength || 180,
       placeholder,
-      'data-no-i18n': true,
     });
     el.value = form[key] || '';
     el.addEventListener('input', () => {
@@ -234,6 +234,8 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
         form.birthLunar = initRes.formattedLunar;
         saveDraft();
       }
+    } else if (form.birthLunar) {
+      form.birthLunar = t(form.birthLunar);
     }
 
     let lunarIn = null;
@@ -519,9 +521,9 @@ export function createDuyenDialog({ openModal, closeModal, onPray }) {
       ['Tâm nguyện', mine.wishText],
     ].filter(([, v]) => v && String(v).trim());
     if (!rows.length) return null;
-    return h('div', { class: 'duyen-so', 'data-no-i18n': true },
+    return h('div', { class: 'duyen-so' },
       h('small', { class: 'duyen-so-title', text: 'Sớ cầu duyên của bạn' }),
-      ...rows.map(([k, v]) => h('div', { class: 'duyen-so-row' }, h('b', { text: `${k}: ` }), h('span', { text: String(v).trim() }))),
+      ...rows.map(([k, v]) => h('div', { class: 'duyen-so-row' }, h('b', { text: `${k}: ` }), h('span', { 'data-no-i18n': true, text: String(v).trim() }))),
     );
   }
 
