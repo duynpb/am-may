@@ -2,6 +2,7 @@
 // Thêm câu mới: thêm một dòng ở đây. Câu không có trong bảng thì giữ nguyên tiếng Việt.
 import PART2 from './i18n-data2.js';
 import PART3 from './i18n-data3.js';
+import PART4 from './i18n-data4.js';
 const D = {
   // ---------- Khung trang, nút chính ----------
   'Am Mây — Chùa trực tuyến': ['Am Mây — Online Pagoda', '云庵 — 线上寺院', 'Am Mây — Online-Pagode'],
@@ -142,5 +143,6 @@ const D = {
   'Hôm nay: {0} hạt': ['Today: {0} beads', '今日：{0}颗', 'Heute: {0} Perlen'],
   ...PART2,
   ...PART3,
+  ...PART4,
 };
 export default D;

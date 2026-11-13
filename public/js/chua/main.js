@@ -52,6 +52,15 @@ const LOAD = {
   ngochoang: () => import('./ngochoang.js'),
   vnquoctu: () => import('./vnquoctu.js'),
   ang: () => import('./chuaang.js'),
+  // miền Trung và đảo — đợt hai
+  linhungnn: () => import('./nonnuoc.js'),
+  hanglyson: () => import('./hanglyson.js'),
+  linhphuoc: () => import('./linhphuoc.js'),
+  tuhieu: () => import('./tuhieu.js'),
+  hoangsa: () => import('./hoangsa.js'),
+  tslon: () => import('./truongsalon.js'),
+  songtutay: () => import('./songtutay.js'),
+  nuimot: () => import('./nuimot.js'),
 };
 let siteId = params.get('site');
 {
