@@ -129,6 +129,14 @@ const BOARDS = {
   'TRÚC LÂM THIỀN VIỆN': [['TRÚC LÂM ZEN MONASTERY'], ['竹林禅院'], ['TRÚC-LÂM-ZEN-KLOSTER']],
   'NỘI VIỆN': [['INNER COURT'], ['内院'], ['INNERER HOF']],
   'ĐỒI ROBIN': [['ROBIN HILL'], ['罗宾山'], ['ROBIN-HÜGEL']],
+  // các chùa miền Nam — đợt hai
+  'BỬU LONG TỰ': [['BỬU LONG PAGODA'], ['宝龙寺'], ['BỬU-LONG-PAGODE']],
+  'BẢO THÁP GOTAMA': [['GOTAMA STUPA'], ['乔达摩宝塔'], ['GOTAMA-STUPA']],
+  'VĨNH TRÀNG TỰ': [['VĨNH TRÀNG PAGODA'], ['永长寺'], ['VĨNH-TRÀNG-PAGODE']],
+  'PHẬT DI LẶC': [['MAITREYA BUDDHA'], ['弥勒佛'], ['MAITREYA-BUDDHA']],
+  'PHẬT THÍCH CA': [['SHAKYAMUNI BUDDHA'], ['释迦牟尼佛'], ['SHAKYAMUNI-BUDDHA']],
+  'TRÚC LÂM HỘ QUỐC': [['TRÚC LÂM HỘ QUỐC'], ['竹林护国'], ['TRÚC LÂM HỘ QUỐC']],
+  'TÂY AN CỔ TỰ': [['TÂY AN ANCIENT PAGODA'], ['西安古寺'], ['ALTE TÂY-AN-PAGODE']],
   // các chùa Hà Nội
   'THÁNH CHÚA TỰ': [['THÁNH CHÚA PAGODA'], ['圣主寺'], ['THÁNH-CHÚA-PAGODE']],
   'TAM BẢO': [['THREE JEWELS HALL'], ['三宝殿'], ['HALLE DER DREI JUWELEN']],
