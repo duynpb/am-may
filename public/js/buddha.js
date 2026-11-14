@@ -642,10 +642,10 @@ export function loadRecliningBuddha() {
   return namPromise;
 }
 
-// ---------- Tượng Phật Di Lặc chạm nổi (mẫu khắc maufree.vn số 6863, chùa Vĩnh Tràng) ----------
-// File di-lac.glb: cao 1, rộng ~1,28, sâu ~0,71, đáy ở y = 0, mặt tượng nhìn về +z, mặt lưng phẳng ở z ≈ -0,35.
+// ---------- Tượng Phật Di Lặc (mẫu khắc maufree.vn số 6863, chùa Vĩnh Tràng) ----------
+// File di-lac.glb: cao 1, rộng ~1,67, sâu ~1,08, đáy phẳng ở y = 0, mặt tượng nhìn về +z.
 // Sơn vàng ngà: chỗ nhô ra trước sáng hơn, chỗ lõm sâu (nếp áo, các em bé) sẫm hơn.
-export const DI_LAC = { url: '/models/di-lac.glb', width: 1.276, depth: 0.706 };
+export const DI_LAC = { url: '/models/di-lac.glb', width: 1.669, depth: 1.079 };
 let diLacPromise = null;
 export function loadDiLac() {
   diLacPromise ??= loadGlbGeometry(DI_LAC.url).then((geo) => {

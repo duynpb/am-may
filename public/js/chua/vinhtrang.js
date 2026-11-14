@@ -8,7 +8,7 @@ const GATE_Z = 50;
 const YARD = { x0: -42, x1: 42, z0: -52, z1: 47 };
 const HALL = { x: 0, z0: 0, z1: -20, hx: 12, y: 0, plaque: 'VĨNH TRÀNG TỰ', wallH: 6.2 };
 const DILAC = { x: -26, z: 26, r: 4.2 }; // Phật Di Lặc
-const DILAC_H = 5.6; // chiều cao tượng Di Lặc mẫu (rộng ~7,1 m, sâu ~4 m)
+const DILAC_H = 4.0; // chiều cao tượng Di Lặc mẫu (rộng ~6,7 m, sâu ~4,3 m, vừa bệ tròn)
 const THICHCA = { x: 26, z: 26, r: 4.2 }; // Phật Thích Ca ngồi thiền
 const NAM = { x: 0, z: -40, len: 18 }; // Phật nằm sau chánh điện
 const CENTER = { x: 0, z: 16 };
@@ -67,10 +67,10 @@ function build(renderer, { quality = 'high' } = {}) {
 
   // ---------- Ba pho tượng lớn ngoài trời ----------
   {
-    // Phật Di Lặc (bệ tròn + tượng chạm nổi)
+    // Phật Di Lặc (bệ tròn + tượng mẫu)
     const g = group(DILAC.x, 0, DILAC.z, 0.3);
     cyl(DILAC.r, DILAC.r + 0.4, 1.4, white, 0, 0.7, 0, { parent: g }, 28);
-    // tượng Di Lặc chạm nổi (mẫu khắc maufree.vn số 6863): nạp xong thì đặt lên bệ; lỗi thì chỉ còn bệ trống
+    // tượng Di Lặc (mẫu khắc maufree.vn số 6863): nạp xong thì đặt lên bệ; lỗi thì chỉ còn bệ trống
     loadDiLac().then((st) => {
       const m = st.clone();
       m.scale.setScalar(DILAC_H);
