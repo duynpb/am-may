@@ -61,6 +61,11 @@ const LOAD = {
   tslon: () => import('./truongsalon.js'),
   songtutay: () => import('./songtutay.js'),
   nuimot: () => import('./nuimot.js'),
+  sinhton: () => import('./sinhton.js'),
+  thienan: () => import('./thienan.js'),
+  tudam: () => import('./tudam.js'),
+  namyet: () => import('./namyet.js'),
+  sonca: () => import('./sonca.js'),
 };
 let siteId = params.get('site');
 {

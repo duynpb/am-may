@@ -100,12 +100,12 @@ export const PAGODAS = [
   // Miền Trung, Tây Nguyên
   { id: 'daitue', name: 'Chùa Đại Tuệ', prov: 'Nghệ An', lat: 18.7, lon: 105.5 },
   { id: 'thienmu', name: 'Chùa Thiên Mụ', prov: 'Huế', lat: 16.4535, lon: 107.545, built: 'thienmu' },
-  { id: 'tudam', name: 'Chùa Từ Đàm', prov: 'Huế', lat: 16.456, lon: 107.573 },
+  { id: 'tudam', name: 'Chùa Từ Đàm', prov: 'Huế', lat: 16.456, lon: 107.573, built: 'tudam' },
   { id: 'tuhieu', name: 'Chùa Từ Hiếu', prov: 'Huế', lat: 16.444, lon: 107.576, built: 'tuhieu' },
   { id: 'linhungbb', name: 'Chùa Linh Ứng Bãi Bụt', prov: 'Đà Nẵng', lat: 16.1, lon: 108.278, built: 'linhungbb' },
   { id: 'linhungnn', name: 'Chùa Linh Ứng Non Nước', prov: 'Đà Nẵng', lat: 16.004, lon: 108.263, built: 'linhungnn' },
   { id: 'chucthanh', name: 'Chùa Chúc Thánh', prov: 'Đà Nẵng', old: 'Quảng Nam', lat: 15.892, lon: 108.326 },
-  { id: 'thienan', name: 'Chùa Thiên Ấn', prov: 'Quảng Ngãi', lat: 15.13, lon: 108.83 },
+  { id: 'thienan', name: 'Chùa Thiên Ấn', prov: 'Quảng Ngãi', lat: 15.13, lon: 108.83, built: 'thienan' },
   { id: 'hanglyson', name: 'Chùa Hang (Lý Sơn)', prov: 'Đặc khu Lý Sơn, Quảng Ngãi', lat: 15.385, lon: 109.13, built: 'hanglyson' },
   { id: 'thapthap', name: 'Chùa Thập Tháp Di Đà', prov: 'Gia Lai', old: 'Bình Định', lat: 13.93, lon: 109.1 },
   { id: 'longson', name: 'Chùa Long Sơn', prov: 'Khánh Hòa', lat: 12.251, lon: 109.181, built: 'longson' },
@@ -138,8 +138,8 @@ export const PAGODAS = [
   { id: 'hoangsa', name: 'Chùa Hoàng Sa', prov: 'Đặc khu Hoàng Sa, TP. Đà Nẵng', lat: 16.53, lon: 111.61, built: 'hoangsa' },
   { id: 'tslon', name: 'Chùa Trường Sa Lớn', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 8.646, lon: 111.92, built: 'tslon' },
   { id: 'songtutay', name: 'Chùa Song Tử Tây', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 11.43, lon: 114.33, built: 'songtutay' },
-  { id: 'sonca', name: 'Chùa Sơn Ca', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 10.37, lon: 114.48 },
-  { id: 'namyet', name: 'Chùa Nam Yết', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 10.18, lon: 114.36 },
-  { id: 'sinhton', name: 'Chùa Sinh Tồn', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 9.88, lon: 114.33 },
+  { id: 'sonca', name: 'Chùa Sơn Ca', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 10.37, lon: 114.48, built: 'sonca' },
+  { id: 'namyet', name: 'Chùa Nam Yết', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 10.18, lon: 114.36, built: 'namyet' },
+  { id: 'sinhton', name: 'Chùa Sinh Tồn', prov: 'Đặc khu Trường Sa, Khánh Hòa', lat: 9.88, lon: 114.33, built: 'sinhton' },
 ];
 export const pagodaById = (id) => PAGODAS.find((p) => p.id === id);

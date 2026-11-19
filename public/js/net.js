@@ -42,6 +42,11 @@ export const SITES = {
   tslon: { name: 'Chùa Trường Sa Lớn', page: 'chua.html?site=tslon', roomLabel: 'Trường Sa Lớn', desc: 'chùa trên đảo san hô, hải đăng, cột cờ' },
   songtutay: { name: 'Chùa Song Tử Tây', page: 'chua.html?site=songtutay', roomLabel: 'Song Tử Tây', desc: 'chùa trên đảo xanh, hải đăng, cột cờ' },
   nuimot: { name: 'Chùa Núi Một', page: 'chua.html?site=nuimot', roomLabel: 'Núi Một', desc: 'chùa dưới chân núi Côn Đảo nhìn ra biển' },
+  sinhton: { name: 'Chùa Sinh Tồn', page: 'chua.html?site=sinhton', roomLabel: 'Sinh Tồn', desc: 'chùa trên đảo Sinh Tồn, hải đăng, cột cờ' },
+  thienan: { name: 'Chùa Thiên Ấn', page: 'chua.html?site=thienan', roomLabel: 'Thiên Ấn', desc: 'chùa dưới núi Thiên Ấn, cầu đá bắc ngang sông' },
+  tudam: { name: 'Chùa Từ Đàm', page: 'chua.html?site=tudam', roomLabel: 'Từ Đàm', desc: 'Tổ đình xứ Huế, hai hồ sen, cây bồ đề cổ thụ' },
+  namyet: { name: 'Chùa Nam Yết', page: 'chua.html?site=namyet', roomLabel: 'Nam Yết', desc: 'chùa trên đảo Nam Yết, hải đăng, cột cờ' },
+  sonca: { name: 'Chùa Sơn Ca', page: 'chua.html?site=sonca', roomLabel: 'Sơn Ca', desc: 'chùa nhỏ trên đảo san hô, cột cờ, bia chủ quyền' },
 };
 // các khu dựng kỹ ở miền Nam: mỗi khu một phòng
 const SOUTH = [['vinhnghiem', 'vinh-nghiem', 'Vĩnh Nghiêm'], ['chuadoi', 'chua-doi', 'Chùa Dơi'], ['baden', 'ba-den', 'Núi Bà Đen'], ['phatdai', 'phat-dai', 'Phật Đài'],
@@ -50,7 +55,7 @@ const SOUTH = [['vinhnghiem', 'vinh-nghiem', 'Vĩnh Nghiêm'], ['chuadoi', 'chua
   ['chuaha', 'chua-ha', 'Chùa Hà'], ['motcot', 'mot-cot', 'Một Cột'], ['tranquoc', 'tran-quoc', 'Trấn Quốc'], ['quansu', 'quan-su', 'Quán Sứ'],
   ['buulong', 'buu-long', 'Bửu Long'], ['vinhtrang', 'vinh-trang', 'Vĩnh Tràng'], ['hoquoc', 'ho-quoc', 'Hộ Quốc'], ['tayan', 'tay-an', 'Tây An'],
   ['giaclam', 'giac-lam', 'Giác Lâm'], ['ngochoang', 'ngoc-hoang', 'Ngọc Hoàng'], ['vnquoctu', 'quoc-tu', 'Quốc Tự'], ['ang', 'chua-ang', 'Chùa Âng'],
-  ['linhungnn', 'non-nuoc', 'Non Nước'], ['hanglyson', 'chua-hang', 'Chùa Hang'], ['linhphuoc', 'linh-phuoc', 'Linh Phước'], ['tuhieu', 'tu-hieu', 'Từ Hiếu'], ['hoangsa', 'hoang-sa', 'Hoàng Sa'], ['tslon', 'truong-sa-lon', 'Trường Sa Lớn'], ['songtutay', 'song-tu-tay', 'Song Tử Tây'], ['nuimot', 'nui-mot', 'Núi Một']];
+  ['linhungnn', 'non-nuoc', 'Non Nước'], ['hanglyson', 'chua-hang', 'Chùa Hang'], ['linhphuoc', 'linh-phuoc', 'Linh Phước'], ['tuhieu', 'tu-hieu', 'Từ Hiếu'], ['hoangsa', 'hoang-sa', 'Hoàng Sa'], ['tslon', 'truong-sa-lon', 'Trường Sa Lớn'], ['songtutay', 'song-tu-tay', 'Song Tử Tây'], ['nuimot', 'nui-mot', 'Núi Một'], ['sonca', 'son-ca', 'Sơn Ca'], ['namyet', 'nam-yet', 'Nam Yết'], ['sinhton', 'sinh-ton', 'Sinh Tồn'], ['tudam', 'tu-dam', 'Từ Đàm'], ['thienan', 'thien-an', 'Thiên Ấn']];
 export const ROOMS = [
   ...Array.from({ length: 2 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
   ...Array.from({ length: 2 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
