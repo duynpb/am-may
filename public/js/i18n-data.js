@@ -48,6 +48,7 @@ const D = {
   'Nhẹ': ['Light', '轻量', 'Leicht'],
   'Đẹp': ['Beautiful', '精美', 'Schön'],
   'Ngôn ngữ': ['Language', '语言', 'Sprache'],
+  '🌐 Ngôn ngữ · Language': ['🌐 Language', '🌐 语言 · Language', '🌐 Sprache · Language'],
   'Bạn sẽ bước lên trước bàn thờ, chắp tay vái lạy rồi cắm nhang vào lư hương. Nhang cháy khoảng ba phút, mọi người trong chánh điện đều thấy.': ['You will step up to the altar, join your palms, bow, and place the incense in the burner. It burns for about three minutes and everyone in the hall can see it.', '您将走到佛台前，合掌礼拜，然后把香插进香炉。香约燃烧三分钟，殿内每个人都能看到。', 'Du trittst vor den Altar, faltest die Hände, verneigst dich und steckst die Räucherstäbchen in das Gefäß. Sie brennen etwa drei Minuten, alle in der Halle sehen es.'],
   'Số nén': ['Sticks', '支数', 'Anzahl'],
   'Thường thắp 1 hoặc 3 nén': ['Usually 1 or 3 sticks', '通常上1支或3支', 'Üblich sind 1 oder 3 Stäbchen'],

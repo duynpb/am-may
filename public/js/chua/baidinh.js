@@ -3,7 +3,7 @@
 // treo đại hồng chung, bên phải giếng Ngọc), điện Pháp Chủ với tượng Phật rất lớn, trên cùng điện Tam Thế và bảo tháp
 // mười ba tầng. (Phỏng theo không khí, không sao chép công trình thật.)
 import { createKit, THREE, rect, stairY, hallWalk, inHall, gateWalk, makeHill, curvedRoof } from './base.js';
-import { makeBuddha, makeThichCa } from '../buddha.js';
+import { makeThichCa } from '../buddha.js';
 import { makeQuanAm } from '../quanam.js';
 
 const GATE_Z = 60;
@@ -183,11 +183,11 @@ function build(renderer, { quality = 'high' } = {}) {
     mid.scale.setScalar(1.5);
     scene.add(mid);
     lods.push({ obj: mid, z, r: 90 });
-    const side = makeBuddha({ quality: 'low' });
+    // hai đức Phật hai bên: cùng mẫu tượng ở giữa
     for (const x of [-6.5, 6.5]) {
-      const b = x < 0 ? side : side.clone();
-      b.position.set(x, y, z + 0.3);
-      b.scale.setScalar(1.3);
+      const b = makeThichCa();
+      b.position.set(x, y, z);
+      b.scale.setScalar(1.5);
       b.traverse((m) => (m.castShadow = false));
       scene.add(b);
       lods.push({ obj: b, x, z, r: 90 });
