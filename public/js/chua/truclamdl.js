@@ -130,6 +130,102 @@ function build(renderer, { quality = 'high' } = {}) {
     K.flowers(beds.filter(([x, z]) => Math.hypot(x - CENTER.x, z - CENTER.z - 1.8) > 2.2 && Math.hypot(x - BELL.x, z - BELL.z) > 4.5));
     for (const x of [-4.4, 4.4, -12, 12]) box(1.3, 0.3, GATE_Z - 6 - HALL.z0 - 2, M.stone, x, Y + 0.15, (GATE_Z - 6 + HALL.z0 + 3) / 2);
   }
+  // ---------- Hòn đá xoay trên nước, hồ sen nhỏ, đèn đá, hoa anh đào, vườn thiền đá ----------
+  {
+    const granite = std('#a29b92', { roughness: 0.55, flatShading: true });
+    const graniteD = std('#6b655e', { roughness: 0.75, flatShading: true });
+    const waterM = new THREE.MeshStandardMaterial({ color: '#4f8f95', roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.85 });
+    const foam = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3, transparent: true, opacity: 0.55 });
+    const basin = (x, z, r) => {
+      cyl(r + 0.4, r + 0.4, 0.5, M.stone, x, Y + 0.25, z, {}, 40);
+      mesh(new THREE.CylinderGeometry(r, r, 0.12, 40), waterM, x, Y + 0.6, z, { cast: false });
+    };
+    // 1) Hòn đá tròn xoay chầm chậm trên vòi nước giữa bồn (bên trái lối giữa)
+    const SP = { x: -8, z: 0, r: 2.6 };
+    basin(SP.x, SP.z, SP.r);
+    cyl(0.4, 0.55, 0.5, foam, SP.x, Y + 0.95, SP.z, { cast: false }, 16); // cột nước nâng hòn đá
+    const ball = new THREE.Group();
+    ball.position.set(SP.x, Y + 1.95, SP.z);
+    scene.add(ball);
+    ball.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1.0, 2), granite));
+    for (const rot of [[0, 0, 0], [Math.PI / 2, 0, 0], [0.8, 0.6, 0]]) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(1.01, 0.035, 8, 40), graniteD);
+      band.rotation.set(...rot);
+      ball.add(band);
+    }
+    const ripples = [0, 1, 2].map((i) => {
+      const m = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.0, 40).rotateX(-Math.PI / 2), foam.clone());
+      m.position.set(SP.x, Y + 0.67, SP.z);
+      scene.add(m);
+      return { m, ph: i / 3 };
+    });
+    K.updaters.push((t) => {
+      ball.rotation.set(0.35, t * 0.7, 0.1);
+      ball.position.y = Y + 1.95 + Math.sin(t * 1.3) * 0.04;
+      for (const R of ripples) {
+        const u = (t * 0.35 + R.ph) % 1;
+        R.m.scale.setScalar(0.8 + u * 2.4);
+        R.m.material.opacity = 0.5 * (1 - u);
+      }
+    });
+    ROUND_OBSTACLES.push({ x: SP.x, z: SP.z, r: SP.r + 0.5 });
+    // 2) Hồ sen nhỏ (bên phải lối giữa)
+    const LP = { x: 8, z: 0, r: 2.6 };
+    basin(LP.x, LP.z, LP.r);
+    {
+      const pad = std('#3f7d3a', { roughness: 0.8, side: THREE.DoubleSide }), pink = std('#f2a6bd', { roughness: 0.6 });
+      for (let i = 0; i < 14; i++) {
+        const a = K.rr() * Math.PI * 2, d = K.rr() * (LP.r - 0.6);
+        const x = LP.x + Math.cos(a) * d, z = LP.z + Math.sin(a) * d;
+        mesh(new THREE.CircleGeometry(0.4, 10).rotateX(-Math.PI / 2), pad, x, Y + 0.68, z, { cast: false });
+        if (i % 3 === 0) mesh(new THREE.ConeGeometry(0.15, 0.3, 7), pink, x + 0.12, Y + 0.82, z);
+      }
+    }
+    ROUND_OBSTACLES.push({ x: LP.x, z: LP.z, r: LP.r + 0.5 });
+    // 3) Đèn đá dọc lối giữa
+    const lantern = (x, z) => {
+      cyl(0.35, 0.45, 0.3, granite, x, Y + 0.15, z, {}, 8);
+      cyl(0.16, 0.2, 1.0, granite, x, Y + 0.8, z, {}, 8);
+      box(0.7, 0.55, 0.7, granite, x, Y + 1.55, z);
+      box(0.3, 0.35, 0.3, std('#ffd98a', { emissive: '#ffcf70', emissiveIntensity: 0.5 }), x, Y + 1.55, z);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.45, 4), granite);
+      roof.position.set(x, Y + 2.0, z);
+      roof.rotation.y = Math.PI / 4;
+      scene.add(roof);
+      ROUND_OBSTACLES.push({ x, z, r: 0.55 });
+    };
+    for (const z of [8, 1.5, -5, -10.5]) { lantern(-2.4, z); lantern(2.4, z); }
+    // 4) Hoa anh đào hai bên khuôn viên
+    {
+      const bark = std('#5b3a24', { roughness: 0.9 }), bloom = std('#f5b8ca', { roughness: 0.85, flatShading: true });
+      const cherry = (x, z) => {
+        cyl(0.16, 0.26, 2.6, bark, x, Y + 1.3, z, {}, 8);
+        for (const [dx, dy, dz, s] of [[0, 3.2, 0, 1.5], [-0.9, 2.7, 0.3, 1.0], [0.9, 2.8, -0.3, 1.1], [0.2, 3.9, 0.4, 0.9]]) {
+          const b = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 1), bloom);
+          b.position.set(x + dx, Y + dy, z + dz);
+          b.castShadow = true;
+          scene.add(b);
+        }
+        ROUND_OBSTACLES.push({ x, z, r: 0.8 });
+      };
+      for (const [x, z] of [[-27, 8], [-27, -12], [-24, -22], [27, -6], [27, -16], [24, -26], [-13, 11], [13, 11]]) cherry(x, z);
+    }
+    // 5) Vườn thiền đá sau chánh điện: cát vạch sóng và vài tảng đá
+    {
+      const sand = std('#e9dfc4', { roughness: 1 }), rake = std('#cfc4a2', { roughness: 1 });
+      box(12, 0.1, 7, sand, 20, Y + 0.05, -40.5);
+      for (let i = 0; i < 8; i++) box(11.4, 0.04, 0.1, rake, 20, Y + 0.11, -43.4 + i * 0.8);
+      for (const [x, z, s] of [[17, -41.5, 0.9], [21.5, -39.5, 1.2], [24, -42.4, 0.8]]) {
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), graniteD);
+        rock.position.set(x, Y + s * 0.5, z);
+        rock.scale.y = 0.7;
+        rock.castShadow = true;
+        scene.add(rock);
+        ROUND_OBSTACLES.push({ x, z, r: s + 0.4 });
+      }
+      lantern(14.8, -38.2);
+    }
+  }
   // nội viện: tường vàng, mái ngói, cổng đóng (khu thiền sinh tu tập)
   {
     box(TER.x1 - TER.x0 - 2, 2.6, 0.5, yellowWall, 0, Y + 1.3, NOI.z);
@@ -224,7 +320,7 @@ function build(renderer, { quality = 'high' } = {}) {
       },
     });
   }
-  K.pines([[-26, 8], [26, 12], [-26, -20], [26, -24], [-24, -40], [24, -40], [-10, 16], [10, 16]], Y, { scale: 0.9 });
+  K.pines([[-26, 8], [26, 12], [-26, -20], [26, -24], [-24, -40], [28, -33], [-10, 16], [10, 16]], Y, { scale: 0.9 });
   K.bamboo([[-26, -30, 10], [26, -12, 8]], Y);
 
   const world = K.finish({ rituals: RITUALS });
@@ -239,10 +335,11 @@ export const SITE = {
   name: 'Thiền viện Trúc Lâm Đà Lạt',
   loading: 'Sương sớm đang tan trên hồ Tuyền Lâm',
   hint: 'từ bến hồ Tuyền Lâm lên bậc đá qua cổng tam quan, dạo vườn hoa tới chánh điện',
-  info: 'Thiền viện Trúc Lâm Đà Lạt nằm trên núi Phụng Hoàng bên hồ Tuyền Lâm, giữa rừng thông. Qua cổng tam quan là sân vườn hoa rực rỡ, gác chuông, chánh điện; phía sau là nội viện dành cho thiền sinh tu tập, khách không vào. Cáp treo từ đồi Robin bay qua rừng thông tới cạnh thiền viện. (Dựng phỏng theo không khí, không phải bản sao.)',
+  info: 'Thiền viện Trúc Lâm Đà Lạt nằm trên núi Phụng Hoàng bên hồ Tuyền Lâm, giữa rừng thông. Qua cổng tam quan là sân vườn hoa rực rỡ với đèn đá, hoa anh đào, bồn nước có hòn đá tròn xoay trên vòi nước, hồ sen nhỏ và gác chuông; cuối sân là chánh điện, sau chánh điện có vườn thiền đá. Phía sau là nội viện dành cho thiền sinh tu tập, khách không vào. Cáp treo từ đồi Robin bay qua rừng thông tới cạnh thiền viện. (Dựng phỏng theo không khí, không phải bản sao.)',
   tips: [
     ['Thỉnh chuông', 'Chạm vào quả chuông ở gác chuông bên trái sân để đi tới thỉnh một hồi.'],
     ['Đi cáp treo', 'Ra ga cáp treo bên phải sân, bấm “Đi cáp treo lên đồi Robin”: bạn ngồi vào cabin, bay qua rừng thông và hồ Tuyền Lâm khoảng 10 giây (bấm “Tới ga ngay” nếu muốn tới luôn). Trên đồi Robin có ga để về lại.'],
+    ['Hòn đá xoay trên nước', 'Bên trái lối giữa sân có bồn nước với hòn đá tròn quay chầm chậm trên vòi nước; bên phải là hồ sen nhỏ.'],
     ['Thắp nhang', 'Trong chánh điện thì thắp trước bàn thờ; ngoài sân thì ở lư hương đá giữa vườn hoa.'],
   ],
   LAND: 0,
@@ -264,8 +361,11 @@ export const SITE = {
   PLACES: [
     { id: 'ho', name: 'Bến hồ Tuyền Lâm', x: 0, z: 44, ry: Math.PI },
     { id: 'gate', name: 'Cổng tam quan', x: 0, z: 17, ry: Math.PI },
-    { id: 'hoa', name: 'Vườn hoa', x: 8, z: 0, ry: Math.PI },
+    { id: 'hoa', name: 'Vườn hoa', x: 0, z: 3.5, ry: Math.PI },
     { id: 'chuong', name: 'Gác chuông', x: BELL.x, z: BELL.z + 6, ry: Math.PI },
+    { id: 'da', name: 'Hòn đá xoay trên nước', x: -8, z: 4.8, ry: Math.PI },
+    { id: 'sen', name: 'Hồ sen nhỏ', x: 8, z: 4.8, ry: Math.PI },
+    { id: 'thien', name: 'Vườn thiền đá', x: 20, z: -35.8, ry: Math.PI },
     { id: 'dien', name: 'Chánh điện', x: 0, z: HALL.z0 + 3, ry: Math.PI },
     { id: 'cap', name: 'Ga cáp treo', x: STA.x, z: STA.z + 6, ry: Math.PI },
     { id: 'robin', name: 'Đồi Robin', x: ROBIN.x, z: ROBIN.z + 8, ry: Math.atan2(-ROBIN.x, -ROBIN.z) },
@@ -284,8 +384,11 @@ export const SITE = {
       { x0: TER.x0, x1: TER.x1, z0: TER.z0, z1: NOI.z, c: 'm-wall' },
       { x0: BELL.x - 3.5, x1: BELL.x + 3.5, z0: BELL.z - 3.5, z1: BELL.z + 3.5, c: 'm-corridor' },
       { x0: 18.5, x1: 25.5, z0: -1.5, z1: 5.5, c: 'm-stairs' },
+      { x0: -10.6, x1: -5.4, z0: -2.6, z1: 2.6, c: 'm-water' },
+      { x0: 5.4, x1: 10.6, z0: -2.6, z1: 2.6, c: 'm-water' },
+      { x0: 14, x1: 26, z0: -44, z1: -37, c: 'm-stone' },
     ],
-    labels: [['ho', 0, 54, 'Hồ Tuyền Lâm'], ['gate', 0, 20, 'Cổng tam quan'], ['hoa', 0, 2, 'Vườn hoa'], ['chuong', BELL.x, BELL.z + 6, 'Gác chuông'], ['dien', 0, -25, 'Chánh điện'], ['cap', 22, 8, 'Cáp treo']],
+    labels: [['da', -9, -5.5, 'Đá xoay'], ['sen', 9, -5.5, 'Hồ sen'], ['thien', 20, -33.5, 'Vườn thiền'],['ho', 0, 54, 'Hồ Tuyền Lâm'], ['gate', 0, 20, 'Cổng tam quan'], ['hoa', 0, 2, 'Vườn hoa'], ['chuong', BELL.x, BELL.z + 6, 'Gác chuông'], ['dien', 0, -25, 'Chánh điện'], ['cap', 22, 8, 'Cáp treo']],
   },
   OV: { bounds: { x0: -45, x1: 245, z0: -62, z1: 185 }, dist: 110, y: 8 },
   TRIPS: [
@@ -293,9 +396,12 @@ export const SITE = {
     { x: 0, z: HALL.z1 + 6.5, spread: 3, act: 'bow', say: 'lạy Phật' },
     { x: 0, z: CENTER.z + 4.2, spread: 3, act: 'gassho' },
     { x: 0, z: 0, act: 'bell' },
-    { x: 8, z: 2, spread: 4, ry: 0, say: 'Hoa đẹp quá' },
+    { x: 0, z: 3.5, spread: 1.6, ry: 0, say: 'Hoa đẹp quá' },
     { x: 0, z: 45, spread: 18, ry: 0, say: 'Hồ Tuyền Lâm yên bình ghê' },
     { x: 18, z: 7, spread: 1.5, ry: 0.6, say: 'Cáp treo kìa' },
+    { x: -8, z: 5, spread: 2.5, ry: Math.PI, say: 'Hòn đá xoay hoài không dừng' },
+    { x: 8, z: 5, spread: 2.5, ry: Math.PI, say: 'Hoa anh đào nở đẹp ghê' },
+    { x: 20, z: -35.8, spread: 3, ry: Math.PI, say: 'Vườn thiền yên tĩnh quá' },
   ],
   BOT_SPAWN: [[-20, 20, 40, 46], [-14, 14, -12, 6], [ROBIN.x - 10, ROBIN.x + 10, ROBIN.z - 2, ROBIN.z + 10]],
   BOT_SAYS: ['Nam mô A Di Đà Phật', 'Đà Lạt mát quá', 'Rừng thông thơm ghê', 'Hoa nở khắp sân', 'Thiền viện yên tĩnh thật'],
