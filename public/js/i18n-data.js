@@ -6,6 +6,8 @@ import PART4 from './i18n-data4.js';
 import PART5 from './i18n-data5.js';
 import PART6 from './i18n-data6.js';
 import PART7 from './i18n-data7.js';
+import PART8 from './i18n-data8.js';
+import PART9 from './i18n-data9.js';
 const D = {
   // ---------- Khung trang, nút chính ----------
   'Am Mây — Chùa trực tuyến': ['Am Mây — Online Pagoda', '云庵 — 线上寺院', 'Am Mây — Online-Pagode'],
@@ -151,5 +153,7 @@ const D = {
   ...PART5,
   ...PART6,
   ...PART7,
+  ...PART8,
+  ...PART9,
 };
 export default D;
