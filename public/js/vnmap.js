@@ -38,7 +38,7 @@ function h(tag, props = {}, ...kids) {
   return e;
 }
 const BAC = ['Hà Nội', 'Ninh Bình', 'Hưng Yên', 'Bắc Ninh', 'Quảng Ninh', 'Hải Phòng', 'Phú Thọ', 'Lạng Sơn'];
-const TRUNG = ['Nghệ An', 'Huế', 'Đà Nẵng', 'Quảng Ngãi', 'Gia Lai', 'Khánh Hòa', 'Lâm Đồng', 'Đắk Lắk'];
+const TRUNG = ['Hà Tĩnh', 'Nghệ An', 'Huế', 'Đà Nẵng', 'Quảng Ngãi', 'Gia Lai', 'Khánh Hòa', 'Lâm Đồng', 'Đắk Lắk'];
 const REGIONS = ['Miền Bắc', 'Miền Trung', 'Miền Nam', 'Biển đảo'];
 const regionOf = (p) => (p.prov.startsWith('Đặc khu') ? 3 : BAC.includes(p.prov) ? 0 : TRUNG.includes(p.prov) ? 1 : 2);
 const path = (pts) => 'M' + pts.map(([lon, lat]) => `${X(lon).toFixed(1)},${Y(lat).toFixed(1)}`).join('L') + 'Z';
