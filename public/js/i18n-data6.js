@@ -1,0 +1,78 @@
+// Bảng dịch phần 6: sáu chùa miền Trung và Tây Nguyên (Chúc Thánh, Thập Tháp Di Đà, Cổ Thạch, Minh Thành, Khải Đoan, Đại Tuệ) và khuôn chùa sân vườn.
+// "câu tiếng Việt" → [English, 中文, Deutsch]
+export default {
+  // ── dùng chung cho khuôn sân vườn ──
+  'Tháp nhỏ': ['Small stupa', '小塔', 'Kleine Stupa'],
+  'Tượng Phật lớn': ['Great Buddha statue', '大佛像', 'Große Buddha-Statue'],
+  'Dòng sông': ['The river', '小河', 'Der Fluss'],
+  // ── tên, nhãn phòng ──
+  'Chùa Chúc Thánh': ['Chúc Thánh Pagoda', '祝圣寺', 'Chúc-Thánh-Pagode'],
+  'Chùa Thập Tháp Di Đà': ['Thập Tháp Di Đà Pagoda', '十塔弥陀寺', 'Thập-Tháp-Di-Đà-Pagode'],
+  'Chùa Cổ Thạch': ['Cổ Thạch Pagoda', '古石寺', 'Cổ-Thạch-Pagode'],
+  'Chùa Minh Thành': ['Minh Thành Pagoda', '明成寺', 'Minh-Thành-Pagode'],
+  'Chùa Khải Đoan': ['Khải Đoan Pagoda', '启端寺', 'Khải-Đoan-Pagode'],
+  'Chùa Đại Tuệ': ['Đại Tuệ Pagoda', '大慧寺', 'Đại-Tuệ-Pagode'],
+  'Chúc Thánh {0}': ['Chúc Thánh {0}', '祝圣寺 {0}', 'Chúc Thánh {0}'],
+  'Thập Tháp {0}': ['Thập Tháp {0}', '十塔寺 {0}', 'Thập Tháp {0}'],
+  'Cổ Thạch {0}': ['Cổ Thạch {0}', '古石寺 {0}', 'Cổ Thạch {0}'],
+  'Minh Thành {0}': ['Minh Thành {0}', '明成寺 {0}', 'Minh Thành {0}'],
+  'Khải Đoan {0}': ['Khải Đoan {0}', '启端寺 {0}', 'Khải Đoan {0}'],
+  'Đại Tuệ {0}': ['Đại Tuệ {0}', '大慧寺 {0}', 'Đại Tuệ {0}'],
+  // ── mô tả ngắn (tiêu đề phòng) ──
+  'Chùa Chúc Thánh — chùa cổ ở Hội An, hồ sen và vườn tháp': ['Chúc Thánh Pagoda — an old pagoda in Hội An, with a lotus pond and a garden of stupas', '祝圣寺——会安古寺，莲池与塔园', 'Chúc-Thánh-Pagode — eine alte Pagode in Hội An mit Lotusteich und Stupa-Garten'],
+  'Chùa Thập Tháp Di Đà — chùa cổ ở Bình Định, hai bảo tháp, hai hồ sen': ['Thập Tháp Di Đà Pagoda — an old pagoda in Bình Định, with two towers and two lotus ponds', '十塔弥陀寺——平定古寺，双宝塔与双莲池', 'Thập-Tháp-Di-Đà-Pagode — eine alte Pagode in Bình Định mit zwei Türmen und zwei Lotusteichen'],
+  'Chùa Cổ Thạch — chùa ven biển, tượng Phật lớn nhìn ra biển': ['Cổ Thạch Pagoda — a seaside pagoda with a great Buddha statue facing the sea', '古石寺——海边寺院，大佛像面朝大海', 'Cổ-Thạch-Pagode — eine Küstenpagode mit einer großen Buddha-Statue mit Blick aufs Meer'],
+  'Chùa Minh Thành — chùa trên cao nguyên Pleiku, tượng Phật lớn, hồ sen': ['Minh Thành Pagoda — a pagoda on the Pleiku plateau, with a great Buddha statue and a lotus pond', '明成寺——波来古高原上的寺院，大佛像与莲池', 'Minh-Thành-Pagode — eine Pagode auf dem Plateau von Pleiku mit großer Buddha-Statue und Lotusteich'],
+  'Chùa Khải Đoan — chùa ở Buôn Ma Thuột, hai hồ sen, cây bồ đề': ['Khải Đoan Pagoda — a pagoda in Buôn Ma Thuột, with two lotus ponds and a bodhi tree', '启端寺——邦美蜀的寺院，双莲池与菩提树', 'Khải-Đoan-Pagode — eine Pagode in Buôn Ma Thuột mit zwei Lotusteichen und einem Bodhibaum'],
+  'Chùa Đại Tuệ — chùa xứ Nghệ, cầu đá bắc ngang sông, bảo tháp': ['Đại Tuệ Pagoda — a pagoda of Nghệ An, with a stone bridge over a river and a tower', '大慧寺——义安的寺院，横跨小河的石桥与宝塔', 'Đại-Tuệ-Pagode — eine Pagode in Nghệ An mit Steinbrücke über einen Fluss und einem Turm'],
+  // ── bảng trong cảnh 3D ──
+  'CHÚC THÁNH TỰ': ['CHÚC THÁNH PAGODA', '祝圣寺', 'CHÚC-THÁNH-PAGODE'],
+  'THẬP THÁP DI ĐÀ TỰ': ['THẬP THÁP DI ĐÀ PAGODA', '十塔弥陀寺', 'THẬP-THÁP-DI-ĐÀ-PAGODE'],
+  'CỔ THẠCH TỰ': ['CỔ THẠCH PAGODA', '古石寺', 'CỔ-THẠCH-PAGODE'],
+  'MINH THÀNH TỰ': ['MINH THÀNH PAGODA', '明成寺', 'MINH-THÀNH-PAGODE'],
+  'KHẢI ĐOAN TỰ': ['KHẢI ĐOAN PAGODA', '启端寺', 'KHẢI-ĐOAN-PAGODE'],
+  'ĐẠI TUỆ TỰ': ['ĐẠI TUỆ PAGODA', '大慧寺', 'ĐẠI-TUỆ-PAGODE'],
+  // ── Chúc Thánh ──
+  'Nắng sớm đang lên trên phố cổ Hội An': ['The morning sun is rising over Hội An old town', '晨光正在会安古城上升起', 'Die Morgensonne geht über der Altstadt von Hội An auf'],
+  'qua cổng, bước trên cầu đá qua hồ sen, ghé gác chuông và vườn tháp, rồi vào chánh điện': ['pass the gate, cross the stone bridge over the lotus pond, visit the bell pavilion and the stupa garden, then enter the main hall', '穿过山门，走过莲池上的石桥，参观钟楼和塔园，然后进入大殿', 'Gehe durch das Tor, überquere die Steinbrücke über den Lotusteich, besuche Glockenpavillon und Stupa-Garten und betritt dann die Haupthalle'],
+  'Chùa Chúc Thánh ở Hội An, Đà Nẵng, là ngôi chùa cổ gần phố cổ. Qua cổng tam quan là hồ sen có cầu đá bắc qua; bên trái có gác chuông, bên phải và phía sau là những tháp nhỏ của các vị tổ sư; cuối sân là chánh điện. (Dựng phỏng theo không khí chùa, không phải bản sao.)': ['Chúc Thánh Pagoda in Hội An, Đà Nẵng, is an old pagoda near the ancient town. Past the three-gate entrance is a lotus pond crossed by a stone bridge; on the left is a bell pavilion, on the right and behind are small stupas of the patriarchs; the main hall is at the far end. (Built after the spirit of the pagoda, not a copy.)', '岘港会安的祝圣寺是古城附近的一座古寺。穿过三关门是莲池，石桥横跨其上；左边是钟楼，右边和后面是历代祖师的小塔；庭院尽头是大殿。（依寺院意境建造，并非复制。）', 'Die Chúc-Thánh-Pagode in Hội An, Đà Nẵng, ist eine alte Pagode nahe der Altstadt. Hinter dem Dreifachtor liegt ein Lotusteich mit Steinbrücke; links steht ein Glockenpavillon, rechts und dahinter kleine Stupas der Patriarchen; am Ende des Hofs die Haupthalle. (Im Geist der Pagode gebaut, keine Kopie.)'],
+  'Chùa cổ Hội An thanh tịnh': ['A serene old pagoda in Hội An', '会安宁静的古寺', 'Eine friedliche alte Pagode in Hội An'],
+  'Vườn tháp yên tĩnh quá': ['The stupa garden is so peaceful', '塔园好宁静', 'Der Stupa-Garten ist so friedlich'],
+  // ── Thập Tháp ──
+  'Gió biển đang thổi qua đồng lúa Bình Định': ['Sea breeze is blowing over the rice fields of Bình Định', '海风正吹过平定的稻田', 'Die Meeresbrise weht über die Reisfelder von Bình Định'],
+  'đi giữa hai hồ sen, ngắm hai bảo tháp hai bên sân, rồi vào chánh điện': ['walk between the two lotus ponds, admire the two towers on either side of the courtyard, then enter the main hall', '走在两个莲池之间，欣赏庭院两侧的两座宝塔，然后进入大殿', 'Gehe zwischen den beiden Lotusteichen hindurch, bewundere die beiden Türme zu beiden Seiten des Hofs und betritt dann die Haupthalle'],
+  'Chùa Thập Tháp Di Đà ở Bình Định là ngôi chùa cổ của miền Trung. Qua cổng tam quan là lối đi giữa hai hồ sen; hai bên sân có hai bảo tháp nhiều tầng, góc sân có cây bồ đề; cuối sân là chánh điện. (Dựng phỏng theo không khí chùa, không phải bản sao.)': ['Thập Tháp Di Đà Pagoda in Bình Định is an old pagoda of central Vietnam. Past the three-gate entrance a path runs between two lotus ponds; on either side of the courtyard stands a multi-storey tower, a bodhi tree grows in the corner, and the main hall is at the far end. (Built after the spirit of the pagoda, not a copy.)', '平定的十塔弥陀寺是越南中部的一座古寺。穿过三关门，小路穿行于两个莲池之间；庭院两侧各有一座多层宝塔，院角有一棵菩提树，尽头是大殿。（依寺院意境建造，并非复制。）', 'Die Thập-Tháp-Di-Đà-Pagode in Bình Định ist eine alte Pagode Mittelvietnams. Hinter dem Dreifachtor führt ein Weg zwischen zwei Lotusteichen hindurch; zu beiden Seiten des Hofs steht ein mehrstöckiger Turm, in der Ecke wächst ein Bodhibaum, am Ende liegt die Haupthalle. (Im Geist der Pagode gebaut, keine Kopie.)'],
+  'Hai bảo tháp đẹp quá': ['The two towers are so beautiful', '两座宝塔好美', 'Die beiden Türme sind so schön'],
+  'Chùa cổ Bình Định': ['An old pagoda of Bình Định', '平定古寺', 'Eine alte Pagode in Bình Định'],
+  'Dừa nghiêng bóng nắng': ['Coconut palms lean in the sunlight', '椰树在阳光下摇曳', 'Kokospalmen neigen sich im Sonnenlicht'],
+  // ── Cổ Thạch ──
+  'Nắng gió đang thổi trên bãi đá ven biển': ['Sun and wind are sweeping the rocky seashore', '阳光和海风吹拂着海边的石滩', 'Sonne und Wind streichen über den felsigen Strand'],
+  'đi vào sân rộng ven biển, ngắm tượng Phật lớn, gác chuông rồi lên chánh điện': ['enter the wide seaside courtyard, admire the great Buddha statue and the bell pavilion, then go up to the main hall', '走进宽阔的海边庭院，欣赏大佛像和钟楼，然后登上大殿', 'Betritt den weiten Hof am Meer, bewundere die große Buddha-Statue und den Glockenpavillon und gehe dann zur Haupthalle'],
+  'Chùa Cổ Thạch ở ven biển Bình Thuận (nay thuộc Lâm Đồng) nằm giữa bãi đá và những hàng dừa. Sân chùa rộng, bên trái là tượng Phật lớn màu trắng, bên phải là gác chuông và một tháp nhỏ; cuối sân là chánh điện, phía sau là đồi đá. (Dựng phỏng theo không khí chùa, không phải bản sao.)': ['Cổ Thạch Pagoda lies on the Bình Thuận coast (now part of Lâm Đồng), among rocky beaches and rows of coconut palms. The courtyard is wide: on the left stands a great white Buddha statue, on the right a bell pavilion and a small stupa; the main hall is at the far end, with a rocky hill behind. (Built after the spirit of the pagoda, not a copy.)', '古石寺位于平顺海岸（现属林同省），坐落在石滩和成排的椰树之间。庭院宽阔，左边是白色的大佛像，右边是钟楼和一座小塔；尽头是大殿，后面是石山。（依寺院意境建造，并非复制。）', 'Die Cổ-Thạch-Pagode liegt an der Küste von Bình Thuận (heute Lâm Đồng) zwischen felsigen Stränden und Reihen von Kokospalmen. Der Hof ist weit: links steht eine große weiße Buddha-Statue, rechts ein Glockenpavillon und eine kleine Stupa; am Ende die Haupthalle, dahinter ein felsiger Hügel. (Im Geist der Pagode gebaut, keine Kopie.)'],
+  'Đi thẳng từ cổng vào sân rộng, ghé các điểm hai bên rồi lên chánh điện.': ['Walk straight from the gate into the wide courtyard, visit the places on either side, then go up to the main hall.', '从山门径直走进宽阔的庭院，参观两侧的景点，然后登上大殿。', 'Gehe vom Tor geradeaus in den weiten Hof, besuche die Orte zu beiden Seiten und gehe dann zur Haupthalle.'],
+  'Biển Cổ Thạch đẹp quá': ['The sea at Cổ Thạch is so beautiful', '古石的海好美', 'Das Meer bei Cổ Thạch ist so schön'],
+  'Tượng Phật to ghê': ['The Buddha statue is so big', '佛像好大', 'Die Buddha-Statue ist so groß'],
+  'Gió biển mát quá': ['The sea breeze is so cool', '海风好凉爽', 'Die Meeresbrise ist so kühl'],
+  'Tiếng chuông vang xa': ['The bell’s sound carries far', '钟声传得好远', 'Der Glockenklang trägt weit'],
+  // ── Minh Thành ──
+  'Sương sớm đang tan trên cao nguyên Pleiku': ['Morning mist is lifting over the Pleiku plateau', '晨雾正在波来古高原上消散', 'Der Morgennebel lichtet sich über dem Plateau von Pleiku'],
+  'qua cầu đá hồ sen, ngắm tượng Phật lớn, gác chuông và cây bồ đề, rồi vào chánh điện': ['cross the stone bridge over the lotus pond, admire the great Buddha statue, the bell pavilion and the bodhi tree, then enter the main hall', '走过莲池上的石桥，欣赏大佛像、钟楼和菩提树，然后进入大殿', 'Überquere die Steinbrücke über den Lotusteich, bewundere die große Buddha-Statue, den Glockenpavillon und den Bodhibaum und betritt dann die Haupthalle'],
+  'Chùa Minh Thành ở Pleiku, Gia Lai, nằm giữa cao nguyên đất đỏ và rừng thông. Qua cổng tam quan là hồ sen có cầu đá; bên trái là tượng Phật lớn màu trắng, bên phải là gác chuông, góc sân có cây bồ đề; cuối sân là chánh điện. (Dựng phỏng theo không khí chùa, không phải bản sao.)': ['Minh Thành Pagoda in Pleiku, Gia Lai, sits among the red-soil plateau and pine forests. Past the three-gate entrance is a lotus pond with a stone bridge; on the left is a great white Buddha statue, on the right a bell pavilion, a bodhi tree grows in the corner, and the main hall is at the far end. (Built after the spirit of the pagoda, not a copy.)', '嘉莱省波来古的明成寺坐落在红土高原和松林之间。穿过三关门是带石桥的莲池；左边是白色的大佛像，右边是钟楼，院角有一棵菩提树；尽头是大殿。（依寺院意境建造，并非复制。）', 'Die Minh-Thành-Pagode in Pleiku, Gia Lai, liegt zwischen dem Plateau mit roter Erde und Kiefernwäldern. Hinter dem Dreifachtor liegt ein Lotusteich mit Steinbrücke; links steht eine große weiße Buddha-Statue, rechts ein Glockenpavillon, in der Ecke wächst ein Bodhibaum, am Ende liegt die Haupthalle. (Im Geist der Pagode gebaut, keine Kopie.)'],
+  'Cao nguyên mát quá': ['The highlands are so cool', '高原好凉爽', 'Das Hochland ist so kühl'],
+  'Tượng Phật trắng đẹp ghê': ['The white Buddha statue is stunning', '白色佛像真美', 'Die weiße Buddha-Statue ist wunderschön'],
+  'Thông reo nghe vui tai': ['The whisper of the pines sounds so pleasant', '松涛声声悦耳', 'Das Rauschen der Kiefern klingt so angenehm'],
+  'Sen nở trong hồ': ['Lotus flowers are blooming in the pond', '莲花在池中盛开', 'Im Teich blühen die Lotusblumen'],
+  // ── Khải Đoan ──
+  'Nắng sớm đang lên trên đất đỏ Buôn Ma Thuột': ['The morning sun is rising over the red earth of Buôn Ma Thuột', '晨光正在邦美蜀的红土地上升起', 'Die Morgensonne geht über der roten Erde von Buôn Ma Thuột auf'],
+  'đi giữa hai hồ sen, ghé gác chuông và cây bồ đề, rồi vào chánh điện': ['walk between the two lotus ponds, visit the bell pavilion and the bodhi tree, then enter the main hall', '走在两个莲池之间，参观钟楼和菩提树，然后进入大殿', 'Gehe zwischen den beiden Lotusteichen hindurch, besuche Glockenpavillon und Bodhibaum und betritt dann die Haupthalle'],
+  'Chùa Khải Đoan ở Buôn Ma Thuột, Đắk Lắk, là ngôi chùa giữa vùng đất đỏ Tây Nguyên. Qua cổng tam quan là lối đi giữa hai hồ sen; bên trái có gác chuông, bên phải là cây bồ đề cổ thụ, góc sân có tháp nhỏ; cuối sân là chánh điện. (Dựng phỏng theo không khí chùa, không phải bản sao.)': ['Khải Đoan Pagoda in Buôn Ma Thuột, Đắk Lắk, is a pagoda in the red-earth country of the Central Highlands. Past the three-gate entrance a path runs between two lotus ponds; on the left is a bell pavilion, on the right an ancient bodhi tree, a small stupa stands in the corner, and the main hall is at the far end. (Built after the spirit of the pagoda, not a copy.)', '得乐省邦美蜀的启端寺是西原红土地上的一座寺院。穿过三关门，小路穿行于两个莲池之间；左边是钟楼，右边是古老的菩提树，院角有一座小塔；尽头是大殿。（依寺院意境建造，并非复制。）', 'Die Khải-Đoan-Pagode in Buôn Ma Thuột, Đắk Lắk, liegt im Land der roten Erde des Zentralen Hochlands. Hinter dem Dreifachtor führt ein Weg zwischen zwei Lotusteichen hindurch; links steht ein Glockenpavillon, rechts ein uralter Bodhibaum, in der Ecke eine kleine Stupa, am Ende die Haupthalle. (Im Geist der Pagode gebaut, keine Kopie.)'],
+  'Tây Nguyên nắng đẹp quá': ['The Central Highlands sunshine is so lovely', '西原的阳光好美', 'Der Sonnenschein im Zentralen Hochland ist so schön'],
+  'Cây bồ đề mát ghê': ['The bodhi tree gives lovely shade', '菩提树好阴凉', 'Der Bodhibaum spendet herrlichen Schatten'],
+  'Tiếng chuông êm tai': ['The bell sounds so soothing', '钟声悦耳动听', 'Der Glockenklang ist so beruhigend'],
+  // ── Đại Tuệ ──
+  'Sương sớm đang tan bên dòng sông xứ Nghệ': ['Morning mist is lifting beside the river of Nghệ An', '晨雾正在义安的小河边消散', 'Der Morgennebel lichtet sich am Fluss von Nghệ An'],
+  'qua cổng, bước trên cầu đá bắc ngang sông, ngắm bảo tháp và gác chuông rồi vào chánh điện': ['pass the gate, cross the stone bridge over the river, admire the tower and the bell pavilion, then enter the main hall', '穿过山门，走过横跨小河的石桥，欣赏宝塔和钟楼，然后进入大殿', 'Gehe durch das Tor, überquere die Steinbrücke über den Fluss, bewundere Turm und Glockenpavillon und betritt dann die Haupthalle'],
+  'Chùa Đại Tuệ ở Nghệ An là ngôi chùa yên tĩnh của xứ Nghệ. Qua cổng tam quan là cầu đá bắc ngang một dòng sông nhỏ; trong sân bên trái có gác chuông, bên phải là bảo tháp năm tầng; cuối sân là chánh điện, phía sau là đồi xanh. (Dựng phỏng theo không khí chùa, không phải bản sao.)': ['Đại Tuệ Pagoda in Nghệ An is a quiet pagoda of that region. Past the three-gate entrance a stone bridge crosses a small river; in the courtyard stand a bell pavilion on the left and a five-storey tower on the right; the main hall is at the far end, with green hills behind. (Built after the spirit of the pagoda, not a copy.)', '义安的大慧寺是当地一座宁静的寺院。穿过三关门，一座石桥横跨一条小河；庭院里左边是钟楼，右边是五层宝塔；尽头是大殿，后面是青山。（依寺院意境建造，并非复制。）', 'Die Đại-Tuệ-Pagode in Nghệ An ist eine stille Pagode dieser Region. Hinter dem Dreifachtor überspannt eine Steinbrücke einen kleinen Fluss; im Hof stehen links ein Glockenpavillon und rechts ein fünfstöckiger Turm; am Ende liegt die Haupthalle, dahinter grüne Hügel. (Im Geist der Pagode gebaut, keine Kopie.)'],
+  'Xứ Nghệ yên bình quá': ['Nghệ An is so peaceful', '义安好宁静', 'Nghệ An ist so friedlich'],
+  'Bảo tháp cao thiệt': ['The tower is really tall', '宝塔真高', 'Der Turm ist wirklich hoch'],
+};
