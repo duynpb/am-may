@@ -44,6 +44,12 @@ export const SITES = {
   nuimot: { name: 'Chùa Núi Một', page: 'chua.html?site=nuimot', roomLabel: 'Núi Một', desc: 'chùa dưới chân núi Côn Đảo nhìn ra biển' },
   sinhton: { name: 'Chùa Sinh Tồn', page: 'chua.html?site=sinhton', roomLabel: 'Sinh Tồn', desc: 'chùa trên đảo Sinh Tồn, hải đăng, cột cờ' },
   thienan: { name: 'Chùa Thiên Ấn', page: 'chua.html?site=thienan', roomLabel: 'Thiên Ấn', desc: 'chùa dưới núi Thiên Ấn, cầu đá bắc ngang sông' },
+  taku: { name: 'Chùa Núi Tà Cú', page: 'chua.html?site=taku', roomLabel: 'Tà Cú', desc: 'chùa trên núi Tà Cú, tượng Phật lớn giữa rừng' },
+  truclampn: { name: 'Thiền viện Trúc Lâm Phương Nam', page: 'chua.html?site=truclampn', roomLabel: 'Trúc Lâm Phương Nam', desc: 'thiền viện ở Cần Thơ, hai hồ sen, bảo tháp' },
+  phudung: { name: 'Chùa Phù Dung', page: 'chua.html?site=phudung', roomLabel: 'Phù Dung', desc: 'chùa cổ ở Hà Tiên, bên núi và biển' },
+  kleang: { name: 'Chùa Kh\'Leang', page: 'chua.html?site=kleang', roomLabel: 'Kh\'Leang', desc: 'chùa Khmer ở Sóc Trăng, màu vàng rực, nhiều tháp' },
+  buuphong: { name: 'Chùa Bửu Phong', page: 'chua.html?site=buuphong', roomLabel: 'Bửu Phong', desc: 'chùa trên đồi ở Biên Hòa, bảo tháp, hồ sen' },
+  hoikhanh: { name: 'Chùa Hội Khánh', page: 'chua.html?site=hoikhanh', roomLabel: 'Hội Khánh', desc: 'chùa cổ ở Thủ Dầu Một, nhiều cột gỗ chạm khắc' },
   daitue: { name: 'Chùa Đại Tuệ', page: 'chua.html?site=daitue', roomLabel: 'Đại Tuệ', desc: 'chùa xứ Nghệ, cầu đá bắc ngang sông, bảo tháp' },
   khaidoan: { name: 'Chùa Khải Đoan', page: 'chua.html?site=khaidoan', roomLabel: 'Khải Đoan', desc: 'chùa ở Buôn Ma Thuột, hai hồ sen, cây bồ đề' },
   minhthanh: { name: 'Chùa Minh Thành', page: 'chua.html?site=minhthanh', roomLabel: 'Minh Thành', desc: 'chùa trên cao nguyên Pleiku, tượng Phật lớn, hồ sen' },
@@ -61,7 +67,7 @@ const SOUTH = [['vinhnghiem', 'vinh-nghiem', 'Vĩnh Nghiêm'], ['chuadoi', 'chua
   ['chuaha', 'chua-ha', 'Chùa Hà'], ['motcot', 'mot-cot', 'Một Cột'], ['tranquoc', 'tran-quoc', 'Trấn Quốc'], ['quansu', 'quan-su', 'Quán Sứ'],
   ['buulong', 'buu-long', 'Bửu Long'], ['vinhtrang', 'vinh-trang', 'Vĩnh Tràng'], ['hoquoc', 'ho-quoc', 'Hộ Quốc'], ['tayan', 'tay-an', 'Tây An'],
   ['giaclam', 'giac-lam', 'Giác Lâm'], ['ngochoang', 'ngoc-hoang', 'Ngọc Hoàng'], ['vnquoctu', 'quoc-tu', 'Quốc Tự'], ['ang', 'chua-ang', 'Chùa Âng'],
-  ['linhungnn', 'non-nuoc', 'Non Nước'], ['hanglyson', 'chua-hang', 'Chùa Hang'], ['linhphuoc', 'linh-phuoc', 'Linh Phước'], ['tuhieu', 'tu-hieu', 'Từ Hiếu'], ['hoangsa', 'hoang-sa', 'Hoàng Sa'], ['tslon', 'truong-sa-lon', 'Trường Sa Lớn'], ['songtutay', 'song-tu-tay', 'Song Tử Tây'], ['nuimot', 'nui-mot', 'Núi Một'], ['sonca', 'son-ca', 'Sơn Ca'], ['namyet', 'nam-yet', 'Nam Yết'], ['sinhton', 'sinh-ton', 'Sinh Tồn'], ['tudam', 'tu-dam', 'Từ Đàm'], ['thienan', 'thien-an', 'Thiên Ấn'], ['chucthanh', 'chuc-thanh', 'Chúc Thánh'], ['thapthap', 'thap-thap', 'Thập Tháp'], ['cothach', 'co-thach', 'Cổ Thạch'], ['minhthanh', 'minh-thanh', 'Minh Thành'], ['khaidoan', 'khai-doan', 'Khải Đoan'], ['daitue', 'dai-tue', 'Đại Tuệ']];
+  ['linhungnn', 'non-nuoc', 'Non Nước'], ['hanglyson', 'chua-hang', 'Chùa Hang'], ['linhphuoc', 'linh-phuoc', 'Linh Phước'], ['tuhieu', 'tu-hieu', 'Từ Hiếu'], ['hoangsa', 'hoang-sa', 'Hoàng Sa'], ['tslon', 'truong-sa-lon', 'Trường Sa Lớn'], ['songtutay', 'song-tu-tay', 'Song Tử Tây'], ['nuimot', 'nui-mot', 'Núi Một'], ['sonca', 'son-ca', 'Sơn Ca'], ['namyet', 'nam-yet', 'Nam Yết'], ['sinhton', 'sinh-ton', 'Sinh Tồn'], ['tudam', 'tu-dam', 'Từ Đàm'], ['thienan', 'thien-an', 'Thiên Ấn'], ['hoikhanh', 'hoi-khanh', 'Hội Khánh'], ['buuphong', 'buu-phong', 'Bửu Phong'], ['kleang', 'kleang', 'Kh\'Leang'], ['phudung', 'phu-dung', 'Phù Dung'], ['truclampn', 'truc-lam-phuong-nam', 'Trúc Lâm Phương Nam'], ['taku', 'ta-cu', 'Tà Cú'], ['chucthanh', 'chuc-thanh', 'Chúc Thánh'], ['thapthap', 'thap-thap', 'Thập Tháp'], ['cothach', 'co-thach', 'Cổ Thạch'], ['minhthanh', 'minh-thanh', 'Minh Thành'], ['khaidoan', 'khai-doan', 'Khải Đoan'], ['daitue', 'dai-tue', 'Đại Tuệ']];
 export const ROOMS = [
   ...Array.from({ length: 2 }, (_, i) => ({ id: `chanh-dien-${i + 1}`, name: `Chánh điện ${i + 1}`, site: 'ammay' })),
   ...Array.from({ length: 2 }, (_, i) => ({ id: `tam-chuc-${i + 1}`, name: `Tam Chúc ${i + 1}`, site: 'tamchuc' })),
