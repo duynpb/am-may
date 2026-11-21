@@ -84,7 +84,7 @@ export function woodBellTower(ctx, key, { tiers = 3, half = 2.6 } = {}) {
 }
 
 // Cầu có mái che bắc qua sông, miếu nhỏ ở giữa, tượng chó và khỉ đá ở hai đầu (như Chùa Cầu Hội An)
-export function coveredBridge(ctx) {
+export function coveredBridge(ctx, { shrine = true, animals = true, label: bridgeLabel = 'LAI VIỄN KIỀU' } = {}) {
   const { THREE, scene, M, std, box, cyl, mesh, plaque, ROUND_OBSTACLES, BR, bridgeZ } = ctx;
   const [z0, z1] = bridgeZ, zc = (z0 + z1) / 2, len = z1 - z0 + 1.6;
   const red = M.red, tile = std('#9c4a30', { roughness: 0.75 }), woodD = std('#4a2e1a', { roughness: 0.7 });
@@ -105,7 +105,7 @@ export function coveredBridge(ctx) {
   }
   box(0.5, 0.3, len + 1.2, std('#d9b04e', { metalness: 0.5, roughness: 0.45 }), 0, deck + postH + 0.2 + rise + 0.1, zc);
   // đầu hồi: hai mặt tam giác bằng gỗ, bảng tên chữ nổi
-  for (const [z, ry, label] of [[z1 + 0.8, 0, 'LAI VIỄN KIỀU'], [z0 - 0.8, Math.PI, 'LAI VIỄN KIỀU']]) {
+  for (const [z, ry, label] of [[z1 + 0.8, 0, bridgeLabel], [z0 - 0.8, Math.PI, bridgeLabel]]) {
     const tri = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(-span, 0), new THREE.Vector2(span, 0), new THREE.Vector2(0, rise)])), woodD);
     tri.position.set(0, deck + postH + 0.15, z);
     tri.rotation.y = ry;
@@ -114,12 +114,14 @@ export function coveredBridge(ctx) {
   }
   // miếu nhỏ giữa cầu (sát lan can phía đông): ba vách gỗ và bàn thờ
   const mx = BR - 1.3, mz = zc;
+  if (shrine) {
   box(0.18, 2.4, 2.6, woodD, mx + 0.9, deck + 1.2, mz);
   box(1.8, 2.4, 0.18, woodD, mx, deck + 1.2, mz - 1.3);
   box(1.8, 2.4, 0.18, woodD, mx, deck + 1.2, mz + 1.3);
   box(0.9, 0.6, 1.2, std('#7a1f1a'), mx + 0.35, deck + 0.3, mz); // bàn thờ
   mesh(new THREE.SphereGeometry(0.22, 12, 10), std('#d9b04e', { metalness: 0.6, roughness: 0.4 }), mx + 0.35, deck + 0.9, mz);
   ROUND_OBSTACLES.push({ x: mx + 0.2, z: mz, r: 1.35 });
+  }
   // tượng chó (đầu nam) và khỉ (đầu bắc) ngồi hai bên đường vào cầu
   const sit = (x, z, ry, dog) => {
     const g = new THREE.Group();
@@ -134,15 +136,15 @@ export function coveredBridge(ctx) {
     else { add(new THREE.SphereGeometry(0.1, 8, 6), -0.3, 1.2, 0.1); add(new THREE.SphereGeometry(0.1, 8, 6), 0.3, 1.2, 0.1); add(new THREE.BoxGeometry(0.4, 0.15, 0.3), 0, 1.02, 0.35); }
     scene.add(g);
   };
-  for (const s of [-1, 1]) { sit(s * (BR + 0.9), z1 + 1.2, 0, true); sit(s * (BR + 0.9), z0 - 1.2, Math.PI, false); }
+  if (animals) for (const s of [-1, 1]) { sit(s * (BR + 0.9), z1 + 1.2, 0, true); sit(s * (BR + 0.9), z0 - 1.2, Math.PI, false); }
 }
 
 // ───────────── Giác Viên: tượng gỗ thếp vàng (hàng trăm pho tượng nhỏ) ─────────────
 // Vẽ nhiều pho tượng ngồi bằng InstancedMesh (3 khối: đài sen, thân, đầu) cho nhẹ.
 // list: [x, y, z, tỉ lệ, góc quay quanh trục y]
-function figureField(ctx, list) {
+function figureField(ctx, list, { color = '#d9b04e', metal = 0.55 } = {}) {
   const { THREE, scene, std } = ctx;
-  const gold = std('#d9b04e', { metalness: 0.55, roughness: 0.4 });
+  const gold = std(color, { metalness: metal, roughness: 0.45 });
   const dark = std('#8a5a2a', { roughness: 0.7 });
   const parts = [
     [new THREE.CylinderGeometry(0.34, 0.4, 0.12, 12), dark, 0.06],
@@ -269,4 +271,55 @@ export function goldenBridge(ctx, { x0 = 46, x1 = 84, zc = -6, y = 8 } = {}) {
     const th = add(new THREE.CylinderGeometry(0.5, 0.58, 3.0, 10), rock, new THREE.Vector3(-0.8, 0.2, -s * 2.9), 0, 0, g);
     th.rotation.set(0, -s * 0.6, Math.PI / 2 - 0.3);
   }
+}
+
+// ───────────── Chùa Thầy: thủy đình (sân khấu rối nước) trên hồ ─────────────
+export function waterStage(ctx, x, z) {
+  const { THREE, scene, M, std, box, cyl, plaque } = ctx;
+  const wood = std('#6b4528', { roughness: 0.7 }), red = M.red;
+  for (const sx of [-2.2, 2.2]) for (const sz of [-1.8, 1.8]) cyl(0.2, 0.22, 1.6, wood, x + sx, -0.2, z + sz, {}, 8); // cọc chống dưới nước
+  box(6.0, 0.35, 5.0, wood, x, 0.75, z);
+  for (const sx of [-2.6, 2.6]) for (const sz of [-2.1, 2.1]) cyl(0.2, 0.22, 3.4, red, x + sx, 0.9 + 1.7, z + sz, {}, 10);
+  box(6.0, 3.0, 0.2, std('#5b1d17'), x, 0.9 + 1.5, z - 2.2); // vách sau (phông đỏ)
+  for (const s of [-1, 1]) box(0.2, 2.4, 2.4, wood, x + s * 2.7, 0.9 + 1.2, z - 0.9);
+  box(6.2, 0.3, 5.2, red, x, 4.4, z);
+  curvedRoof(ctx.scene, x, 4.55, z, 3.6, 3.1, 1.3, 1.6, { lift: 0.75 });
+  plaque(scene, 'THỦY ĐÌNH', x, 3.9, z + 2.35, 2.4, 0.5, 0, { size: 80 });
+}
+
+// ───────────── Bút Tháp: tháp đá Cửu phẩm liên hoa (chín tầng cánh sen) ─────────────
+export function lotusTower(ctx, key, { tiers = 9 } = {}) {
+  const { THREE, scene, M, std, cyl, mesh, plaque } = ctx;
+  const { x, z } = slotOf(ctx, key);
+  const stone = std('#a8a196', { roughness: 0.9, flatShading: true }), stoneD = std('#7d776d', { roughness: 0.95 });
+  cyl(3.0, 3.3, 0.9, M.stoneD, x, 0.45, z, {}, 24);
+  let y = 0.9;
+  for (let i = 0; i < tiers; i++) {
+    const r = 2.5 - i * 0.2;
+    cyl(r * 0.55, r * 0.6, 1.0, stone, x, y + 0.5, z, {}, 16); // thân
+    cyl(r, r, 0.18, stoneD, x, y + 1.1, z, {}, 24); // đài
+    const n = 12;
+    for (let k = 0; k < n; k++) { // cánh sen quanh mỗi tầng
+      const a = (k / n) * Math.PI * 2 + (i % 2) * 0.26;
+      const p = mesh(new THREE.ConeGeometry(0.28, 0.9, 5), stone, x + Math.cos(a) * r * 0.82, y + 1.45, z + Math.sin(a) * r * 0.82);
+      p.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+    }
+    y += 1.35;
+  }
+  mesh(new THREE.ConeGeometry(0.5, 1.8, 8), std('#d9b04e', { metalness: 0.6, roughness: 0.4 }), x, y + 0.9, z);
+  plaque(scene, 'CỬU PHẨM LIÊN HOA', x + (x < 0 ? 3.7 : -3.7), 1.8, z, 2.4, 0.42, x < 0 ? Math.PI / 2 : -Math.PI / 2, { size: 70 });
+}
+
+// ───────────── Tây Phương: tượng La Hán gỗ đứng hai bên trong chánh điện ─────────────
+export function arhatHall(ctx, { count = 9 } = {}) {
+  const { box, std, HALL } = ctx;
+  const wood = std('#5b3a24', { roughness: 0.7 });
+  const list = [];
+  const zA = HALL.z0 - 3.4, step = (zA - (HALL.z1 + 3.4)) / (count - 1);
+  for (const s of [-1, 1]) {
+    const x = s * (HALL.hx - 1.1);
+    box(1.4, 0.35, zA - HALL.z1 - 5.4 + 1.2, wood, x, HALL.y + 0.25 + 0.17, (zA + HALL.z1 + 3.4) / 2);
+    for (let i = 0; i < count; i++) list.push([x, HALL.y + 0.25 + 0.35, zA - i * step, 1.5 + (i % 3) * 0.12, s < 0 ? Math.PI / 2 : -Math.PI / 2]);
+  }
+  figureField(ctx, list, { color: '#8a5a32', metal: 0.1 });
 }
