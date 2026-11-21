@@ -1,6 +1,7 @@
 // Chi tiết riêng cho một số chùa sân vườn (gắn vào makeYardSite qua cfg.extras và slot kiểu 'custom').
 // Mỗi hàm nhận ngữ cảnh ctx do yard.js đưa vào. (Phỏng theo dáng công trình, không sao chép.)
 import { curvedRoof, dragonsOnRidge } from './base.js';
+import { makeThichCa } from '../buddha.js';
 
 const slotOf = (ctx, key) => ctx.slots.find((s) => s.key === key);
 
@@ -134,4 +135,127 @@ export function coveredBridge(ctx) {
     scene.add(g);
   };
   for (const s of [-1, 1]) { sit(s * (BR + 0.9), z1 + 1.2, 0, true); sit(s * (BR + 0.9), z0 - 1.2, Math.PI, false); }
+}
+
+// ───────────── Giác Viên: tượng gỗ thếp vàng (hàng trăm pho tượng nhỏ) ─────────────
+// Vẽ nhiều pho tượng ngồi bằng InstancedMesh (3 khối: đài sen, thân, đầu) cho nhẹ.
+// list: [x, y, z, tỉ lệ, góc quay quanh trục y]
+function figureField(ctx, list) {
+  const { THREE, scene, std } = ctx;
+  const gold = std('#d9b04e', { metalness: 0.55, roughness: 0.4 });
+  const dark = std('#8a5a2a', { roughness: 0.7 });
+  const parts = [
+    [new THREE.CylinderGeometry(0.34, 0.4, 0.12, 12), dark, 0.06],
+    [new THREE.CylinderGeometry(0.15, 0.3, 0.52, 10), gold, 0.38],
+    [new THREE.SphereGeometry(0.15, 10, 8), gold, 0.78],
+    [new THREE.SphereGeometry(0.06, 8, 6), gold, 0.96],
+  ];
+  const o = new THREE.Object3D();
+  for (const [geo, mat, dy] of parts) {
+    const im = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach(([x, y, z, s, ry], i) => {
+      o.position.set(x, y + dy * s, z);
+      o.rotation.set(0, ry, 0);
+      o.scale.setScalar(s);
+      o.updateMatrix();
+      im.setMatrixAt(i, o.matrix);
+    });
+    im.castShadow = false;
+    scene.add(im);
+  }
+}
+
+// Kệ gỗ hai bên trong chánh điện, mỗi bên hai tầng tượng gỗ thếp vàng quay vào giữa điện
+export function woodStatueHall(ctx) {
+  const { box, std, HALL } = ctx;
+  const wood = std('#5b3a24', { roughness: 0.7 });
+  const list = [];
+  const zA = HALL.z0 - 3.8, zB = HALL.z1 + 3.4;
+  for (const s of [-1, 1]) {
+    const x = s * (HALL.hx - 0.65);
+    for (const [y, tier] of [[1.15, 0], [2.3, 1]]) {
+      box(0.6, 0.1, zA - zB + 1.2, wood, x, HALL.y + 0.25 + y, (zA + zB) / 2);
+      for (let z = zA; z >= zB; z -= 0.95) list.push([x, HALL.y + 0.25 + y + 0.05, z, 0.62, s < 0 ? Math.PI / 2 : -Math.PI / 2]);
+    }
+    box(0.12, 2.6, zA - zB + 1.2, wood, x + (s < 0 ? -0.34 : 0.34), HALL.y + 0.25 + 1.5, (zA + zB) / 2, { cast: false });
+  }
+  figureField(ctx, list);
+}
+
+// Nhà tượng gỗ: mái cong, hai tầng kệ dọc vách sau, hơn hai chục pho tượng nhìn ra sân
+export function statueHouse(ctx, key) {
+  const { THREE, scene, K, M, std, box, cyl, plaque } = ctx;
+  const { x, z } = slotOf(ctx, key);
+  const dir = x < 0 ? 1 : -1; // hướng về giữa sân
+  const wood = std('#5b3a24', { roughness: 0.7 });
+  box(7.6, 0.5, 10.6, M.stoneD, x, 0.25, z);
+  for (const px of [-3.2, 3.2]) for (const pz of [-4.7, 0, 4.7]) cyl(0.22, 0.25, 3.6, M.red, x + px, 0.5 + 1.8, z + pz, {}, 10);
+  box(0.3, 3.4, 10.4, wood, x - dir * 3.35, 0.5 + 1.7, z);
+  for (const s of [-1, 1]) box(7.2, 0.3, 0.3, M.red, x, 4.0, z + s * 4.8);
+  box(7.4, 0.3, 10.6, M.red, x, 4.1, z);
+  const list = [];
+  for (const y of [1.1, 2.4]) {
+    box(1.0, 0.12, 9.4, wood, x - dir * 2.75, 0.5 + y, z);
+    for (let zz = -4.2; zz <= 4.2; zz += 0.95) list.push([x - dir * 2.75, 0.5 + y + 0.06, z + zz, y > 2 ? 0.8 : 0.9, dir > 0 ? Math.PI / 2 : -Math.PI / 2]);
+  }
+  figureField(ctx, list);
+  curvedRoof(scene, x, 4.25, z, 4.7, 6.1, 1.4, 2.6, { lift: 0.75 });
+  plaque(scene, 'NHÀ TƯỢNG GỖ', x + dir * 3.9, 3.2, z, 3.0, 0.5, dir > 0 ? Math.PI / 2 : -Math.PI / 2, { size: 80 });
+  K.roofs.push({ minX: x - 6, maxX: x + 6, minZ: z - 7, maxZ: z + 7, lift: 9 });
+}
+
+// ───────────── Linh Ứng Bà Nà: tượng Phật Thích Ca lớn trên đài sen cao ─────────────
+export function bigBuddha(ctx, key, { scale = 4.4 } = {}) {
+  const { THREE, scene, K, M, std, cyl, mesh, plaque } = ctx;
+  const { x, z } = slotOf(ctx, key);
+  const white = M.white;
+  cyl(4.8, 5.2, 1.4, white, x, 0.7, z, {}, 36);
+  cyl(4.0, 4.4, 1.2, white, x, 2.0, z, {}, 36);
+  cyl(3.3, 3.7, 1.0, white, x, 3.1, z, {}, 36);
+  for (let i = 0; i < 16; i++) { // cánh sen quanh đài
+    const a = (i / 16) * Math.PI * 2;
+    const p = mesh(new THREE.ConeGeometry(0.55, 1.7, 6), std('#f3e4ee', { roughness: 0.6 }), x + Math.cos(a) * 3.55, 4.15, z + Math.sin(a) * 3.55);
+    p.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45);
+  }
+  const b = K.gild(makeThichCa({ stone: '#f4f1ea' }), { color: '#f4f1ea', stone: true });
+  b.position.set(x, 3.6, z);
+  b.scale.setScalar(scale);
+  b.rotation.y = Math.PI * 0.08 * (x < 0 ? -1 : 1);
+  scene.add(b);
+  plaque(scene, 'THÍCH CA MÂU NI PHẬT', x + (x < 0 ? 5.6 : -5.6), 1.6, z, 3.2, 0.5, x < 0 ? Math.PI / 2 : -Math.PI / 2, { size: 80 });
+  K.roofs.push({ minX: x - 8, maxX: x + 8, minZ: z - 8, maxZ: z + 8, lift: 24 });
+}
+
+// Cầu Vàng: dải cầu vàng uốn cong nằm trên hai bàn tay đá khổng lồ, dựng ngoài tường phía phải để ngắm từ sân
+export function goldenBridge(ctx, { x0 = 46, x1 = 72, zc = -6, y = 8 } = {}) {
+  const { THREE, scene, std } = ctx;
+  const rock = std('#9a9386', { roughness: 1, flatShading: true });
+  const gold = std('#e2b441', { metalness: 0.5, roughness: 0.4, emissive: '#7a5a10', emissiveIntensity: 0.25 });
+  const N = 40, W = 3.0;
+  const P = (t) => new THREE.Vector3(x0 + (x1 - x0) * t, y + 0.5 * Math.sin(Math.PI * t), zc + 6 * Math.sin(Math.PI * t));
+  const add = (geo, mat, p, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.copy(p); m.rotation.set(0, ry, rz); m.castShadow = true; scene.add(m); return m; };
+  for (let i = 0; i < N; i++) {
+    const a = P(i / N), b = P((i + 1) / N), d = new THREE.Vector3().subVectors(b, a);
+    const len = Math.hypot(d.x, d.z) + 0.05, ry = -Math.atan2(d.z, d.x), mid = a.clone().add(b).multiplyScalar(0.5);
+    add(new THREE.BoxGeometry(len, 0.25, W), gold, mid, ry);
+    const nrm = new THREE.Vector3(-d.z, 0, d.x).normalize().multiplyScalar(W / 2);
+    for (const s of [-1, 1]) {
+      add(new THREE.BoxGeometry(len, 0.07, 0.07), gold, mid.clone().add(nrm.clone().multiplyScalar(s)).add(new THREE.Vector3(0, 1.0, 0)), ry);
+      if (i % 3 === 0) add(new THREE.BoxGeometry(0.07, 1.0, 0.07), gold, mid.clone().add(nrm.clone().multiplyScalar(s)).add(new THREE.Vector3(0, 0.5, 0)), ry);
+    }
+  }
+  // hai bàn tay đá: trụ đá, cổ tay, lòng bàn tay, năm ngón xoè hướng ra ngoài
+  for (const [x, dir] of [[x0, -1], [x1, 1]]) {
+    const pz = zc;
+    add(new THREE.CylinderGeometry(4.2, 5.4, y + 2, 9), rock, new THREE.Vector3(x + dir * 0.8, (y - 2) / 2, pz));
+    add(new THREE.BoxGeometry(6.4, 1.2, 4.6), rock, new THREE.Vector3(x + dir * 1.0, y - 0.6, pz));
+    for (let f = 0; f < 4; f++) { // bốn ngón dài tròn, đầu hơi cong lên
+      const fz = pz - 1.7 + f * 1.13, len = 4.6 - Math.abs(f - 1.5) * 0.5;
+      const fm = add(new THREE.CylinderGeometry(0.42, 0.5, len, 10), rock, new THREE.Vector3(x + dir * (3.2 + len / 2 - 0.4), y - 0.05 + 0.25, fz));
+      fm.rotation.set(0, 0, Math.PI / 2 + dir * 0.1);
+      add(new THREE.SphereGeometry(0.44, 10, 8), rock, new THREE.Vector3(x + dir * (3.2 + len - 0.2), y + 0.55, fz));
+    }
+    const th = add(new THREE.CylinderGeometry(0.5, 0.58, 3.0, 10), rock, new THREE.Vector3(x + dir * 1.6, y + 0.1, pz + 2.9));
+    th.rotation.set(0, 0, Math.PI / 2 + dir * 0.5);
+  }
 }

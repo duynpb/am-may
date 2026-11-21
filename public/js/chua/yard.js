@@ -43,6 +43,7 @@ export function makeYardSite(cfg) {
 
   const slotR = (s) => (s.type === 'custom' ? cfg.custom[s.key].r : SLOT_R[s.type]);
   const slotName = (s) => (s.type === 'custom' ? cfg.custom[s.key].name : SLOT_NAME[s.type]);
+  const standOff = (s) => (s.type === 'custom' ? Math.max(5.5, cfg.custom[s.key].r + 1) : 5.5); // đứng ngắm cách vật bao xa
   const slotLabel = (s) => (s.type === 'custom' ? cfg.custom[s.key].label || cfg.custom[s.key].name : SLOT_NAME[s.type]);
   const ROUND_OBSTACLES = [...slots.map((s) => ({ x: s.x, z: s.z, r: slotR(s) })), { x: CENTER.x, z: CENTER.z, r: 1.1 }];
   const RITUALS = [
@@ -209,7 +210,8 @@ export function makeYardSite(cfg) {
   const PLACES = [
     { id: 'gate', name: 'Cổng tam quan', x: 0, z: 50, ry: Math.PI },
     ...(waters.length ? [{ id: 'nuoc', name: BR ? bridgeName : waterName, x: 0, z: wz, ry: Math.PI }] : []),
-    ...slots.map((s) => ({ id: `v${s.key}`, name: slotName(s), x: s.x + (s.x < 0 ? 5.5 : -5.5), z: s.z, ry: s.x < 0 ? -Math.PI / 2 : Math.PI / 2 })),
+    ...slots.map((s) => ({ id: `v${s.key}`, name: slotName(s), x: s.x + (s.x < 0 ? standOff(s) : -standOff(s)), z: s.z, ry: s.x < 0 ? -Math.PI / 2 : Math.PI / 2 })),
+    ...(cfg.extraPlaces || []),
     { id: 'san', name: 'Sân chùa', x: 0, z: 9, ry: Math.PI },
     { id: 'dien', name: 'Chánh điện', x: 0, z: HALL.z0 + 3, ry: Math.PI },
   ];
@@ -218,12 +220,13 @@ export function makeYardSite(cfg) {
     const s = slots.find((q) => `v${q.key}` === p.id);
     if (s && s.type === 'bell') { p.x = s.x; p.z = s.z + 5.2; p.ry = Math.PI; }
   }
-  const labels = [['gate', 0, 50, 'Cổng tam quan'], ...(waters.length ? [['nuoc', 0, waters[0].z0 - 2, waterName]] : []), ...slots.map((s) => [`v${s.key}`, s.x, s.z - 5, slotLabel(s)]), ['dien', 0, -12, 'Chánh điện']];
+  const labels = [['gate', 0, 50, 'Cổng tam quan'], ...(waters.length ? [['nuoc', 0, waters[0].z0 - 2, waterName]] : []), ...slots.map((s) => [`v${s.key}`, s.x, s.z - 5, slotLabel(s)]), ...(cfg.extraLabels || []), ['dien', 0, -12, 'Chánh điện']];
   const TRIPS = [
     { x: 0, z: HALL.z1 + 6.5, spread: 3, act: 'bow', say: 'lạy Phật' },
     { x: CENTER.x, z: CENTER.z + 4.5, spread: 3, act: 'gassho' },
     ...(waters.length ? [{ x: 0, z: wz, spread: 2, ry: Math.PI }] : []),
-    ...slots.map((s) => (s.type === 'bell' ? { x: s.x, z: s.z + 5.2, spread: 1, act: 'bell' } : { x: s.x + (s.x < 0 ? 5.5 : -5.5), z: s.z, spread: 2, ry: s.x < 0 ? -Math.PI / 2 : Math.PI / 2 })),
+    ...slots.map((s) => (s.type === 'bell' ? { x: s.x, z: s.z + 5.2, spread: 1, act: 'bell' } : { x: s.x + (s.x < 0 ? standOff(s) : -standOff(s)), z: s.z, spread: 2, ry: s.x < 0 ? -Math.PI / 2 : Math.PI / 2 })),
+    ...(cfg.extraTrips || []),
     { x: 0, z: 48, spread: 20, ry: Math.PI },
   ];
 
