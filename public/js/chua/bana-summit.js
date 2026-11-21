@@ -14,8 +14,8 @@ const sm = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 // Độ cao mặt đất: phẳng ở chùa và quảng trường, dốc lên từ x = 84 tới chân cầu, mỏm cao ở hai đầu cầu, thung lũng ở giữa
 export function H(x, z) {
-  const dS = Math.hypot(x - S.x, (z - S.z) * 0.8), dE = Math.hypot(x - E.x, (z - E.z) * 0.8);
-  const hS = Y * sm((54 - dS) / 40), hE = Y * sm((64 - dE) / 40);
+  const dS = Math.hypot(x - S.x, (z - S.z) * 0.8), dE = Math.hypot(x - (E.x + 14), (z - E.z) * 0.8);
+  const hS = Y * sm((54 - dS) / 40), hE = Y * sm((62 - dE) / 40);
   let hr = 0;
   if (x < S.x) hr = Y * sm((x - 84) / (S.x - 13 - 84)) * (1 - sm((Math.abs(z - S.z) - 10) / 32));
   return Math.max(hS, hE, hr);
@@ -29,6 +29,8 @@ export function onBridge(x, z, pad = 0.2) {
   return t >= ARC.th0 - 0.002 && t <= ARC.th1 + 0.002;
 }
 export function groundY(x, z) {
+  if (x >= S.x - 14.5 && x <= S.x + 0.6 && Math.abs(z - GATE_Z) <= 11.5) return Y; // sân chân cầu
+  if (x >= E.x - 0.6 && x <= E.x + 36 && z >= GATE_Z - 22 && z <= GATE_Z + 16) return Y; // sân đầu cầu bên kia
   return onBridge(x, z, 1.3) ? Y : H(x, z); // dải rộng hơn mặt cầu: lỡ bước sát lan can cũng không bị rơi xuống thung lũng
 }
 
@@ -43,7 +45,7 @@ export const WALK = [
   rect(GARDEN.x0, GARDEN.x1, GARDEN.z0, GARDEN.z1),
   rect(76, S.x - 11, GATE_Z - 4, GATE_Z + 4), // đường dốc lên chân cầu
   rect(S.x - 14, S.x + 0.5, GATE_Z - 11, GATE_Z + 11), // sân chân cầu (dừng đúng chỗ bắt đầu mặt cầu)
-  rect(E.x - 22, E.x + 4, GATE_Z - 20, GATE_Z + 14), // mỏm phẳng đầu cầu bên kia (đài ngắm, ga cáp treo); đoạn trước đó chỉ đi trên mặt cầu
+  rect(E.x - 0.5, E.x + 34.6, GATE_Z - 20.8, GATE_Z + 14.8), // sân đầu cầu bên kia (đài ngắm, ga cáp treo), bắt đầu đúng chỗ hết mặt cầu; chừa 1,2 m cách lan can đá
 ];
 {
   const L = ARC.R * (ARC.th1 - ARC.th0);
@@ -73,9 +75,9 @@ export const PLACES = [
   { id: 'apollo', name: 'Đài phun nước Apollo', x: 57, z: -59.5, ry: Math.PI },
   { id: 'chancau', name: 'Chân Cầu Vàng', x: S.x - 4, z: GATE_Z, ry: Math.PI / 2 },
   { id: 'giuacau', name: 'Giữa cầu, bàn tay đá', x: hx, z: hz, ry: tangentRy(handsTh) },
-  { id: 'cuoicau', name: 'Đầu cầu bên kia', x: E.x - 6, z: GATE_Z, ry: -Math.PI / 2 },
-  { id: 'daingam', name: 'Đài ngắm', x: E.x + 2, z: GATE_Z - 8, ry: -Math.PI / 2 },
-  { id: 'gacap', name: 'Ga cáp treo Bà Nà', x: E.x - 4, z: GATE_Z + 8, ry: 0.4 },
+  { id: 'cuoicau', name: 'Đầu cầu bên kia', x: E.x + 2.5, z: GATE_Z, ry: -Math.PI / 2 },
+  { id: 'daingam', name: 'Đài ngắm', x: E.x + 23, z: GATE_Z - 12, ry: -Math.PI / 2 },
+  { id: 'gacap', name: 'Ga cáp treo Bà Nà', x: E.x + 12, z: GATE_Z - 2.5, ry: 0 },
 ];
 export const TRIPS = [
   { x: 44, z: GATE_Z, spread: 6, ry: Math.PI / 2, say: 'Làng Pháp trên Bà Nà đẹp quá' },
@@ -84,9 +86,9 @@ export const TRIPS = [
   { x: 57, z: -60, spread: 4, ry: Math.PI, say: 'Tượng Apollo giữa đài phun nước' },
   { x: S.x - 4, z: GATE_Z, spread: 3, ry: Math.PI / 2, say: 'Sắp lên Cầu Vàng rồi' },
   { x: hx, z: hz, spread: 3, ry: tangentRy(handsTh), say: 'Hai bàn tay đá to ghê' },
-  { x: E.x - 4, z: GATE_Z, spread: 6, ry: -Math.PI / 2, say: 'Trên cao nhìn mây trôi dưới chân' },
+  { x: E.x + 6, z: GATE_Z - 2, spread: 5, ry: -Math.PI / 2, say: 'Trên cao nhìn mây trôi dưới chân' },
 ];
-export const BOT_SPAWN = [[38, 76, -30, 22], [40, 76, -86, -48], [E.x - 30, E.x, GATE_Z - 14, GATE_Z + 8]];
+export const BOT_SPAWN = [[38, 76, -30, 22], [40, 76, -86, -48], [E.x + 2, E.x + 32, GATE_Z - 18, GATE_Z + 12]];
 export const MAP_SHAPES = [
   { x0: 26, x1: 38, z0: GATE_Z - 3, z1: GATE_Z + 3, c: 'm-stone' },
   { x0: PLAZA.x0, x1: PLAZA.x1, z0: PLAZA.z0, z1: PLAZA.z1, c: 'm-stone' },
@@ -94,7 +96,7 @@ export const MAP_SHAPES = [
   { x0: 52, x1: 60, z0: -45, z1: -31, c: 'm-stone' },
   { x0: 76, x1: S.x - 8, z0: GATE_Z - 3, z1: GATE_Z + 3, c: 'm-stairs' },
   { x0: S.x - 13, x1: S.x + 11, z0: GATE_Z - 10, z1: GATE_Z + 10, c: 'm-terrace' },
-  { x0: E.x - 40, x1: E.x + 4, z0: GATE_Z - 21, z1: GATE_Z + 13, c: 'm-terrace' },
+  { x0: E.x - 0.5, x1: E.x + 35, z0: GATE_Z - 21, z1: GATE_Z + 15, c: 'm-terrace' },
   { x: 57, z: -4, r: 3.6, c: 'm-water' },
   { x: 57, z: -67, r: 4.6, c: 'm-water' },
 ];
@@ -112,8 +114,8 @@ export const MAP_LABELS = [
   ['vuonhoa', 57, -80, "Vườn hoa"],
   ['chancau', S.x, GATE_Z - 14, 'Chân cầu'],
   ['giuacau', hx, hz - 7, 'Cầu Vàng'],
-  ['daingam', E.x - 14, GATE_Z - 25, 'Đài ngắm'],
-  ['gacap', E.x - 14, GATE_Z + 20, 'Ga cáp treo'],
+  ['daingam', E.x + 15, GATE_Z - 26, 'Đài ngắm'],
+  ['gacap', E.x + 14, GATE_Z + 21, 'Ga cáp treo'],
 ];
 
 // ───────────── dựng cảnh ─────────────
@@ -164,7 +166,7 @@ export function buildSummit(ctx) {
     const idx = [], c = new THREE.Color(), g0 = new THREE.Color('#8a9a6a'), g1 = new THREE.Color('#6f8a52'), r0 = new THREE.Color('#8f8a7a');
     for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
       const x = x0 + i * st, z = z0 + j * st, h = H(x, z), k = j * (nx + 1) + i;
-      pos.set([x, h < 0.05 ? -0.12 : h, z], k * 3);
+      pos.set([x, h < 0.05 ? -0.24 : h - 0.12, z], k * 3);
       c.copy(g0).lerp(g1, Math.min(1, h / 8)).lerp(r0, Math.min(1, Math.max(0, (h - 9) / 4)) * 0.5);
       col.set([c.r, c.g, c.b], k * 3);
       if (i < nx && j < nz) idx.push(k, k + nx + 1, k + 1, k + 1, k + nx + 1, k + nx + 2);
@@ -184,7 +186,7 @@ export function buildSummit(ctx) {
     for (let x = 78; x <= S.x - 6; x += 2) pts.push([x, H(x, GATE_Z) + 0.04, GATE_Z]);
     ribbon(scene, pts, 6.4, '#cdbfa4', pickables);
     // thông trên các sườn đồi
-    const spots = K.scatter(86, E.x + 60, -140, 70, 150).filter(([x, z]) => !(x < S.x + 14 && Math.abs(z - GATE_Z) < 12) && !(x > E.x - 42 && x < E.x + 6 && z > GATE_Z - 24 && z < GATE_Z + 16) && !(Math.hypot(x - ARC.cx, z - ARC.cz) < ARC.R + 3 && Math.hypot(x - ARC.cx, z - ARC.cz) > ARC.R - 3));
+    const spots = K.scatter(86, E.x + 60, -140, 70, 150).filter(([x, z]) => !(x < S.x + 14 && Math.abs(z - GATE_Z) < 12) && !(x > E.x - 2 && x < E.x + 40 && z > GATE_Z - 26 && z < GATE_Z + 20) && !(Math.hypot(x - ARC.cx, z - ARC.cz) < ARC.R + 3 && Math.hypot(x - ARC.cx, z - ARC.cz) > ARC.R - 3));
     K.pines(spots.map(([x, z]) => [x, z, Math.max(H(x, z), 0) - 0.2]), 0, { scale: 1.0 });
   }
 
@@ -339,8 +341,8 @@ export function buildSummit(ctx) {
     box(0.6, 0.5, 5.4, gold, gx, gy + 4.3, GATE_Z);
     plaque(scene, 'CẦU VÀNG', gx - 0.35, gy + 4.3, GATE_Z, 3.6, 0.55, -Math.PI / 2, { size: 90 });
     plaque(scene, 'CẦU VÀNG', gx + 0.35, gy + 4.3, GATE_Z, 3.6, 0.55, Math.PI / 2, { size: 90 });
-    K.floor(S.x - 14, S.x + 12, GATE_Z - 11, GATE_Z + 11, Y, 'slab', { tile: 5.5, macro: 0.05 });
-    for (const s of [-1, 1]) { K.lampPost(S.x - 10, Y, GATE_Z + s * 9, std('#222')); box(26, 0.7, 0.3, M.stone, S.x - 1, Y + 0.35, GATE_Z + s * 11); }
+    K.floor(S.x - 14, S.x + 0.3, GATE_Z - 11, GATE_Z + 11, Y, 'slab', { tile: 5.5, macro: 0.05 });
+    for (const s of [-1, 1]) { K.lampPost(S.x - 10, Y, GATE_Z + s * 9, std('#222')); box(14.5, 0.7, 0.3, M.stone, S.x - 6.9, Y + 0.35, GATE_Z + s * 11.2); }
   }
 
   // ---------- Cầu Vàng ----------
@@ -416,28 +418,29 @@ export function buildSummit(ctx) {
 
   // ---------- Đầu cầu bên kia: đài ngắm, ga cáp treo ----------
   {
-    K.floor(E.x - 40, E.x + 4, GATE_Z - 22, GATE_Z + 14, Y, 'slab', { tile: 5.5, macro: 0.05 });
-    for (const [x0, x1, z0, z1] of [[E.x - 40, E.x + 4, GATE_Z - 22, GATE_Z - 22], [E.x + 4, E.x + 4, GATE_Z - 22, GATE_Z + 14], [E.x - 40, E.x + 4, GATE_Z + 14, GATE_Z + 14]]) {
+    K.floor(E.x - 0.2, E.x + 36, GATE_Z - 22, GATE_Z + 16, Y, 'slab', { tile: 5.5, macro: 0.05 });
+    // lan can đá quanh sân (phía cầu để hở)
+    for (const [x0, x1, z0, z1] of [[E.x - 0.2, E.x + 36, GATE_Z - 22, GATE_Z - 22], [E.x + 36, E.x + 36, GATE_Z - 22, GATE_Z + 16], [E.x - 0.2, E.x + 36, GATE_Z + 16, GATE_Z + 16]]) {
       const w = x1 - x0 || 0.4, d = z1 - z0 || 0.4;
       box(w, 0.8, d, M.stone, (x0 + x1) / 2, Y + 0.4, (z0 + z1) / 2);
     }
-    // đài ngắm có mái cong
-    const px = E.x - 6, pz = GATE_Z - 12;
-    box(8.4, 0.5, 8.4, M.stone, px, Y + 0.25, pz);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(0.22, 0.26, 4.2, M.red, px + sx * 3.5, Y + 2.6, pz + sz * 3.5, {}, 12);
-    box(8.0, 0.4, 8.0, M.red, px, Y + 4.9, pz);
-    curvedRoof(scene, px, Y + 5.1, pz, 4.6, 4.6, 1.8, 2.2, { lift: 0.8 });
-    plaque(scene, 'ĐÀI NGẮM', px - 4.3, Y + 4.4, pz, 2.6, 0.5, -Math.PI / 2, { size: 80 });
+    // đài ngắm có mái cong (nền bệ phẳng với sân để không bị lún)
+    const px = E.x + 14, pz = GATE_Z - 12;
+    box(8.4, 0.5, 8.4, M.stone, px, Y - 0.22, pz);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(0.22, 0.26, 4.2, M.red, px + sx * 3.5, Y + 2.2, pz + sz * 3.5, {}, 12);
+    box(8.0, 0.4, 8.0, M.red, px, Y + 4.5, pz);
+    curvedRoof(scene, px, Y + 4.7, pz, 4.6, 4.6, 1.8, 2.2, { lift: 0.8 });
+    plaque(scene, 'ĐÀI NGẮM', px + 4.3, Y + 4.0, pz, 2.6, 0.5, Math.PI / 2, { size: 80 });
     ctx.ROUND_OBSTACLES.push(...[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([sx, sz]) => ({ x: px + sx * 3.5, z: pz + sz * 3.5, r: 0.5 })));
-    // ga cáp treo hiện đại
-    const gx = E.x - 8, gz = GATE_Z + 6;
+    // ga cáp treo hiện đại (cửa và bảng nhìn về phía bắc, về phía đài ngắm)
+    const gx = E.x + 12, gz = GATE_Z + 7;
     box(10, 6.4, 8, std('#e9ecef', { roughness: 0.4, metalness: 0.2 }), gx, Y + 3.2, gz);
     box(10.6, 0.5, 8.6, std('#c0392b'), gx, Y + 6.6, gz);
     box(4.2, 3.4, 0.08, std('#3b6e8f', { roughness: 0.15, metalness: 0.5 }), gx, Y + 2.2, gz - 4.04, { cast: false });
     plaque(scene, 'GA CÁP TREO', gx, Y + 5.2, gz - 4.1, 4.0, 0.6, Math.PI, { size: 80 });
     ctx.ROUND_OBSTACLES.push({ x: gx, z: gz, r: 5.6 });
-    for (const sz of [-1, 1]) K.lampPost(E.x - 20, Y, GATE_Z + sz * 3, std('#222'));
-    K.flowers([[E.x - 22, GATE_Z - 18, Y], [E.x - 20, GATE_Z - 18, Y], [E.x - 18, GATE_Z - 18, Y], [E.x - 30, GATE_Z + 10, Y], [E.x - 28, GATE_Z + 10, Y]], Y, ['#f2d24a', '#ffffff', '#e08ab8']);
+    for (const sz of [-1, 1]) K.lampPost(E.x + 6, Y, GATE_Z + sz * 3, std('#222'));
+    K.flowers([[E.x + 26, GATE_Z - 17, Y], [E.x + 28, GATE_Z - 17, Y], [E.x + 30, GATE_Z - 17, Y], [E.x + 28, GATE_Z + 12, Y], [E.x + 30, GATE_Z + 12, Y], [E.x + 3, GATE_Z - 17, Y], [E.x + 5, GATE_Z - 17, Y]], Y, ['#f2d24a', '#ffffff', '#e08ab8']);
   }
 
   // ---------- Mây trôi dưới thung lũng ----------
