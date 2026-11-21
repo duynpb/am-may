@@ -41,7 +41,10 @@ export function makeYardSite(cfg) {
     rect(YARD.x0 + 1, -HALL.hx - 1.2, YARD.z0 + 1, HALL.z0 + 0.9), rect(HALL.hx + 1.2, YARD.x1 - 1, YARD.z0 + 1, HALL.z0 + 0.9),
     rect(YARD.x0 + 1, YARD.x1 - 1, YARD.z0 + 1, HALL.z1 - 1.4), ...hallWalk(HALL));
 
-  const ROUND_OBSTACLES = [...slots.map((s) => ({ x: s.x, z: s.z, r: SLOT_R[s.type] })), { x: CENTER.x, z: CENTER.z, r: 1.1 }];
+  const slotR = (s) => (s.type === 'custom' ? cfg.custom[s.key].r : SLOT_R[s.type]);
+  const slotName = (s) => (s.type === 'custom' ? cfg.custom[s.key].name : SLOT_NAME[s.type]);
+  const slotLabel = (s) => (s.type === 'custom' ? cfg.custom[s.key].label || cfg.custom[s.key].name : SLOT_NAME[s.type]);
+  const ROUND_OBSTACLES = [...slots.map((s) => ({ x: s.x, z: s.z, r: slotR(s) })), { x: CENTER.x, z: CENTER.z, r: 1.1 }];
   const RITUALS = [
     { place: 'dien', y: 0.25, burner: { x: 0, z: HALL.z1 + 3.8 }, merit: { x: HALL.hx - 2.6, z: HALL.z1 + 3.6 }, face: { x: 0, y: 3.2, z: HALL.z1 + 1.7 } },
     { place: 'san', y: 0, stone: true, burner: { x: CENTER.x, z: CENTER.z + 1.8 }, merit: { x: CENTER.x + 3.4, z: CENTER.z + 1.6 }, face: { x: 0, y: 4, z: HALL.z0 } },
@@ -192,18 +195,21 @@ export function makeYardSite(cfg) {
     }
     K.bamboo([[-24, 36, 8], [24, 36, 8]]);
 
+    // chi tiết riêng của từng chùa (tháp, cầu có mái…): file chùa tự dựng, đặt ở slot kiểu 'custom'
+    if (cfg.extras) cfg.extras({ K, THREE, scene, M, std, mesh, box, cyl, group, plaque, pickables, slots, ROUND_OBSTACLES, BR, bridgeZ, GATE_Z, YARD, HALL, CENTER, bells });
+
     const world = K.finish({ rituals: RITUALS });
     if (bells.length) world.bells = bells;
     return world;
   }
 
   const waterName = front === 'river' ? (cfg.riverName || 'Dòng sông') : front === 'pond' ? 'Hồ sen' : 'Hai hồ sen';
-  const bridgeName = front === 'river' ? 'Cầu đá qua sông' : 'Cầu đá hồ sen';
+  const bridgeName = cfg.bridgeName || (front === 'river' ? 'Cầu đá qua sông' : 'Cầu đá hồ sen');
   const wz = waters[0] ? waters[0].z1 + 3 : 30;
   const PLACES = [
     { id: 'gate', name: 'Cổng tam quan', x: 0, z: 50, ry: Math.PI },
     ...(waters.length ? [{ id: 'nuoc', name: BR ? bridgeName : waterName, x: 0, z: wz, ry: Math.PI }] : []),
-    ...slots.map((s) => ({ id: `v${s.key}`, name: SLOT_NAME[s.type], x: s.x + (s.x < 0 ? 5.5 : -5.5), z: s.z, ry: s.x < 0 ? Math.PI / 2 : -Math.PI / 2 })),
+    ...slots.map((s) => ({ id: `v${s.key}`, name: slotName(s), x: s.x + (s.x < 0 ? 5.5 : -5.5), z: s.z, ry: s.x < 0 ? -Math.PI / 2 : Math.PI / 2 })),
     { id: 'san', name: 'Sân chùa', x: 0, z: 9, ry: Math.PI },
     { id: 'dien', name: 'Chánh điện', x: 0, z: HALL.z0 + 3, ry: Math.PI },
   ];
@@ -212,12 +218,12 @@ export function makeYardSite(cfg) {
     const s = slots.find((q) => `v${q.key}` === p.id);
     if (s && s.type === 'bell') { p.x = s.x; p.z = s.z + 5.2; p.ry = Math.PI; }
   }
-  const labels = [['gate', 0, 50, 'Cổng tam quan'], ...(waters.length ? [['nuoc', 0, waters[0].z0 - 2, waterName]] : []), ...slots.map((s) => [`v${s.key}`, s.x, s.z - 5, SLOT_NAME[s.type]]), ['dien', 0, -12, 'Chánh điện']];
+  const labels = [['gate', 0, 50, 'Cổng tam quan'], ...(waters.length ? [['nuoc', 0, waters[0].z0 - 2, waterName]] : []), ...slots.map((s) => [`v${s.key}`, s.x, s.z - 5, slotLabel(s)]), ['dien', 0, -12, 'Chánh điện']];
   const TRIPS = [
     { x: 0, z: HALL.z1 + 6.5, spread: 3, act: 'bow', say: 'lạy Phật' },
     { x: CENTER.x, z: CENTER.z + 4.5, spread: 3, act: 'gassho' },
     ...(waters.length ? [{ x: 0, z: wz, spread: 2, ry: Math.PI }] : []),
-    ...slots.map((s) => (s.type === 'bell' ? { x: s.x, z: s.z + 5.2, spread: 1, act: 'bell' } : { x: s.x + (s.x < 0 ? 5.5 : -5.5), z: s.z, spread: 2, ry: s.x < 0 ? Math.PI / 2 : -Math.PI / 2 })),
+    ...slots.map((s) => (s.type === 'bell' ? { x: s.x, z: s.z + 5.2, spread: 1, act: 'bell' } : { x: s.x + (s.x < 0 ? 5.5 : -5.5), z: s.z, spread: 2, ry: s.x < 0 ? -Math.PI / 2 : Math.PI / 2 })),
     { x: 0, z: 48, spread: 20, ry: Math.PI },
   ];
 
@@ -250,7 +256,7 @@ export function makeYardSite(cfg) {
         ...(BR ? [{ x0: -BR, x1: BR, z0: bridgeZ[0], z1: bridgeZ[1], c: 'm-stairs' }] : []),
         { x0: -12, x1: 12, z0: GATE_Z - 1.5, z1: GATE_Z + 1.5, c: 'm-hall' },
         { x0: -HALL.hx, x1: HALL.hx, z0: HALL.z1, z1: HALL.z0, c: 'm-hall' },
-        ...slots.map((s) => ({ x: s.x, z: s.z, r: SLOT_R[s.type] * 0.9, c: s.type === 'bell' ? 'm-corridor' : 'm-statue' })),
+        ...slots.map((s) => ({ x: s.x, z: s.z, r: slotR(s) * 0.9, c: s.type === 'bell' ? 'm-corridor' : 'm-statue' })),
       ],
       labels,
     },
