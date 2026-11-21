@@ -335,7 +335,7 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
     const go = p.id === here
       ? h('button', { class: 'btn-primary', 'data-close': true, text: 'Bạn đang ở đây' })
       : p.built
-        ? h('button', { class: 'btn-primary', text: `Đến ${p.name}`, onclick: () => (location.href = PAGES[p.built]) })
+        ? h('button', { class: 'btn-primary', text: `Đến ${p.name}`, onclick: () => (location.href = PAGES[p.built] || `./chua.html?site=${encodeURIComponent(p.built)}`) })
         : h('button', { class: 'btn-primary', text: 'Xem khu đất', onclick: () => (location.href = `./datrong.html?chua=${encodeURIComponent(p.id)}&tu=${home}`) });
     card.replaceChildren(...[
       h('button', { class: 'x vn-card-x', 'aria-label': 'Đóng', text: '×', onclick: () => { card.replaceChildren(); selected?.node?.classList.remove('sel'); selected?.row?.classList.remove('sel'); selected = null; } }),
