@@ -323,3 +323,158 @@ export function arhatHall(ctx, { count = 9 } = {}) {
   }
   figureField(ctx, list, { color: '#8a5a32', metal: 0.1 });
 }
+
+// ───────────── Chùa Hương: thuyền chở khách trên suối Yến ─────────────
+// Mỗi thuyền lướt chầm chậm qua lại trong khoảng nước hai bên cầu, người chèo đội nón lá.
+export function yenBoats(ctx, { count = 6, z0 = 21.4, z1 = 28.6 } = {}) {
+  const { THREE, scene, K, std } = ctx;
+  const hullM = std('#7a5a36', { roughness: 0.8 }), hatM = std('#e6d3a0', { roughness: 0.9 }), cloth = [std('#6a7f55'), std('#a8532f'), std('#4d6a8a'), std('#8a6a9a')];
+  const boats = [];
+  for (let i = 0; i < count; i++) {
+    const g = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.34, 1.05), hullM);
+    hull.position.y = 0.12;
+    g.add(hull);
+    for (const s of [-1, 1]) { // mũi và lái vút lên
+      const e = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.95), hullM);
+      e.position.set(s * 1.85, 0.3, 0);
+      e.rotation.z = -s * 0.45;
+      g.add(e);
+    }
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 0.7, 8), cloth[i % cloth.length]);
+    body.position.set(-1.0, 0.65, 0);
+    g.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), std('#d9b48a'));
+    head.position.set(-1.0, 1.15, 0);
+    g.add(head);
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.26, 12), hatM);
+    hat.position.set(-1.0, 1.33, 0);
+    g.add(hat);
+    const oar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.0, 5), hullM);
+    oar.position.set(-1.0, 0.45, 0.8);
+    oar.rotation.x = 1.0;
+    g.add(oar);
+    // khách ngồi giữa thuyền
+    const guest = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), cloth[(i + 1) % cloth.length]);
+    guest.position.set(0.5, 0.5, 0);
+    g.add(guest);
+    g.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    const left = i % 2 === 0;
+    const c = left ? -14 - (i % 3) * 3 : 14 + (i % 3) * 3;
+    const z = z0 + (i / (count - 1)) * (z1 - z0);
+    boats.push({ g, c, z, A: 7, ph: i * 1.3, w: 0.16 + (i % 3) * 0.02 });
+    scene.add(g);
+  }
+  K.updaters.push((t) => {
+    for (const b of boats) {
+      const a = t * b.w + b.ph;
+      b.g.position.set(b.c + Math.sin(a) * b.A, 0.12 + Math.sin(t * 1.4 + b.ph) * 0.03, b.z + Math.sin(a * 0.7) * 0.5);
+      b.g.rotation.y = Math.cos(a) >= 0 ? 0 : Math.PI;
+      b.g.rotation.z = Math.sin(t * 1.1 + b.ph) * 0.02;
+    }
+  });
+}
+
+// ───────────── Chùa Hương: cửa động Hương Tích (khối đá có vòm tối, tượng Phật nhỏ bên trong) ─────────────
+export function caveMouth(ctx, key) {
+  const { THREE, scene, K, std, plaque } = ctx;
+  const { x, z } = slotOf(ctx, key);
+  const rock = std('#8e978a', { roughness: 1, flatShading: true }), rockD = std('#6f786c', { roughness: 1, flatShading: true });
+  const dark = std('#0b0907', { roughness: 1 });
+  const add = (geo, mat, px, py, pz, sx = 1, sy = 1, sz = 1, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.scale.set(sx, sy, sz); m.rotation.y = ry; m.castShadow = true; scene.add(m); return m; };
+  // khối núi đá bao quanh cửa động
+  const D = new THREE.DodecahedronGeometry(1, 0);
+  add(D, rock, x, 2.6, z - 1.8, 5.2, 3.6, 3.8, 0.3);
+  add(D, rockD, x - 3.4, 1.8, z - 0.8, 2.8, 2.6, 2.6, 1.1);
+  add(D, rockD, x + 3.4, 1.8, z - 0.8, 2.8, 2.6, 2.6, 2.1);
+  add(D, rock, x - 1.6, 4.6, z - 2.0, 3.0, 2.2, 2.4, 0.6);
+  add(D, rock, x + 1.8, 4.4, z - 2.2, 2.6, 2.0, 2.2, 1.6);
+  add(D, rock, x, 5.6, z - 2.6, 2.0, 1.4, 1.6, 0.9);
+  // vòm cửa động
+  add(new THREE.BoxGeometry(2.8, 2.6, 2.6), dark, x, 1.3, z + 0.6);
+  const arch = add(new THREE.CylinderGeometry(1.4, 1.4, 2.6, 16, 1, false, -Math.PI / 2, Math.PI), dark, x, 2.6, z + 0.6);
+  arch.rotation.x = Math.PI / 2;
+  for (const s of [-1, 1]) add(D, rock, x + s * 1.9, 1.2, z + 1.8, 0.9, 1.3, 0.9, s); // trụ đá hai bên cửa
+  add(D, rock, x, 4.1, z + 1.6, 2.2, 0.7, 1.0, 0.4); // đá đỉnh vòm
+  for (let i = -3; i <= 3; i++) { // nhũ đá rủ xuống mép vòm
+    const h = 0.4 + (((i * 7) % 3) + 3) % 3 * 0.18;
+    const c = add(new THREE.ConeGeometry(0.1, h, 5), rockD, x + i * 0.36, 3.75 - Math.abs(i) * 0.14 - h / 2, z + 1.85);
+    c.rotation.z = Math.PI;
+  }
+  // tượng Phật nhỏ phát sáng trong động
+  const gold = std('#e0b64a', { metalness: 0.5, roughness: 0.4, emissive: '#8a6212', emissiveIntensity: 0.6 });
+  add(new THREE.CylinderGeometry(0.5, 0.6, 0.18, 12), gold, x, 0.1, z - 0.2);
+  add(new THREE.CylinderGeometry(0.22, 0.45, 0.8, 10), gold, x, 0.6, z - 0.2);
+  add(new THREE.SphereGeometry(0.22, 10, 8), gold, x, 1.15, z - 0.2);
+  plaque(scene, 'HƯƠNG TÍCH ĐỘNG', x, 4.6, z + 2.3, 3.2, 0.52, 0, { size: 80 });
+  K.roofs.push({ minX: x - 6, maxX: x + 6, minZ: z - 6, maxZ: z + 4, lift: 8 });
+}
+
+// ───────────── Hoa Yên: cây tùng cổ, vườn tháp Huệ Quang, biển mây ─────────────
+export function ancientPine(ctx, key) {
+  const { THREE, scene, std, plaque } = ctx;
+  const { x, z } = slotOf(ctx, key);
+  const bark = std('#4e3a28', { roughness: 1, flatShading: true }), leaf = std('#3f6a3a', { roughness: 0.9, flatShading: true }), leaf2 = std('#4c7c42', { roughness: 0.9, flatShading: true });
+  const add = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; scene.add(m); return m; };
+  add(new THREE.CylinderGeometry(0.7, 1.1, 3.6, 8), bark, x, 1.8, z).rotation.z = 0.05;
+  add(new THREE.CylinderGeometry(0.5, 0.7, 3.4, 8), bark, x + 0.5, 4.9, z).rotation.z = -0.22;
+  add(new THREE.CylinderGeometry(0.35, 0.5, 3.0, 8), bark, x - 0.2, 7.8, z + 0.2).rotation.z = 0.18;
+  // tán lá xoè từng tầng như thông cổ thụ
+  for (const [dx, dy, dz, r, m] of [[0.2, 9.6, 0.2, 2.6, leaf], [-2.8, 6.4, 0.6, 2.6, leaf2], [3.0, 7.0, -0.8, 2.8, leaf], [0.6, 5.0, 2.8, 2.2, leaf2], [-1.6, 8.0, -2.2, 2.4, leaf2]]) {
+    const b = add(new THREE.IcosahedronGeometry(r, 1), m, x + dx, dy, z + dz);
+    b.scale.set(1.25, 0.55, 1.25);
+  }
+  for (const [dx, dy, a] of [[-1.5, 5.2, 0.9], [1.6, 6.4, -0.9], [-0.9, 7.2, 0.5]]) { // cành ngang
+    add(new THREE.CylinderGeometry(0.16, 0.28, 3.0, 6), bark, x + dx, dy, z).rotation.z = Math.PI / 2 - a * 0.3;
+  }
+  add(new THREE.CylinderGeometry(1.6, 1.8, 0.3, 10), std('#7d776d', { roughness: 1 }), x, 0.15, z);
+  plaque(scene, 'TÙNG CỔ', x + (x < 0 ? 2.4 : -2.4), 1.4, z, 1.4, 0.34, x < 0 ? Math.PI / 2 : -Math.PI / 2, { size: 70 });
+}
+
+// Vườn tháp: nhiều tháp gạch nhỏ nhiều tầng quây quanh một tháp chính (như vườn tháp tổ trên Yên Tử)
+export function stupaGarden(ctx, key, { label = 'THÁP HUỆ QUANG' } = {}) {
+  const { THREE, scene, M, std, box, mesh, plaque } = ctx;
+  const { x, z } = slotOf(ctx, key);
+  const brick = std('#8c6a4a', { roughness: 0.95 }), ledge = std('#6a4a32', { roughness: 0.95 });
+  const gold = std('#d9b04e', { metalness: 0.6, roughness: 0.4 });
+  const one = (px, pz, tiers, w0) => {
+    box(w0 + 1.0, 0.5, w0 + 1.0, M.stoneD, px, 0.25, pz);
+    let y = 0.5;
+    for (let i = 0; i < tiers; i++) {
+      const w = w0 * (1 - i * 0.11);
+      box(w, 1.15, w, brick, px, y + 0.575, pz);
+      box(w + 0.35, 0.16, w + 0.35, ledge, px, y + 1.23, pz);
+      y += 1.31;
+    }
+    mesh(new THREE.ConeGeometry(w0 * 0.3, 1.4, 4).rotateY(Math.PI / 4), ledge, px, y + 0.7, pz);
+    mesh(new THREE.ConeGeometry(0.12, 0.9, 6), gold, px, y + 1.8, pz);
+  };
+  one(x, z, 6, 2.2);
+  one(x - 3.2, z + 1.8, 4, 1.6); one(x + 3.2, z + 1.8, 4, 1.6);
+  one(x - 2.8, z - 2.6, 3, 1.4); one(x + 2.8, z - 2.6, 3, 1.4);
+  plaque(scene, label, x, 1.5, z + 4.4, 2.6, 0.42, 0, { size: 76 });
+}
+
+// Biển mây: những cụm mây trắng trôi chậm quanh chùa trên núi cao
+export function cloudSea(ctx, { n = 16, minX = 32, maxX = 60, z0 = -30, z1 = 45, y0 = 1.5, y1 = 7 } = {}) {
+  const { THREE, scene, K } = ctx;
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, transparent: true, opacity: 0.82, flatShading: true });
+  const puffs = [];
+  for (let i = 0; i < n; i++) {
+    const g = new THREE.Group();
+    for (const [dx, dy, dz, r] of [[0, 0, 0, 3.2], [2.8, -0.3, 0.6, 2.4], [-2.6, -0.2, -0.5, 2.6], [0.8, 0.9, -0.8, 2.0]]) {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), mat);
+      m.position.set(dx, dy, dz);
+      m.scale.y = 0.6;
+      g.add(m);
+    }
+    const side = i % 2 ? 1 : -1;
+    const bx = side * (minX + (((i * 37) % 100) / 100) * (maxX - minX));
+    g.position.set(bx, y0 + (((i * 53) % 100) / 100) * (y1 - y0), z0 + (((i * 29) % 100) / 100) * (z1 - z0));
+    puffs.push({ g, bx, ph: i * 0.9, y: g.position.y });
+    scene.add(g);
+  }
+  K.updaters.push((t) => {
+    for (const p of puffs) { p.g.position.x = p.bx + Math.sin(t * 0.05 + p.ph) * 5; p.g.position.y = p.y + Math.sin(t * 0.2 + p.ph) * 0.3; }
+  });
+}

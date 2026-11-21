@@ -20,8 +20,8 @@ export const SITE = makeYardSite({
   says: ['Nam mô A Di Đà Phật', 'Chùa Thầy bên hồ đẹp quá', 'Núi Sài Sơn xanh ghê', 'Cầu đá soi bóng nước'],
   bridgeName: 'Cầu có mái che',
   custom: {},
-  extraPlaces: [{ id: 'thuydinh', name: 'Ngắm thủy đình', x: -8.7, z: 34.5, ry: Math.PI }],
+  extraPlaces: [{ id: 'thuydinh', name: 'Ngắm thủy đình', x: -8.7, z: 33.6, ry: Math.PI }],
   extraLabels: [['thuydinh', -8.7, 18, 'Thủy đình']],
-  extraTrips: [{ x: -8.7, z: 34.5, spread: 2, ry: Math.PI, say: 'Thủy đình đẹp quá' }],
+  extraTrips: [{ x: -8.7, z: 33.6, spread: 2, ry: Math.PI, say: 'Thủy đình đẹp quá' }],
   extras: (ctx) => { coveredBridge(ctx, { shrine: false, animals: false, label: 'NHẬT TIÊN KIỀU' }); waterStage(ctx, -8.7, 23); },
 });
