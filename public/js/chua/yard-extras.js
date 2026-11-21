@@ -228,51 +228,6 @@ export function bigBuddha(ctx, key, { scale = 4.4 } = {}) {
   K.roofs.push({ minX: x - 8, maxX: x + 8, minZ: z - 8, maxZ: z + 8, lift: 24 });
 }
 
-// Cầu Vàng: dải cầu vàng uốn cong, nâng đỡ ở giữa bởi hai bàn tay đá khổng lồ nằm hai bên cầu, ngón xoè ra ngoài.
-// Dựng ngoài tường phía phải để ngắm từ sân.
-export function goldenBridge(ctx, { x0 = 46, x1 = 84, zc = -6, y = 8 } = {}) {
-  const { THREE, scene, std } = ctx;
-  const rock = std('#9a9386', { roughness: 1, flatShading: true });
-  const gold = std('#e2b441', { metalness: 0.5, roughness: 0.4, emissive: '#7a5a10', emissiveIntensity: 0.25 });
-  const N = 48, W = 3.0;
-  const P = (t) => new THREE.Vector3(x0 + (x1 - x0) * t, y + 0.6 * Math.sin(Math.PI * t), zc + 6 * Math.sin(Math.PI * t));
-  const add = (geo, mat, p, ry = 0, rz = 0, parent = scene) => { const m = new THREE.Mesh(geo, mat); m.position.copy(p); m.rotation.set(0, ry, rz); m.castShadow = true; parent.add(m); return m; };
-  for (let i = 0; i < N; i++) {
-    const a = P(i / N), b = P((i + 1) / N), d = new THREE.Vector3().subVectors(b, a);
-    const len = Math.hypot(d.x, d.z) + 0.05, ry = -Math.atan2(d.z, d.x), mid = a.clone().add(b).multiplyScalar(0.5);
-    add(new THREE.BoxGeometry(len, 0.25, W), gold, mid, ry);
-    const nrm = new THREE.Vector3(-d.z, 0, d.x).normalize().multiplyScalar(W / 2);
-    for (const s of [-1, 1]) {
-      add(new THREE.BoxGeometry(len, 0.07, 0.07), gold, mid.clone().add(nrm.clone().multiplyScalar(s)).add(new THREE.Vector3(0, 1.0, 0)), ry);
-      if (i % 3 === 0) add(new THREE.BoxGeometry(0.07, 1.0, 0.07), gold, mid.clone().add(nrm.clone().multiplyScalar(s)).add(new THREE.Vector3(0, 0.5, 0)), ry);
-    }
-  }
-  // hai đầu cầu tựa vào hai tảng đá
-  for (const t of [0, 1]) {
-    const p = P(t);
-    add(new THREE.CylinderGeometry(3.0, 4.2, p.y + 2, 9), rock, new THREE.Vector3(p.x + (t ? 1.5 : -1.5), (p.y - 2) / 2 - 0.2, p.z));
-  }
-  // hai bàn tay đá ở giữa cầu: một trái một phải, lòng bàn tay ngửa, các ngón xoè ra hai bên (về phía người nhìn)
-  const m = P(0.5), HY = m.y - 0.7;
-  for (const s of [-1, 1]) {
-    const hz = m.z + s * 3.5;
-    add(new THREE.CylinderGeometry(3.4, 4.8, HY + 2, 9), rock, new THREE.Vector3(m.x + 1.2, (HY - 2) / 2 - 0.3, hz + s * 0.6));
-    const g = new THREE.Group();
-    g.position.set(m.x, HY, hz);
-    g.rotation.y = s * 0.45; // ngón xoè ra ngoài
-    scene.add(g);
-    add(new THREE.BoxGeometry(6.0, 1.1, 4.6), rock, new THREE.Vector3(1.2, 0, 0), 0, 0, g);
-    for (let f = 0; f < 4; f++) {
-      const fz = -1.7 + f * 1.13, len = 5.0 - Math.abs(f - 1.5) * 0.6;
-      const fm = add(new THREE.CylinderGeometry(0.42, 0.5, len, 10), rock, new THREE.Vector3(-(1.8 + len / 2 - 0.4), 0.25, fz), 0, 0, g);
-      fm.rotation.set(0, 0, Math.PI / 2 - 0.1);
-      add(new THREE.SphereGeometry(0.44, 10, 8), rock, new THREE.Vector3(-(1.8 + len - 0.2), 0.75, fz), 0, 0, g);
-    }
-    const th = add(new THREE.CylinderGeometry(0.5, 0.58, 3.0, 10), rock, new THREE.Vector3(-0.8, 0.2, -s * 2.9), 0, 0, g);
-    th.rotation.set(0, -s * 0.6, Math.PI / 2 - 0.3);
-  }
-}
-
 // ───────────── Chùa Thầy: thủy đình (sân khấu rối nước) trên hồ ─────────────
 export function waterStage(ctx, x, z) {
   const { THREE, scene, M, std, box, cyl, plaque } = ctx;

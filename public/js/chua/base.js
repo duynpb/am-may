@@ -661,6 +661,7 @@ export function profileY(profile, r) {
 // clip = { x0, x1, z0, z1, floor(x, z) }: trong khuôn viên chùa (hình chữ nhật này), mặt đồi luôn thấp hơn
 // mặt sân / nền / bậc thang ít nhất 1,5 m — đồi không bao giờ trồi lên phủ lối đi.
 export function makeHill(K, cx, cz, profile, { color = '#56713e', seg = 144, bumps = 1.2, clip = null } = {}) {
+  const clips = Array.isArray(clip) ? clip : clip ? [clip] : []; // một hay nhiều vùng hạ đồi xuống mặt đất
   const top = profile[0][1], rMax = profile[profile.length - 1][0];
   // chia dày các vòng (mỗi 3 m) để phần bị hạ thấp trong khuôn viên không bị tam giác lớn kéo trồi lên
   const pts = [];
@@ -674,11 +675,13 @@ export function makeHill(K, cx, cz, profile, { color = '#56713e', seg = 144, bum
     const a = Math.atan2(z - cz, x - cx);
     let y = profileY(profile, Math.hypot(x - cx, z - cz));
     y += bump(y, a);
-    if (clip && x > clip.x0 && x < clip.x1 && z > clip.z0 && z < clip.z1) {
-      // lấy mặt đất thấp nhất quanh điểm (±7 m) vì các ô của đồi thưa: mép nền cao không kéo đồi trồi lên lối đi bên cạnh
-      let f = Infinity;
-      for (const dx of [-7, 0, 7]) for (const dz of [-7, 0, 7]) f = Math.min(f, clip.floor(x + dx, z + dz));
-      y = Math.min(y, f - 1.5);
+    for (const cl of clips) {
+      if (x > cl.x0 && x < cl.x1 && z > cl.z0 && z < cl.z1) {
+        // lấy mặt đất thấp nhất quanh điểm (±7 m) vì các ô của đồi thưa: mép nền cao không kéo đồi trồi lên lối đi bên cạnh
+        let f = Infinity;
+        for (const dx of [-7, 0, 7]) for (const dz of [-7, 0, 7]) f = Math.min(f, cl.floor(x + dx, z + dz));
+        y = Math.min(y, f - 1.5);
+      }
     }
     return y;
   };

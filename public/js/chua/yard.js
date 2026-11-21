@@ -78,9 +78,9 @@ export function makeYardSite(cfg) {
       floor(-48, 48, GATE_Z + 3, 56, 0, 'tile', { tile: 2.5, macro: 0.04, tint: '#e8e0d0' });
       floor(YARD.x0, YARD.x1, YARD.z0, GATE_Z + 3, 0, 'slab', { tile: 5.5, macro: 0.05 });
       const h = hill.h;
-      hillAt = makeHill(K, 0, -110, [[0, h], [30, h - 2], [62, h * 0.42], [95, 2], [130, -1]], { color: hill.color, clip: { x0: -46, x1: 46, z0: -38, z1: 58, floor: groundY } });
+      hillAt = makeHill(K, 0, -110, [[0, h], [30, h - 2], [62, h * 0.42], [95, 2], [130, -1]], { color: hill.color, clip: [{ x0: -46, x1: 46, z0: -38, z1: 58, floor: groundY }, ...(cfg.hillClips || [])] });
       const lift = ([x, z]) => [x, z, Math.max(0, hillAt(x, z)) - 0.2];
-      const far = [...K.scatter(-130, 130, -160, -50, 70), ...K.scatter(-100, -34, -50, 50, 40), ...K.scatter(34, 100, -50, 50, 40)].map(lift);
+      const far = [...K.scatter(-130, 130, -160, -50, 70), ...K.scatter(-100, -34, -50, 50, 40), ...K.scatter(34, 100, -50, 50, 40)].filter(([x, z]) => !cfg.treeFilter || cfg.treeFilter(x, z)).map(lift);
       if (cfg.trees === 'palm') {
         K.palms([...K.scatter(-80, -34, -30, 52, 24), ...K.scatter(34, 80, -30, 52, 24)]);
         K.forest(far, 0, { scale: 1.1 });
@@ -96,7 +96,11 @@ export function makeYardSite(cfg) {
     // ---------- Cổng, tường ----------
     K.gate3(0, GATE_Z, cfg.plaque, { walls: 12, wall: wallC });
     for (const s of [-1, 1]) {
-      box(0.6, 2.6, GATE_Z - YARD.z0, wallC, s * (YARD.x1 + 0.3), 1.3, (GATE_Z + YARD.z0) / 2);
+      if (s === 1 && cfg.eastGate) { // tường phía phải chừa một cửa dẫn ra ngoài
+        const g = cfg.eastGate, zA = g.z - g.w / 2, zB = g.z + g.w / 2;
+        box(0.6, 2.6, zA - YARD.z0, wallC, YARD.x1 + 0.3, 1.3, (zA + YARD.z0) / 2);
+        box(0.6, 2.6, GATE_Z - zB, wallC, YARD.x1 + 0.3, 1.3, (GATE_Z + zB) / 2);
+      } else box(0.6, 2.6, GATE_Z - YARD.z0, wallC, s * (YARD.x1 + 0.3), 1.3, (GATE_Z + YARD.z0) / 2);
       K.lion(s * 4.2, 0, GATE_Z + 3.4);
     }
     box(YARD.x1 - YARD.x0, 2.6, 0.6, wallC, 0, 1.3, YARD.z0 - 0.3);
