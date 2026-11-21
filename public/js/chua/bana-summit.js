@@ -29,7 +29,7 @@ export function onBridge(x, z, pad = 0.2) {
   return t >= ARC.th0 - 0.002 && t <= ARC.th1 + 0.002;
 }
 export function groundY(x, z) {
-  return onBridge(x, z) ? Y : H(x, z);
+  return onBridge(x, z, 1.3) ? Y : H(x, z); // dải rộng hơn mặt cầu: lỡ bước sát lan can cũng không bị rơi xuống thung lũng
 }
 
 // ───────────── khu vực đi bộ (chữ nhật) và vật cản tròn ─────────────
@@ -42,16 +42,16 @@ export const WALK = [
   rect(52, 60, -45, -31), // lối từ quảng trường vào vườn hoa
   rect(GARDEN.x0, GARDEN.x1, GARDEN.z0, GARDEN.z1),
   rect(76, S.x - 11, GATE_Z - 4, GATE_Z + 4), // đường dốc lên chân cầu
-  rect(S.x - 14, S.x + 12, GATE_Z - 11, GATE_Z + 11), // sân chân cầu
-  rect(E.x - 40, E.x + 4, GATE_Z - 22, GATE_Z + 14), // mỏm đầu cầu bên kia (đài ngắm, ga cáp treo)
+  rect(S.x - 14, S.x + 0.5, GATE_Z - 11, GATE_Z + 11), // sân chân cầu (dừng đúng chỗ bắt đầu mặt cầu)
+  rect(E.x - 22, E.x + 4, GATE_Z - 20, GATE_Z + 14), // mỏm phẳng đầu cầu bên kia (đài ngắm, ga cáp treo); đoạn trước đó chỉ đi trên mặt cầu
 ];
 {
   const L = ARC.R * (ARC.th1 - ARC.th0);
-  const n = Math.ceil(L / 0.9);
+  const n = Math.ceil(L / 0.6); // ô nhỏ sát đường tim cầu: người đi không ra khỏi lan can (cách tim 1,25 m)
   for (let i = 0; i <= n; i++) {
     const th = ARC.th0 + ((ARC.th1 - ARC.th0) * i) / n;
     const [px, pz] = arcPt(th);
-    WALK.push(rect(px - 1.45, px + 1.45, pz - 1.45, pz + 1.45));
+    WALK.push(rect(px - 0.8, px + 0.8, pz - 0.8, pz + 0.8));
   }
 }
 export const OBSTACLES = [
