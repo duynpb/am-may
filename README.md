@@ -179,3 +179,9 @@ Nếu chỉ cần bản ngoại tuyến, đưa thư mục `public/` lên GitHub 
 - Tối ưu cho điện thoại: kiến trúc đứng yên được gộp theo vật liệu lúc dựng cảnh (ít lệnh vẽ hơn); tượng nặng (tượng Phật, Quan Âm, La Hán) chỉ vẽ khi người chơi ở gần; các tượng Phật sao chép dùng bản lưới thưa hơn. Đồ họa Nhẹ (mặc định trên điện thoại) tắt bóng đổ, chỉ dựng một hàng tượng La Hán và giảm độ phân giải.
 - Khi chánh điện trực tuyến còn vắng (dưới 14 người), vài khách mô phỏng ngồi cùng cho ấm cúng. Họ nhường chỗ khi có người thật vào. Số người ở góc phải luôn là số người thật.
 - Mỗi phòng tối đa 120 người; máy chủ giới hạn tốc độ tin nhắn và làm sạch tên hiển thị.
+
+## Bản đồ chi tiết (OpenStreetMap)
+Trong khung "Bản đồ Việt Nam" có nút "Bản đồ chi tiết": chuyển sang ảnh nền bản đồ của OpenStreetMap, các chấm chùa đặt đúng toạ độ.
+- Thư viện Leaflet 1.9.4 (BSD-2) đặt sẵn trong `public/vendor/leaflet/` (đúng bản chính thức từ cdnjs, đã đối chiếu mã băm); mã của mình ở `public/js/osmmap.js`.
+- Chỉ ảnh nền tải từ `tile.openstreetmap.org`, và chỉ khi người dùng bấm nút (xem quy định dùng ảnh nền: https://operations.osmfoundation.org/policies/tiles/). Có ghi nguồn "© OpenStreetMap" ở góc bản đồ. Nếu lượng người dùng tăng nhiều, nên đổi sang nhà cung cấp ảnh nền riêng.
+- Toạ độ các chùa được đối chiếu bằng tìm kiếm Nominatim của OpenStreetMap (đúng tên chùa, cách vị trí cũ không quá ~9 km thì mới lấy).

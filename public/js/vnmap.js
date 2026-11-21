@@ -58,13 +58,50 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
   let built = false, selected = null;
   const view = h('div', { class: 'vn-view' });
   const svg = el('svg', { class: 'vn-svg', 'aria-label': 'Bản đồ Việt Nam' });
-  view.append(svg);
+  const osmBox = h('div', { class: 'vn-osm-box', hidden: true }); // bản đồ chi tiết OpenStreetMap (chỉ dựng khi bấm nút)
+  view.append(svg, osmBox);
   const card = h('div', { class: 'vn-card' });
   const tools = h('div', { class: 'vn-zoom' },
     h('button', { 'aria-label': 'Phóng to', title: 'Phóng to', text: '+', onclick: () => zoomBy(1 / 1.6) }),
     h('button', { 'aria-label': 'Thu nhỏ', title: 'Thu nhỏ', text: '−', onclick: () => zoomBy(1.6) }),
     h('button', { class: 'vn-fit', title: 'Toàn cảnh', text: 'Toàn cảnh', onclick: () => { fit(); apply(); } }));
+  const osmBtn = h('button', { class: 'vn-fit vn-osm', title: 'Bản đồ chi tiết OpenStreetMap', text: 'Bản đồ chi tiết', onclick: () => toggleOsm() });
+  tools.prepend(osmBtn);
   view.append(tools, card);
+  let osmOn = false, osm = null, osmBusy = false;
+  async function toggleOsm() {
+    if (osmBusy) return;
+    if (!osmOn) {
+      osmBusy = true;
+      osmBtn.textContent = 'Đang tải bản đồ…';
+      try {
+        osmBox.hidden = false;
+        if (!osm) {
+          const { createOsm } = await import('./osmmap.js');
+          osm = await createOsm(osmBox, PAGODAS, { here, onPick: (p) => select(p) });
+        }
+        osm.show();
+        osmOn = true;
+        svg.style.display = 'none';
+        tools.classList.add('osm');
+        osmBtn.textContent = 'Bản đồ vẽ tay';
+        osm.select(selected || PAGODAS.find((p) => p.id === here) || PAGODAS[0], { zoom: 12 });
+      } catch (e) {
+        console.warn('Bản đồ chi tiết không tải được', e);
+        osmBox.hidden = true;
+        osmBtn.textContent = 'Bản đồ chi tiết';
+      } finally {
+        osmBusy = false;
+      }
+    } else {
+      osmOn = false;
+      osmBox.hidden = true;
+      svg.style.display = '';
+      tools.classList.remove('osm');
+      osmBtn.textContent = 'Bản đồ chi tiết';
+      apply();
+    }
+  }
   // danh sách chùa bên phải: ô tìm, chia theo miền; di chuột / chạm vào tên thì sáng tên và chấm trên bản đồ
   const search = h('input', { class: 'vn-search', type: 'search', placeholder: 'Tìm chùa hoặc tỉnh…', 'aria-label': 'Tìm chùa hoặc tỉnh' });
   const listBox = h('div', { class: 'vn-list-items' });
@@ -135,7 +172,7 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
     return [e.clientX - r.left, e.clientY - r.top];
   };
   view.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.vn-zoom, .vn-card')) return;
+    if (osmOn || e.target.closest('.vn-zoom, .vn-card')) return;
     pts.set(e.pointerId, local(e));
     if (pts.size === 1) moved = 0;
     if (pts.size === 2) {
@@ -170,12 +207,13 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
   window.addEventListener('pointerup', up);
   window.addEventListener('pointercancel', up);
   view.addEventListener('wheel', (e) => {
+    if (osmOn) return;
     e.preventDefault();
     const [x, y] = local(e);
     zoomAt(x, y, vb.w * Math.pow(1.0018, e.deltaY * (e.deltaMode === 1 ? 30 : 1)));
   }, { passive: false });
   view.addEventListener('dblclick', (e) => {
-    if (e.target.closest('.vn-zoom, .vn-card, .vn-pin')) return;
+    if (osmOn || e.target.closest('.vn-zoom, .vn-card, .vn-pin')) return;
     const [x, y] = local(e);
     zoomAt(x, y, vb.w / 1.8);
   });
@@ -287,9 +325,9 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
         row.addEventListener('focus', () => highlight(p));
         row.addEventListener('blur', () => highlight(null));
         row.addEventListener('click', () => {
-          select(p);
+          select(p, true);
           // đưa chùa vào giữa bản đồ; đang nhìn toàn cảnh thì phóng to vừa phải
-          centerOn(p.lon, p.lat, Math.min(vb.w, fitW / 3));
+          if (!osmOn) centerOn(p.lon, p.lat, Math.min(vb.w, fitW / 3));
         });
         p.row = row;
         p.key = norm(`${p.name} ${p.prov} ${p.old || ''}`);
@@ -325,7 +363,7 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
     if (fromMap && p.row && !p.row.hidden) p.row.scrollIntoView({ block: 'nearest' });
   }
 
-  function select(p) {
+  function select(p, fromList = false) {
     selected?.node?.classList.remove('sel');
     selected?.row?.classList.remove('sel');
     selected = p;
@@ -344,6 +382,7 @@ export function createVnMap({ openModal, closeModal, here, from = here }) {
       h('p', { class: 'muted', text: p.built ? 'Chùa đã dựng trong Am Mây.' : 'Chùa này chưa được dựng trong Am Mây — hiện là khu đất trống chờ ngày dựng chùa.' }),
       go,
     ].filter(Boolean));
+    if (osmOn) osm?.select(p, fromList ? { zoom: 13 } : {});
   }
 
   let first = true;
