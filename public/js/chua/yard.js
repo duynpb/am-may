@@ -59,6 +59,7 @@ export function makeYardSite(cfg) {
   const groundY = (x, z) => {
     if (inHall(HALL, x, z)) return 0.25;
     if (Math.abs(x) < 14 && Math.abs(z - GATE_Z) < 3) return 0.3;
+    if (BR && bridgeZ && Math.abs(x) <= BR && z >= bridgeZ[0] - 0.6 && z <= bridgeZ[1] + 0.6) return 0.35; // mặt cầu đá cao 0,35 m: đi trên cầu không bị lún
     return 0;
   };
   let hillAt = () => -1;
